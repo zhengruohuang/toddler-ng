@@ -8,10 +8,10 @@ The next generation Toddler
 * Refined kernel APIs
 * Refined VFS and user model
 * libc from NetBSD
-* Console and shell
-* NetBSD as an environmental system
+* Console, shell, and utilities
 
 ## Long-term Goals
+* NetBSD as an environmental system
 * X11
 * Package management system
 * Test on real machines
