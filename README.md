@@ -2,6 +2,7 @@
 The next generation Toddler
 
 ## Major Goals
+* Written in C99
 * Unified boot protocol for all architectures with Device Tree support, combined with ACPI on x86 and OFW on PPC
 * Support more architectures (ARM64, PowerPC64, RISC-V, Alpha, SPARC) and machines (Multiple ARM boards)
 * More efficient IPC
