@@ -2,7 +2,7 @@
 The next generation Toddler
 
 ## Major Goals
-* Unified boot protocol for all architectures with the help of Device Tree
+* Unified boot protocol for all architectures with Device Tree support, combined with ACPI on x86 and OFW on PPC
 * Support more architectures (ARM64, PowerPC64, RISC-V, Alpha) and machines (Multiple ARM boards)
 * More efficient IPC
 * Refined kernel APIs
