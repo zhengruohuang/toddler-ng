@@ -1,0 +1,8 @@
+#ifndef __ARCH_ARM_COMMON_INCLUDE_ABI_H__
+#define __ARCH_ARM_COMMON_INCLUDE_ABI_H__
+
+
+#define ELF_GOT_NUM_RESERVED_ENTRIES 0
+
+
+#endif

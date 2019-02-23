@@ -1,0 +1,6 @@
+#!/usr/bin/python
+
+
+mips_endian_prefix = 'mips'
+
+include(arch_dir_map['mips'] + 'tmake.inc.mips')

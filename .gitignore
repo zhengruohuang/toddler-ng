@@ -1,0 +1,10 @@
+# Git
+/.git
+
+# Targets
+/target
+/vm
+
+# KDevelop
+/.kdev4
+*.kdev4

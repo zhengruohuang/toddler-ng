@@ -1,0 +1,212 @@
+#!/usr/bin/python
+
+
+def build_hal():
+    print_info('hal', 'Building HAL')
+
+    hal_ld = find_deepest_arch_file('hal/hal.ld')
+    hal_files = get_all_arch_files('hal/', [ '.c', '.S' ])
+
+    build_files(
+        bin_dir + 'tdlrhal.elf',
+        hal_files,
+        ext_ld_deps = [ hal_ld ],
+        ld_script = hal_ld,
+        toolchain = arch_default_toolchain,
+    )
+
+def build_kernel():
+    # Build kernel
+    print_info('kernel', 'Building kernel')
+
+    kernel_ld = find_deepest_arch_file('kernel/kernel.ld')
+    kernel_files = get_all_arch_files('kernel/', [ '.c', '.S' ])
+
+    build_files(
+        bin_dir + 'tdlrkrnl.elf',
+        kernel_files,
+        ext_ld_deps = [ kernel_ld ],
+        ld_script = kernel_ld,
+        toolchain = arch_default_toolchain,
+    )
+
+def build_klibc():
+    # Build klibc
+    print_info('klibc', 'Building klibc')
+
+    klib_files = get_all_arch_files('klibc/', [ '.c', '.S' ])
+
+    lib_files(
+        bin_dir + 'tdlrklibc.a',
+
+        klib_files,
+        toolchain = arch_default_toolchain,
+    )
+
+def build_user():
+    # External flags for generic processes
+    user_ld = find_deepest_arch_file('klibc/user.ld')
+    klibc = bin_dir + 'tdlrklibc.a'
+
+    # Build driver
+    print_info('driver', 'Building driver')
+    build_dir(
+        bin_dir + 'tdlrdrv.elf',
+        src_dir + 'driver/', [ '.c' ],
+        ext_libs = [ klibc ],
+        ext_ld_deps = [ user_ld ],
+        ld_script = user_ld,
+        toolchain = arch_default_toolchain,
+    )
+
+    # Build system
+    print_info('system', 'Building system')
+    build_dir(
+        bin_dir + 'tdlrsys.elf',
+        src_dir + 'system/', [ '.c' ],
+        ext_libs = [ klibc ],
+        ext_ld_deps = [ user_ld ],
+        ld_script = user_ld,
+        toolchain = arch_default_toolchain,
+    )
+
+    # Build shell
+    print_info('shell', 'Building shell')
+    build_dir(
+        bin_dir + 'tdlrshell.elf',
+        src_dir + 'shell/', [ '.c' ],
+        ext_libs = [ klibc ],
+        ext_ld_deps = [ user_ld ],
+        ld_script = user_ld,
+        toolchain = arch_default_toolchain,
+    )
+
+def build_fdt():
+    print_info('fdt', 'Building flattened device tree')
+
+    if not in_dict('dts', build_opts):
+        print_fatal('No device tree is specified')
+        quit()
+
+    compile_file(
+        img_dir + 'fdt.dtb',
+        build_opts['dts'],
+        toolchain = fdt_toolchain(),
+    )
+
+def build_coreimg():
+    print_info('coreimg', 'Building core image')
+
+    target_name = img_dir + 'tdlrcore.img'
+    src_files = [ \
+        bin_dir + 'tdlrhal.elf',
+        bin_dir + 'tdlrkrnl.elf',
+        bin_dir + 'tdlrdrv.elf',
+        bin_dir + 'tdlrsys.elf',
+        bin_dir + 'tdlrshell.elf',
+        src_dir + 'init/init.py',
+    ]
+
+    coreimg_gen = tools_bin_dir + 'coreimg'
+    deps = src_files + [ coreimg_gen ]
+
+    cmd = coreimg_gen + ' ' + target_name + ' ' + ' '.join(src_files)
+    operation(target_name, deps, cmd,
+        echo=print_compile, title=get_filename(target_name),
+        msg='Core image: ' + rel_path(target_name))
+
+    record_update(target_name)
+
+def build_loader():
+    print_info('loader', 'Building loader')
+
+    # Prepare loader file
+    loader_ld = find_deepest_arch_file('loader/loader.ld')
+    loader_files = get_all_arch_files('loader/', [ '.c', '.S' ])
+
+    # Embed FDT
+    embed_fdt = build_opts['embed_fdt'] if 'embed_fdt' in build_opts else False
+    if embed_fdt:
+        fdt = img_dir + 'fdt.dtb'
+        fdt_c = b2c_dir + 'fdt.dtb.c'
+        gen_embed_c(fdt_c, fdt, 'embedded_fdt', 8)
+        loader_files.append(fdt_c)
+
+    # Embed coreimg
+    embed_coreimg = build_opts['embed_coreimg'] if 'embed_coreimg' in build_opts else False
+    if embed_coreimg:
+        coreimg_c = b2c_dir + 'tdlrcore.img.c'
+        coreimg = img_dir + 'tdlrcore.img'
+        gen_embed_c(coreimg_c, coreimg, 'embedded_coreimg', 8)
+        loader_files.append(coreimg_c)
+
+    # Build loader
+    build_files(
+        bin_dir + 'tdlrldr.elf',
+        loader_files,
+        ext_ld_deps = [ loader_ld ],
+        ld_script = loader_ld,
+        toolchain = arch_default_toolchain,
+    )
+
+def build_boot():
+    print_info('boot', 'Building boot image')
+
+    loader_elf = bin_dir + 'tdlrldr.elf'
+    boot_elf = img_dir + 'tdlrboot.elf'
+    boot_bin = img_dir + 'tdlrboot.bin'
+
+    copy_file(boot_elf, loader_elf)
+
+    gen_bin(
+        target_name = boot_bin,
+        src_name = boot_elf,
+        toolchain = arch_default_toolchain
+    )
+
+def build_main():
+    build_hal()
+    build_kernel()
+    build_klibc()
+    build_user()
+    build_fdt()
+    build_coreimg()
+    build_loader()
+    build_boot()
+
+def run_qemu(opts):
+    mp = opts['mp'] if 'mp' in opts else False
+
+    title = 'Starting ' + ('MP ' if mp else '') + 'QEMU'
+    print_info('qemu', title)
+
+    bootimg = opts['bootimg'] if 'bootimg' in opts else img_dir + 'tdlrboot.elf'
+    coreimg = opts['coreimg'] if 'coreimg' in opts else img_dir + 'tdlrcore.img'
+    fdt = opts['fdt'] if 'fdt' in opts else img_dir + 'fdt.dtb'
+
+    qemu = opts['exec']
+    cpu = opts['cpu']
+    mach = opts['machine']
+    mem = opts['memory']
+    graphic = opts['graphic'] if 'graphic' in opts else True
+    embed_coreimg = build_opts['embed_coreimg'] if 'embed_coreimg' in build_opts else False
+    embed_fdt = build_opts['embed_fdt'] if 'embed_fdt' in build_opts else False
+    bootargs = opts['bootargs'] if 'bootargs' in opts else False
+
+    cmd = qemu + \
+        ' -cpu {0}'.format(cpu) + \
+        ' -M {0}'.format(mach) + \
+        ' -m {0}'.format(mem) + \
+        ' -serial mon:stdio' + \
+        ('' if graphic else ' -nographic') + \
+        ' -kernel {0}'.format(bootimg) + \
+        ('' if embed_coreimg else ' -initrd {0}'.format(coreimg)) + \
+        ('' if embed_fdt else ' -dtb {0}'.format(fdt)) + \
+        (' -append {0}'.format(bootargs) if bootargs else '') + \
+        (' -smp {0}'.format(mp) if mp else '')
+
+    code = exec_cmd(cmd)
+
+
+# Setup callback functions
+build_actions['build_main'] = build_main

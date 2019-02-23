@@ -1,0 +1,36 @@
+#!/usr/bin/python
+
+
+def build_tools():
+    # Prepare toolchain
+    toolchain = copy.deepcopy(default_toolchain)
+    toolchain.set_opt('ccflags', '-O2')
+    toolchain.set_opt('ldflags', '-static')
+
+    # Core image generator
+    print_info('tool.coreimg', 'Building core image tool')
+    build_files(
+        tools_bin_dir + 'coreimg',
+        [ tools_src_dir + 'coreimg.c' ],\
+        toolchain = toolchain
+    )
+
+    # Floppy image generator
+    print_info('tool.floppyimg', 'Building floppy image tool')
+    build_files(
+        tools_bin_dir + 'floppyimg',
+        [ tools_src_dir + 'floppyimg.c' ],
+        toolchain = toolchain
+    )
+
+    # Binary to C
+    print_info('tool.bin2c', 'Building binary to C tool')
+    build_files(
+        tools_bin_dir + 'bin2c',
+        [ tools_src_dir + 'bin2c.c' ],
+        toolchain = toolchain
+    )
+
+
+# Setup callback functions
+build_actions['build_tools'] = build_tools

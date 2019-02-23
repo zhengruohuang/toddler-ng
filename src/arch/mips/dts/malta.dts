@@ -1,0 +1,79 @@
+/dts-v1/;
+
+/memreserve/ 0x00000000 0x00001000;     /* YAMON exception vectors */
+/memreserve/ 0x00001000 0x000ef000;     /* YAMON */
+/memreserve/ 0x000f0000 0x00010000;     /* PIIX4 ISA memory */
+
+/ {
+    model = "qemu-malta";
+    compatible = "qemu,malta";
+
+    #address-cells = <1>;
+    #size-cells = <1>;
+
+    chosen {
+        stdout-path = &uart0;
+    };
+
+    memory@0 {
+        reg = <0x00000000 0x10000000>;
+    };
+
+    piix4e: south_bridge@b8000000 {
+        compatible = "intel,piix4e";
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        ranges = <0x0 0xb8000000 0x400>;
+
+        i8259: interrupt-controller@20 {
+            compatible = "intel,i8259";
+            reg = <0x20 2 0xa0 2>;
+        };
+
+        i8253: pit@40 {
+            compatible = "intel,i8253";
+            reg = <0x40 0x20>;
+        };
+
+        i8042: keyboard@60 {
+            compatible = "intel,i8042";
+            reg = <0x60 0x10>;
+        };
+
+        rtc: rtc@70 {
+            compatible = "motorola,mc146818";
+            reg = <0x70 0x8>;
+        };
+
+        ide1: ide@1f0 {
+            compatible = "intel,hdc";
+            reg = <0x1f0 0x8>;
+        };
+
+        ide2: ide@170 {
+            compatible = "intel,hdc";
+            reg = <0x170 0x8>;
+        };
+
+        i82077aa: fdc@3f0 {
+            compatible = "intel,i82077aa";
+            reg = <0x3f0 0x8>;
+        };
+
+        uart0: serial@3f8 {
+            compatible = "ns16550";
+            reg = <0x3f8 0x8>;
+            reg-shift = <0>;
+            clock-frequency = <1843200>;
+        };
+
+        uart1: serial@2f8 {
+            compatible = "ns16550";
+            reg = <0x2f8 0x8>;
+            reg-shift = <0>;
+            clock-frequency = <1843200>;
+        };
+    };
+};
+

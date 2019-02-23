@@ -1,0 +1,697 @@
+#!/usr/bin/python
+
+
+import os
+import sys
+import copy
+import shutil
+import subprocess
+import platform
+
+
+#-------------------------------------------------------------------------------
+# Helpaer functions
+#-------------------------------------------------------------------------------
+
+def quit():
+    sys.exit()
+
+def panic(s):
+    print('Fatal: ' + s)
+    quit()
+
+def warn(s):
+    print('Warning: ' + s)
+
+def split(ori, spl):
+    l = ori.split(spl)
+    return [x for x in l if x]
+
+def get_subdir(path):
+    for root, dirs, files in os.walk(path):
+        return dirs
+
+def get_files(path):
+    for root, dirs, files in os.walk(path):
+        return files
+
+def get_dir(name):
+    return os.path.dirname(name) + '/'
+
+def get_filename(name):
+    head, tail = os.path.split(name)
+    return tail
+
+def rel_path(name):
+    return name.replace(project_dir, '') if project_dir in name else name
+
+def get_ext(name):
+    filename, file_extension = os.path.splitext(name)
+    return file_extension
+
+def in_dict(name, d):
+    return name in d and d[name] != None
+
+def include(name):
+    assert(os.path.exists(name))
+    execfile(name, globals())
+
+#-------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------
+# Printing functions
+#-------------------------------------------------------------------------------
+
+force_verbose = False
+verbose = force_verbose or '--verbose' in sys.argv
+
+def str_red(s):
+    return '\033[91m' + s + '\033[00m'
+
+def str_blue(s):
+    return '\033[94m' + s + '\033[00m'
+
+def str_green(s):
+    return '\033[92m' + s + '\033[00m'
+
+def str_yellow(s):
+    return '\033[93m' + s + '\033[00m'
+
+def str_magenta(s):
+    return '\033[95m' + s + '\033[00m'
+
+def str_bold(s):
+    return '\033[1m' + s + '\033[00m'
+
+def print_action(atype, lead, msg):
+    if lead.strip() != '':
+        print(str_blue(lead) + ' ' + msg)
+    else:
+        print(lead + ' ' + msg)
+
+def print_title(msg):
+    print(str_bold(msg))
+
+def print_info(lead, msg):
+    print(str_blue('[' + lead + ']') + ' ' + msg)
+
+def print_action(lead, msg):
+    print(str_green('[' + lead + ']') + ' ' + msg)
+
+def print_dep(lead, msg):
+    print(str_yellow('[' + lead + ']') + ' ' + msg)
+
+def print_compile(lead, msg):
+    print(str_yellow('[' + lead + ']') + ' ' + msg)
+
+def print_link(lead, msg):
+    print(str_magenta('[' + lead + ']') + ' ' + msg)
+
+def print_archive(lead, msg):
+    print(str_magenta('[' + lead + ']') + ' ' + msg)
+
+def print_fail(msg):
+    print(str_red('[fail]') + ' ' + msg)
+
+def print_pad(count):
+    print('\n' * (count - 1))
+
+def print_cmd(msg):
+    if verbose:
+        print(msg)
+
+#-------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------
+# Path
+#-------------------------------------------------------------------------------
+
+cur_dir         = os.path.dirname(os.path.realpath(__file__))
+project_dir     = cur_dir + '/'
+
+build_obj_dirs = {}
+
+def register_obj_dir(target_dir_name, src_dir_name):
+    build_obj_dirs[src_dir_name] = target_dir_name
+
+def get_obj_name(src_name):
+    longest_src_dir_name = ''
+    longest_target_dir_name = ''
+
+    for s in build_obj_dirs:
+        if src_name.startswith(s) and len(s) > len(longest_src_dir_name):
+            longest_src_dir_name = s
+            longest_target_dir_name = build_obj_dirs[s]
+
+    if len(longest_src_dir_name):
+        return src_name.replace(longest_src_dir_name, longest_target_dir_name)
+    else:
+        print_fail('Unable to find target location for {0}'.format(src_name))
+        quit()
+
+    return ''
+
+#-------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------
+# Toolchain
+#-------------------------------------------------------------------------------
+
+class toolchain:
+    def __init__(self, name):
+        self.name = name
+        self.opts = {}
+
+    def set_opt(self, name, val):
+        self.opts[name] = val
+
+    def compose_prefix_list_str(self, lead, name, **kwargs):
+        cmd = ''
+        if in_dict(name, kwargs):
+            for item in kwargs[name]:
+                cmd += ' ' + lead + item
+        return cmd
+
+    def compose(self, target_name, src_name, action, **kwargs):
+        print_fail('Unknown toolchain action: {0}'.format(action))
+        quit()
+        return ''
+
+class fdt_toolchain(toolchain):
+    def __init__(self):
+        toolchain.__init__(self, 'fdt')
+        self.opts = {
+            'cc': 'dtc', 'ccflags': '',
+            'includes': [],
+        }
+
+    def compose_dep_dts(self, target_name, src_name, **kwargs):
+        return self.opts['cc'] + ' ' + \
+            self.opts['ccflags'] + ' ' + \
+            self.compose_prefix_list_str('-i', 'includes', **kwargs) + \
+            self.compose_prefix_list_str('-i', 'includes', **self.opts) + \
+            ' -O asm -o /dev/null -d ' + target_name + ' -I dts ' + src_name
+
+    def compose_cc_dts(self, target_name, src_name, **kwargs):
+        return self.opts['cc'] + ' ' + \
+            self.opts['ccflags'] + ' ' + \
+            self.compose_prefix_list_str('-i', 'includes', **kwargs) + \
+            self.compose_prefix_list_str('-i', 'includes', **self.opts) + \
+            ' -O dtb -o ' + target_name + ' -I dts ' + src_name
+
+    def compose(self, target_name, src_name, action, **kwargs):
+        if action == 'dep.dts':
+            return self.compose_dep_dts(target_name, src_name, **kwargs)
+        elif action == 'cc.dts':
+            return self.compose_cc_dts(target_name, src_name, **kwargs)
+        else:
+            print_fail('Unknown toolchain action: {0}'.format(action))
+            quit()
+
+        return ''
+
+class gnu_toolchain(toolchain):
+    def __init__(self):
+        toolchain.__init__(self, 'gnu')
+        self.opts = {
+            'prefix': '',
+            'cc': 'gcc', 'as': 'gcc', 'ld': 'gcc', 'ar': 'ar', 'pp': 'cpp',
+            'strip': 'strip', 'objdump': 'objdump', 'objcopy': 'objcopy',
+            'ppflags': '', 'ccflags': '', 'asflags': '', 'ldflags': '',
+            'includes': [], 'macros': [],
+        }
+
+    def compose_dep_c(self, target_name, src_name, **kwargs):
+        return self.opts['prefix'] + self.opts['cc'] + \
+            ' -MM ' + self.opts['ppflags'] + ' ' + \
+            self.compose_prefix_list_str('-I', 'includes', **kwargs) + \
+            self.compose_prefix_list_str('-I', 'includes', **self.opts) + \
+            self.compose_prefix_list_str('-D', 'macros', **kwargs) + \
+            self.compose_prefix_list_str('-D', 'macros', **self.opts) + \
+            ' ' + src_name + ' > ' + target_name
+
+    def compose_cc_c(self, target_name, src_name, **kwargs):
+        return self.opts['prefix'] + self.opts['cc'] + \
+            ' -c ' + self.opts['ppflags'] + self.opts['ccflags'] + ' ' + \
+            self.compose_prefix_list_str('-I', 'includes', **kwargs) + \
+            self.compose_prefix_list_str('-I', 'includes', **self.opts) + \
+            self.compose_prefix_list_str('-D', 'macros', **kwargs) + \
+            self.compose_prefix_list_str('-D', 'macros', **self.opts) + \
+            ' -o ' + target_name + ' ' + src_name
+
+    def compose_dep_S(self, target_name, src_name, **kwargs):
+        return self.opts['prefix'] + self.opts['as'] + \
+            ' -MM ' + self.opts['ppflags'] + ' ' + \
+            self.compose_prefix_list_str('-I', 'includes', **kwargs) + \
+            self.compose_prefix_list_str('-I', 'includes', **self.opts) + \
+            self.compose_prefix_list_str('-D', 'macros', **kwargs) + \
+            self.compose_prefix_list_str('-D', 'macros', **self.opts) + \
+            ' ' + src_name + ' > ' + target_name
+
+    def compose_cc_S(self, target_name, src_name, **kwargs):
+        return self.opts['prefix'] + self.opts['as'] + \
+            ' -c ' + self.opts['ppflags'] + self.opts['asflags'] + ' ' + \
+            self.compose_prefix_list_str('-I', 'includes', **kwargs) + \
+            self.compose_prefix_list_str('-I', 'includes', **self.opts) + \
+            self.compose_prefix_list_str('-D', 'macros', **kwargs) + \
+            self.compose_prefix_list_str('-D', 'macros', **self.opts) + \
+            ' -o ' + target_name + ' ' + src_name
+
+    def compose_cpp(self, target_name, src_name, **kwargs):
+        return self.opts['prefix'] + self.opts['pp'] + \
+            ' ' + self.opts['ppflags'] + ' ' + \
+            self.compose_prefix_list_str('-I', 'includes', **kwargs) + \
+            self.compose_prefix_list_str('-I', 'includes', **self.opts) + \
+            self.compose_prefix_list_str('-D', 'macros', **kwargs) + \
+            self.compose_prefix_list_str('-D', 'macros', **self.opts) + \
+            ' -P -nostdinc ' + src_name + ' > ' + target_name
+
+    def compose_dep_ld(self, target_name, src_name, **kwargs):
+        return self.opts['prefix'] + self.opts['pp'] + \
+            ' -MM ' + self.opts['ppflags'] + ' ' + \
+            self.compose_prefix_list_str('-I', 'includes', **kwargs) + \
+            self.compose_prefix_list_str('-I', 'includes', **self.opts) + \
+            self.compose_prefix_list_str('-D', 'macros', **kwargs) + \
+            self.compose_prefix_list_str('-D', 'macros', **self.opts) + \
+            ' -P -nostdinc ' + src_name + ' > ' + target_name
+
+    def compose_ld(self, target_name, src_name, **kwargs):
+        script = ('-T ' + kwargs['ld_script']) if in_dict('ld_script', kwargs) else ''
+        return self.opts['prefix'] + self.opts['ld'] + \
+            ' ' + self.opts['ldflags'] + ' ' + script + \
+            ' -o ' + target_name + ' ' + src_name
+
+    def compose_ar(self, target_name, src_name, **kwargs):
+        return self.opts['prefix'] + self.opts['ar'] + \
+            ' -crD ' + self.opts['ldflags'] + \
+            ' ' + target_name + ' ' + src_name
+
+    def compose_disasm(self, target_name, src_name, **kwargs):
+        return self.opts['prefix'] + self.opts['objdump'] + \
+            ' -D ' + src_name + ' > ' + target_name
+
+    def compose_strip(self, target_name, src_name, **kwargs):
+        return self.opts['prefix'] + self.opts['strip'] + \
+            ' ' + target_name
+
+    def compose_gen_bin(self, target_name, src_name, **kwargs):
+        return self.opts['prefix'] + self.opts['objcopy'] + \
+            ' -O binary ' + src_name + ' ' + target_name
+
+    def compose_update_section(self, target_name, src_name, **kwargs):
+        assert('sec_name' in kwargs)
+        assert('file_name' in kwargs)
+        return self.opts['prefix'] + self.opts['objcopy'] + \
+            ' --update-section ' + \
+            ' ' + kwargs['sec_name'] + '=' + kwargs['file_name'] + \
+            ' ' + src_name + ' ' + target_name
+
+    def compose(self, target_name, src_name, action, **kwargs):
+        if action == 'dep.c':
+            return self.compose_dep_c(target_name, src_name, **kwargs)
+        elif action == 'cc.c':
+            return self.compose_cc_c(target_name, src_name, **kwargs)
+        elif action == 'dep.S':
+            return self.compose_dep_S(target_name, src_name, **kwargs)
+        elif action == 'cc.S':
+            return self.compose_cc_S(target_name, src_name, **kwargs)
+        elif action == 'cpp':
+            return self.compose_cpp(target_name, src_name, **kwargs)
+        elif action == 'dep.ld':
+            return self.compose_dep_ld(target_name, src_name, **kwargs)
+        elif action == 'ld':
+            return self.compose_ld(target_name, src_name, **kwargs)
+        elif action == 'ar':
+            return self.compose_ar(target_name, src_name, **kwargs)
+        elif action == 'disasm':
+            return self.compose_disasm(target_name, src_name, **kwargs)
+        elif action == 'strip':
+            return self.compose_strip(target_name, src_name, **kwargs)
+        elif action == 'gen_bin':
+            return self.compose_gen_bin(target_name, src_name, **kwargs)
+        elif action == 'update_section':
+            return self.compose_update_section(target_name, src_name, **kwargs)
+        else:
+            print_fail('Unknown toolchain action: {0}'.format(action))
+            quit()
+
+        return ''
+
+default_toolchain = gnu_toolchain()
+
+def set_toolchain_opt(name, val):
+    default_toolchain.set_opt(name, val)
+
+def compose_toolchain_cmd(target_name, src_name, action, **kwargs):
+    toolchain = kwargs['toolchain'] if 'toolchain' in kwargs else default_toolchain
+    return toolchain.compose(target_name, src_name, action, **kwargs)
+
+#-------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------
+# Dependancy
+#-------------------------------------------------------------------------------
+
+# File modification time
+class file_record:
+    def __init__(self, name):
+        self.name = name
+        self.mtime = os.path.getmtime(name)
+
+all_file_records = {}
+
+def record_update(name):
+    if os.path.exists(name):
+        all_file_records[name] = file_record(name)
+
+def record_remove(name):
+    if name in all_file_records:
+        del all_file_records[name]
+
+def need_build(obj_name, src_name):
+    if obj_name == src_name:
+        return True
+
+    if not src_name or not obj_name:
+        return False
+
+    if not os.path.exists(src_name):
+        return False
+    if not src_name in all_file_records:
+        record_update(src_name)
+
+    if not os.path.exists(obj_name):
+        return True
+    if not obj_name in all_file_records:
+        record_update(obj_name)
+
+    src_mtime = all_file_records[src_name].mtime
+    obj_mtime = all_file_records[obj_name].mtime
+
+    return src_mtime > obj_mtime
+
+def need_build_list(obj_name, src_name_list):
+    for src_name in src_name_list:
+        if need_build(obj_name, src_name):
+            return True
+
+    return False
+
+#-------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------
+# Public supportive operations
+#-------------------------------------------------------------------------------
+
+def get_all_files(path, exts):
+    files = []
+
+    all_files = get_files(path)
+    if all_files != None:
+        for f in all_files:
+            if None == exts or get_ext(f) in exts:
+                files.append(path + f)
+
+    all_dirs = get_subdir(path)
+    if all_dirs != None:
+        for subdir in all_dirs:
+            files += get_all_files(path + subdir + '/', exts)
+
+    return files
+
+def exec_cmd(cmd):
+    print_cmd(cmd)
+
+    p = subprocess.Popen(cmd, shell=True)
+    p.wait()
+    #(out, err) = p.communicate()
+
+    if p.returncode != 0:
+        print_fail('Error building the target')
+        quit()
+
+#-------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------
+# Supportive build operations
+#-------------------------------------------------------------------------------
+
+def operation(target_name, src_names, cmd, **kwargs):
+    target_dir = get_dir(target_name)
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
+
+    if need_build_list(target_name, src_names):
+        if 'echo' in kwargs and 'title' in kwargs and 'msg' in kwargs:
+            kwargs['echo'](kwargs['title'], kwargs['msg'])
+        return exec_cmd(cmd)
+
+    return None
+
+def get_deps(src_name, **kwargs):
+    dep_name = get_obj_name(src_name) + '.d'
+
+    action_name = 'dep' + get_ext(src_name)
+    cmd = compose_toolchain_cmd(dep_name, src_name, action_name, **kwargs)
+    operation(dep_name, [src_name], cmd,
+            echo=print_dep, title=get_filename(dep_name),
+            msg='Dep: ' + rel_path(src_name) + ' -> ' + rel_path(dep_name))
+
+    record_update(dep_name)
+
+    deps = []
+    for l in open(dep_name, 'r'):
+        parts = split(l.strip(), ' ')
+        for p in parts:
+            ps = p.strip()
+            if not ':' in ps and '\\' != ps:
+                deps.append(ps)
+
+    return deps
+
+def compile_file(target_name, src_name, **kwargs):
+    ext_cc_deps = kwargs['ext_cc_deps'] if 'ext_cc_deps' in kwargs else []
+    cc_deps = get_deps(src_name, **kwargs) + ext_cc_deps + [src_name]
+
+    action_name = 'cc' + get_ext(src_name)
+    cmd = compose_toolchain_cmd(target_name, src_name, action_name, **kwargs)
+    operation(target_name, cc_deps, cmd,
+        echo=print_compile, title=get_filename(target_name),
+        msg='Compile: ' + rel_path(src_name) + ' -> ' + rel_path(target_name))
+
+    record_update(target_name)
+
+def link_objs(target_name, obj_names, **kwargs):
+    ext_ld_deps = kwargs['ext_ld_deps'] if 'ext_ld_deps' in kwargs else []
+    ld_deps = ext_ld_deps + obj_names
+
+    if in_dict('ld_script', kwargs):
+        ld_script = kwargs['ld_script']
+        pp_ld_script = get_obj_name(ld_script)
+        pp_ld_script_deps = get_deps(ld_script, **kwargs) + [ld_script]
+
+        action_name = 'cpp'
+        cmd = compose_toolchain_cmd(pp_ld_script, ld_script, action_name, **kwargs)
+        operation(pp_ld_script, pp_ld_script_deps, cmd,
+            echo=print_compile, title=get_filename(pp_ld_script),
+            msg='Linker script: ' + rel_path(ld_script) + ' -> ' + rel_path(pp_ld_script))
+
+        kwargs.update({'ld_script': pp_ld_script})
+        ld_deps += [pp_ld_script]
+
+    cmd = compose_toolchain_cmd(target_name, ' '.join(obj_names), 'ld', **kwargs)
+    operation(target_name, ld_deps, cmd,
+        echo=print_link, title=get_filename(target_name),
+        msg='Link: ' + rel_path(target_name))
+
+    record_update(target_name)
+
+def archive_objs(target_name, obj_names, **kwargs):
+    ext_ld_deps = kwargs['ext_ar_deps'] if 'ext_ar_deps' in kwargs else []
+    ar_deps = ext_ld_deps + obj_names
+
+    cmd = compose_toolchain_cmd(target_name, ' '.join(obj_names), 'ar', **kwargs)
+    operation(target_name, ar_deps, cmd,
+        echo=print_archive, title=get_filename(target_name),
+        msg='Archive: ' + rel_path(target_name))
+
+    record_update(target_name)
+
+#-------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------
+# Public build operations
+#-------------------------------------------------------------------------------
+
+def build_files(target_name, src_names, **kwargs):
+    obj_names = []
+    for src_name in src_names:
+        obj_name = get_obj_name(src_name) + '.o'
+        compile_file(obj_name, src_name, **kwargs)
+        obj_names.append(obj_name)
+
+    link_objs(target_name, obj_names, **kwargs)
+
+def build_dir(target_name, dir_name, exts, **kwargs):
+    files = get_all_files(dir_name, exts)
+    build_files(target_name, files, **kwargs)
+
+def lib_files(target_name, src_names, **kwargs):
+    obj_names = []
+    for src_name in src_names:
+        obj_name = get_obj_name(src_name) + '.o'
+        compile_file(obj_name, src_name, **kwargs)
+        obj_names.append(obj_name)
+
+    archive_objs(target_name, obj_names, **kwargs)
+
+def lib_dir(target_name, dir_name, exts, **kwargs):
+    files = get_all_files(dir_name, exts)
+    lib_files(target_name, files, **kwargs)
+
+#-------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------
+# Public binary operations
+#-------------------------------------------------------------------------------
+
+def disasm_exec(target_name, src_name, **kwargs):
+    cmd = compose_toolchain_cmd(target_name, src_name, 'disasm', **kwargs)
+    operation(target_name, [src_name], cmd,
+        echo=print_action, title=get_filename(target_name),
+        msg='Dissamble: {0} -> {1}'.format(
+            rel_path(src_name), rel_path(target_name)))
+
+    record_update(target_name)
+
+def update_section(target_name, src_name, sec_name, file_name, **kwargs):
+    kwargs.update({'sec_name': sec_name, 'file_name': file_name})
+    cmd = compose_toolchain_cmd(target_name, src_name, 'update_section', **kwargs)
+    operation(target_name, [ src_name, file_name ], cmd,
+        echo=print_action, title=get_filename(target_name),
+        msg='Update secion: "{0}" in {1} -> {2}'.format(
+            sec_name, rel_path(src_name), rel_path(target_name)))
+
+    record_update(target_name)
+
+def gen_bin(target_name, src_name, **kwargs):
+    cmd = compose_toolchain_cmd(target_name, src_name, 'gen_bin', **kwargs)
+    operation(target_name, [src_name], cmd,
+        echo=print_action, title=get_filename(target_name),
+        msg='Generate binary: {0} -> {1}'.format(
+            rel_path(src_name), rel_path(target_name)))
+
+    record_update(target_name)
+
+def strip_exec(target_name, src_name, **kwargs):
+    if need_build(target_name, src_name):
+        print_action(get_filename(target_name), 'Strip: {0} -> {1}'.format(
+            rel_path(src_name), rel_path(target_name)))
+
+        shutil.copyfile(src_name, target_name)
+        cmd = compose_toolchain_cmd(target_name, src_name, 'strip', **kwargs)
+        exec_cmd(cmd)
+
+        record_update(target_name)
+
+def copy_file(target_name, src_name, **kwargs):
+    if target_name != src_name and need_build(target_name, src_name):
+        print_action(get_filename(target_name), 'Copy: {0} -> {1}'.format(
+            rel_path(src_name), rel_path(target_name)))
+
+        shutil.copyfile(src_name, target_name)
+        record_update(target_name)
+
+def cat_files(target_name, src_names, **kwargs):
+    print_action(get_filename(target_name), 'Concatinate: {0}'.format(
+        rel_path(target_name)))
+
+    cmd = 'cat ' + ' '.join(src_names) + ' > ' + target_name
+    operation(target_name, src_names, cmd,
+        echo=print_action, title=get_filename(target_name),
+        msg='Concatinate: {0}'.format(rel_path(target_name)))
+
+    record_update(target_name)
+
+def remove_files(target_names, **kwargs):
+    rel_files = []
+    for f in target_names:
+        rel_files.append(rel_path(f))
+    print_action('remove', str(rel_files))
+
+    cmd = 'rm ' + ' '.join(target_names)
+    exec_cmd(cmd)
+
+    for f in target_names:
+        record_remove(f)
+
+#-------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------
+# Public stats operations
+#-------------------------------------------------------------------------------
+
+def count_lines(file_name):
+    c = 0
+    for l in open(file_name):
+        c += 1
+    return c
+
+def stats_dir(dir_name, ext):
+    files = get_all_files(dir_name, ext)
+
+    ext_list = []
+    stats_files = {}
+    stats_lines = {}
+
+    for f in files:
+        fext = get_ext(f)
+        if 'tmake' in f:
+            fext = 'tmake'
+        if fext == '':
+            fext = 'empty'
+
+        if not fext in ext_list:
+            ext_list.append(fext)
+            stats_files[fext] = 0
+            stats_lines[fext] = 0
+        lines = count_lines(f)
+
+        stats_files[fext] += 1
+        stats_lines[fext] += lines
+
+    total_files = 0
+    total_lines = 0
+
+    print_action('stats', rel_path(dir_name))
+    for fext in sorted(ext_list):
+        print_info(fext, 'File count: {0}, line count: {1}'.format(
+            stats_files[fext], stats_lines[fext]))
+
+        total_files += stats_files[fext]
+        total_lines += stats_lines[fext]
+
+    print_info('total', 'File count: {0}, line count: {1}'.format(
+        total_files, total_lines))
+
+    return [ ext_list, stats_files, stats_lines ]
+
+#-------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------
+# Main
+#-------------------------------------------------------------------------------
+
+include(project_dir + 'tmake.build')
+
+#-------------------------------------------------------------------------------

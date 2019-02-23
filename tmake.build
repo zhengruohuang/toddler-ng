@@ -1,0 +1,293 @@
+#!/usr/bin/python
+
+
+#-------------------------------------------------------------------------------
+# Host and target
+#-------------------------------------------------------------------------------
+
+host_arch_alias = { \
+    'i386'      : 'ia32',
+    'x86_64'    : 'amd64',
+    'arm32'     : 'armv7',
+    'aarch64'   : 'armv8',
+    'mips'      : 'mips32b',
+    'mipsel'    : 'mips32l',
+    'mips64'    : 'mips64b',
+    'mips64el'  : 'mips64l',
+}
+
+host_arch = platform.machine().strip()
+if host_arch in host_arch_alias:
+    host_arch = host_arch_alias[host_arch]
+
+host_info = platform.architecture()
+host_os = platform.platform()
+
+target_arch = 'ia32'
+target_mach = 'multiboot'
+target_model = ''
+
+# Parse the target cmd
+for argv in sys.argv:
+    if argv.startswith('--target') and '=' in argv and '-' in argv:
+        parts = split(argv, '=')
+        parts = split(parts[1], '-')
+        target_arch = parts[0]
+        target_mach = parts[1]
+        target_model = parts[2] if len(parts) >= 3 else 'generic'
+
+target_name = target_arch + '_' + target_mach + '_' + target_model
+
+#-------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------
+# Path
+#-------------------------------------------------------------------------------
+
+def do_find_target_dirs(target, cur_path, dirs, names, dir_map):
+    subdirs = get_subdir(cur_path)
+    if not subdirs:
+        return False
+
+    for d in subdirs:
+        next_path = cur_path + d + '/'
+        dirs.append(next_path)
+        names.append(d)
+        dir_map[d] = next_path
+
+        subfiles = get_files(next_path)
+        if target in subfiles:
+            return True
+        else:
+            found = do_find_target_dirs(target, next_path, dirs, names, dir_map)
+            if found:
+                return True
+            else:
+                dirs.remove(next_path)
+                names.remove(d)
+                del dir_map[d]
+
+    return False
+
+def find_target_dirs(target, start_path):
+    dirs = []
+    names = []
+    dir_map = {}
+    do_find_target_dirs(target, start_path, dirs, names, dir_map)
+    return dirs, names, dir_map
+
+# Pre-defined paths
+src_dir         = project_dir + 'src/'
+doc_dir         = project_dir + 'doc/'
+vm_dir          = project_dir + 'vm/'
+ext_dir         = project_dir + 'ext/'
+target_all_dir  = project_dir + 'target/'
+
+target_dir      = target_all_dir + target_name + '/'
+b2c_dir         = target_dir + 'bin2c/'
+obj_dir         = target_dir + 'obj/'
+bin_dir         = target_dir + 'bin/'
+img_dir         = target_dir + 'img/'
+
+# Arch
+arch_tmake_name = 'tmake.arch.' + target_arch
+arch_dirs, arch_names, arch_dir_map \
+                = find_target_dirs(arch_tmake_name, src_dir + 'arch/')
+if not len(arch_dirs):
+    print_fail('Unable to find target architecture: {0}'.format(target_arch))
+    quit()
+arch_dir        = arch_dirs[-1]
+
+# Machine
+mach_tmake_name = 'tmake.mach.' + target_mach
+mach_dirs, mach_names, mach_dir_map \
+                = find_target_dirs(mach_tmake_name, arch_dirs[0])
+if not len(mach_dirs):
+    print_fail('Unable to find target machine: {0}'.format(target_mach))
+    quit()
+mach_dir        = mach_dirs[-1]
+
+# Tools
+tools_src_dir   = project_dir + 'tools/'
+tools_obj_dir   = obj_dir + 'tools/'
+tools_bin_dir   = bin_dir + 'tools/'
+
+# Include
+inc_dir         = [ src_dir ] + arch_dirs + mach_dirs
+
+# Register obj dirs
+register_obj_dir(obj_dir, src_dir)
+register_obj_dir(obj_dir, b2c_dir)
+register_obj_dir(tools_obj_dir, tools_src_dir)
+
+# Set up tool chain
+set_toolchain_opt('includes', inc_dir)
+set_toolchain_opt('macros', [
+    'ARCH_' + target_arch.upper(),
+    'MACH_' + target_mach.upper(),
+    'MODEL_' + target_model.upper(),
+])
+
+#-------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------
+# Supportive functions
+#-------------------------------------------------------------------------------
+
+def get_all_arch_files(subdir, exts):
+    files = []
+
+    # Arch files
+    for d in arch_dirs:
+        files += get_all_files(d + subdir, exts)
+
+        # Arch-specific machine files
+        for m in mach_names:
+            files += get_all_files(d + m + '/' + subdir, exts)
+
+    # Generic files
+    files += get_all_files(src_dir + subdir, exts)
+
+    return files
+
+def find_deepest_arch_file(match):
+    for d in arch_dirs:
+        fname = d + match
+        if os.path.exists(fname):
+            return fname
+
+    fname = src_dir + match
+    if os.path.exists(fname):
+        return fname
+
+    return None
+
+def gen_embed_c(target_name, src_name, symbol_name, align):
+    cmd = tools_bin_dir + 'bin2c {0} {1} {2} {3}'.format(
+        src_name, target_name, symbol_name, align)
+
+    operation(target_name, [ src_name ], cmd,
+        echo=print_compile, title=get_filename(target_name),
+        msg='Embed bin: {0} -> {1}'.format(rel_path(src_name), rel_path(target_name)))
+
+#-------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------
+# Builtin actions
+#-------------------------------------------------------------------------------
+
+def perform_build():
+    print_title('Start building')
+
+    # Build tools
+    if 'build_tools' in build_actions:
+        build_actions['build_tools']()
+
+    # Build main components
+    if 'build_main' in build_actions:
+        build_actions['build_main']()
+
+    # Build arch specific targets
+    if 'build_arch' in build_actions:
+        build_actions['build_arch']()
+
+    # Build mach specific targets
+    if 'build_mach' in build_actions:
+        build_actions['build_mach']()
+
+def perform_emu():
+    print_title('Start emulator')
+
+    # Start emulator
+    if 'start_emu' in build_actions:
+        build_actions['start_emu']()
+
+#-------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------
+# Main
+#-------------------------------------------------------------------------------
+
+print_title('Toddler building system started')
+
+# Host and target info
+print_info('host', 'Architecture: {0}, OS: {1}'.format(host_arch, host_os))
+print_info('target', 'Architecture: {0}, machine: {1}, model: {2}'.format(
+    target_arch, target_mach, target_model))
+
+# Path info
+print_info('path.src', 'Source @ {0}'.format(src_dir))
+print_info('path.arch', 'Arch @ {0}'.format(arch_dir))
+print_info('path.mach', 'Mach @ {0}'.format(mach_dir))
+print_info('path.target', 'Target @ {0}'.format(target_all_dir))
+
+# Include component make scripts
+build_actions = {}
+build_opts = {}
+include(tools_src_dir + 'tmake.tools')
+include(arch_dir + arch_tmake_name)
+include(mach_dir + mach_tmake_name)
+include(project_dir + 'tmake.main')
+
+# Parse action cmd line
+supported_actions = [ 'all', 'build', 'emu', 'stats', 'clean', 'clean_all' ]
+actions = []
+
+# Find all actions
+for argv in sys.argv:
+    proposed_actions = []
+    if '--action' in argv:
+        parts = split(argv, '=')
+        proposed_actions = split(parts[1], ',')
+    elif not '=' in argv:
+        if ',' in argv:
+            proposed_actions = split(argv, ',')
+        else:
+            proposed_actions = [ argv ]
+
+    for p in proposed_actions:
+        if p in supported_actions or p in build_actions:
+            actions.append(p)
+
+if not len(actions):
+    actions = [ 'all' ]
+
+# Perform actions
+for act in actions:
+    # Build
+    if 'build' == act:
+        perform_build()
+
+    # Emulate
+    elif 'emu' == act:
+        perform_emu()
+
+    # Build + Emulate
+    elif 'all' == act:
+        perform_build()
+        perform_emu()
+
+    # Lines of code
+    elif 'stats' == act:
+        perform_stats()
+
+    # Clean
+    elif 'clean' == act:
+        perform_clean()
+
+    # Clean all
+    elif 'clean_all' == act:
+        perform_clean_all()
+
+    # Arch actions
+    elif act in build_actions:
+        print_title('Action: ' + act)
+        build_actions[act]()
+
+print_title('Toddler building system finished')
+
+#-------------------------------------------------------------------------------

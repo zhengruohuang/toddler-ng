@@ -1,0 +1,46 @@
+#!/usr/bin/python
+
+
+def run_mips_qemu(mp):
+    if not in_dict('qemu', build_opts):
+        return
+
+    opts = copy.deepcopy(build_opts['qemu'])
+    opts['exec'] = 'qemu-system-' + mips_endian_prefix
+    opts['cpu'] = '74Kf'
+    if not mp:
+        opts['mp'] = False
+
+    run_qemu(opts)
+
+
+def build_arch():
+    pass
+
+def qemu8():
+    run_mips_qemu(True)
+
+def qemu():
+    run_mips_qemu(False)
+
+def start_emu():
+    emu_type = 'qemu'
+    if emu_type in build_actions:
+        build_actions[emu_type]()
+
+
+# Setup arch toolchain
+arch_default_toolchain = copy.deepcopy(default_toolchain)
+arch_default_toolchain.set_opt('prefix', mips_endian_prefix + '-linux-gnu-')
+arch_default_toolchain.set_opt('ld', 'ld')
+arch_default_toolchain.set_opt('asflags', '-O2 -nostdlib -fno-builtin -fno-stack-protector -fPIC -march=mips32r2 -std=c99 -Wall')
+arch_default_toolchain.set_opt('ccflags', '-O2 -nostdlib -fno-builtin -fno-stack-protector -fPIC -march=mips32r2 -std=c99 -Wall')
+arch_default_toolchain.set_opt('ldflags', '-s -static')
+
+
+# Setup callback functions
+build_actions['build_arch'] = build_arch
+
+build_actions['qemu'] = qemu
+build_actions['qemu8'] = qemu8
+build_actions['start_emu'] = start_emu
