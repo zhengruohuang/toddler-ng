@@ -30,7 +30,7 @@ void init_page()
 int page_map_virt_to_phys(void *vaddr, void *paddr, ulong size,
     int cache, int exec, int write)
 {
-    lprintf("To map %p -> %p, size: %lx\n", vaddr, paddr, size);
+    //lprintf("To map %p -> %p, size: %lx\n", vaddr, paddr, size);
 
     struct loader_arch_funcs *funcs = get_arch_funcs();
     if (funcs->map_range) {

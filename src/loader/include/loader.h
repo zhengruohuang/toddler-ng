@@ -78,6 +78,12 @@ struct firmware_args {
 };
 
 struct loader_arch_funcs {
+    // Per-arch info
+    ulong reserved_stack_size;
+    ulong page_size;
+    int num_reserved_got_entries;
+    u64 phys_mem_range_min, phys_mem_range_max;
+
     // General
     void (*init_arch)();
     void (*jump_to_hal)();
@@ -95,6 +101,9 @@ struct loader_arch_funcs {
 };
 
 struct loader_args {
+    // Arch-specific data
+    void *arch_args;
+
     // Important data structures
     void *devtree;
     void *memmap;

@@ -6,6 +6,8 @@
 #include "common/include/inttypes.h"
 
 
+#define FDT_HEADER_MAGIC    0xd00dfeed
+
 struct fdt_header {
     u32 magic;
     u32 total_size;

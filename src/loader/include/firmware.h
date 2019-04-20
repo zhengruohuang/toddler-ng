@@ -44,10 +44,18 @@ extern void init_atags(void *atags);
 /*
  * FDT
  */
-int is_fdt_header(void *fdt);
-void init_supplied_fdt(void *supplied_fdt);
-void init_appended_fdt();
+extern int is_fdt_header(void *fdt);
+extern void init_supplied_fdt(void *supplied_fdt);
+extern void init_appended_fdt();
 
+
+/*
+ * OFW
+ */
+extern void init_ofw(void *entry);
+extern void ofw_add_initrd(void *initrd_start, ulong initrd_size);
+extern void *ofw_translate_virt_to_phys(void *vaddr);
+extern void *ofw_alloc_and_map_acc_win(void *paddr, ulong size, ulong align);
 
 #endif
 

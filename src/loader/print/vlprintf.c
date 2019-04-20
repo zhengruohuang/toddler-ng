@@ -310,7 +310,7 @@ static int print_token(char **s, va_list *arg)
     return len;
 }
 
-int vlprintf(const char *fmt, va_list arg)
+int vlprintf(const char *fmt, va_list *arg)
 {
     char *s = (char *)fmt;
     int len = 0;
@@ -319,7 +319,7 @@ int vlprintf(const char *fmt, va_list arg)
         switch (*s) {
         case '%':
             s++;
-            len += print_token(&s, &arg);
+            len += print_token(&s, arg);
             break;
         default:
             len += print_char(*s);

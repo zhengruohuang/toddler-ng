@@ -63,6 +63,9 @@
 #define L2PAGE_TABLE_ENTRY_COUNT    256
 #define L2PAGE_TABLE_ENTRY_BITS     8
 
+#define L1BLOCK_SIZE                0x100000ul
+#define L1BLOCK_PAGE_COUNT          256
+
 #define GET_L1PTE_INDEX(addr)       ((addr) >> 20)
 #define GET_L2PTE_INDEX(addr)       (((addr) >> 12) & 0xfful)
 #define GET_PAGE_OFFSET(addr)       ((addr) & 0xffful)
@@ -98,8 +101,8 @@ struct l1page_table_entry {
             u32     non_global      : 1;
             u32     reserved3       : 1;
             u32     non_secure      : 1;
-            u32     sfn             : 12;
-        } section;
+            u32     bfn             : 12;
+        } block;
     };
 } packed_struct;
 
@@ -163,10 +166,10 @@ struct l2table {
 
 
 /*
- * Addr <--> SFN (Section Frame Number)
+ * Addr <--> BFN (Block Frame Number)
  */
-#define SFN_TO_ADDR(sfn)    ((sfn) << 20)
-#define ADDR_TO_SFN(addr)   ((addr) >> 20)
+#define BFN_TO_ADDR(bfn)    ((bfn) << 20)
+#define ADDR_TO_BFN(addr)   ((addr) >> 20)
 
 
 #endif

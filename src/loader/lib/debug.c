@@ -5,7 +5,7 @@
 
 void __abort(const char *file, int line)
 {
-    lprintf("!!! Abort !!!\nFile: %s, line %d\n", file, line);
+    lprintf("!!! ABORT !!!\nFile: %s, line %d\n", file, line);
     stop();
 }
 
@@ -15,11 +15,11 @@ void __warn(const char *ex, const char *file, int line, const char *msg, ...)
     va_start(va, msg);
 
     if (ex) {
-        lprintf("!!! Warn: %s !!!\nFile: %s, line: %d\n", ex, file, line);
+        lprintf("!!! WARN: %s !!!\nFile: %s, line: %d\n", ex, file, line);
     } else {
-        lprintf("!!! Warn !!!\nFile: %s, line: %d\n", file, line);
+        lprintf("!!! WARN !!!\nFile: %s, line: %d\n", file, line);
     }
-    vlprintf(msg, va);
+    vlprintf(msg, &va);
     lprintf("\n");
 
     va_end(va);
@@ -31,11 +31,11 @@ void __panic(const char *ex, const char *file, int line, const char *msg, ...)
     va_start(va, msg);
 
     if (ex) {
-        lprintf("!!! Panic: %s !!!\nFile: %s, line: %d\n", ex, file, line);
+        lprintf("!!! PANIC: %s !!!\nFile: %s, line: %d\n", ex, file, line);
     } else {
-        lprintf("!!! Panic !!!\nFile: %s, line %d\n", file, line);
+        lprintf("!!! PANIC !!!\nFile: %s, line %d\n", file, line);
     }
-    vlprintf(msg, va);
+    vlprintf(msg, &va);
     lprintf("\n");
 
     va_end(va);
@@ -47,8 +47,8 @@ void __assert(const char *ex, const char *file, int line, const char *msg, ...)
     va_list va;
     va_start(va, msg);
 
-    lprintf("!!! Assert failed: %s !!!\nFile: %s, line: %d\n", ex, file, line);
-    vlprintf(msg, va);
+    lprintf("!!! ASSERT FAILED: %s !!!\nFile: %s, line: %d\n", ex, file, line);
+    vlprintf(msg, &va);
     lprintf("\n");
 
     va_end(va);

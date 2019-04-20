@@ -1,7 +1,5 @@
 #include "common/include/inttypes.h"
 #include "common/include/arch.h"
-#include "common/include/abi.h"
-#include "common/include/mem.h"
 #include "common/include/elf.h"
 #include "loader/include/lib.h"
 #include "loader/include/firmware.h"
@@ -135,11 +133,13 @@ static void relocate_got(elf_native_header_t *elf,
     panic_if(sec->section_entsize != sizeof(elf_native_addr_t),
         "Unable to handle GOT entry size: %ld\n", (ulong)sec->section_entsize);
 
+    struct loader_arch_funcs *arch_funcs = get_arch_funcs();
+
     elf_native_addr_t *got = rebase_to_win(
         (void *)(ulong)sec->section_addr, target_win, access_win);
 
     int num_entries = sec->section_size / sizeof(elf_native_addr_t);
-    for (int i = ELF_GOT_NUM_RESERVED_ENTRIES; i < num_entries; i++) {
+    for (int i = arch_funcs->num_reserved_got_entries; i < num_entries; i++) {
         lprintf("Relocate @ %lx -> %p\n", (ulong)got[i],
             rebase_to_win((void *)(ulong)got[i], target_win, access_win));
 
@@ -155,6 +155,9 @@ static ulong load_elf(const char *name, ulong *range_start, ulong *range_end)
         return 0;
     }
 
+    // Get arch funcs
+    struct loader_arch_funcs *arch_funcs = get_arch_funcs();
+
     // Get range
     ulong vaddr_start = 0, vaddr_end = 0;
     get_vmem_range(elf, &vaddr_start, &vaddr_end);
@@ -162,18 +165,18 @@ static ulong load_elf(const char *name, ulong *range_start, ulong *range_end)
     lprintf("ELF range @ %lx - %lx\n", vaddr_start, vaddr_end);
 
     // Align
-    vaddr_start = ALIGN_DOWN(vaddr_start, PAGE_SIZE);
-    vaddr_end = ALIGN_UP(vaddr_end, PAGE_SIZE);
+    vaddr_start = ALIGN_DOWN(vaddr_start, arch_funcs->page_size);
+    vaddr_end = ALIGN_UP(vaddr_end, arch_funcs->page_size);
     ulong vaddr_size = vaddr_end - vaddr_start;
 
     // Alloc phys and map phys mem
-    void *paddr = memmap_alloc_phys(vaddr_size, PAGE_SIZE);
+    void *paddr = memmap_alloc_phys(vaddr_size, arch_funcs->page_size);
     lprintf("Paddr @ %p\n", paddr);
 
     int pages = page_map_virt_to_phys((void *)vaddr_start, paddr, vaddr_size, 1, 1, 1);
 
     // Alloc and map loader virt mem
-    void *win = firmware_alloc_and_map_acc_win(paddr, vaddr_size, PAGE_SIZE);
+    void *win = firmware_alloc_and_map_acc_win(paddr, vaddr_size, arch_funcs->page_size);
     lprintf("Win @ %p\n", win);
 
     // Load ELF

@@ -20,7 +20,9 @@ static char *strs = NULL;
  */
 static void *alloc_struct(int size)
 {
-    panic_if(remain_size < size, "Device tree buffer overflow!\n");
+    panic_if(remain_size < size,
+        "Device tree buffer overflow, want: %d, remain_size: %d!\n",
+        size, remain_size);
 
     int prev_struct_offset = struct_offset;
     struct_offset = ALIGN_DOWN(struct_offset - size, sizeof(ulong));
@@ -225,6 +227,8 @@ u64 devtree_get_prop_data_u64(struct devtree_prop *prop)
  */
 void init_devtree()
 {
+    memzero(buf, sizeof(sizeof(buf)));
+
     head = (void *)buf;
     strs = buf + sizeof(struct devtree_head);
     head->strs = DEVTREE_OFFSET(head, strs);

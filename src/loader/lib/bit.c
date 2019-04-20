@@ -237,3 +237,54 @@ int clz(ulong val)
     #error Unsupported ARCH_WIDTH
 #endif
 }
+
+
+/*
+ * Align to power of 2
+ */
+u64 align_to_power2_next64(u64 val)
+{
+    if (!val) {
+        return 0;
+    }
+
+    int pos = 0;
+    for (u64 shift = val; shift; pos++, shift >>= 1);
+
+    u64 aligned = 0x1ull << pos;
+    u64 prev = 0x1ull << (pos - 1);
+    if (prev == val) {
+        return val;
+    }
+
+    return aligned;
+}
+
+u32 align_to_power2_next32(u32 val)
+{
+    if (!val) {
+        return 0;
+    }
+
+    int pos = 0;
+    for (u32 shift = val; shift; pos++, shift >>= 1);
+
+    u32 aligned = 0x1ull << pos;
+    u32 prev = 0x1ull << (pos - 1);
+    if (prev == val) {
+        return val;
+    }
+
+    return aligned;
+}
+
+ulong align_to_power2_next(ulong val)
+{
+#if (ARCH_WIDTH == 64)
+    return (ulong)align_to_power2_next64((u64)val);
+#elif (ARCH_WIDTH == 32)
+    return (ulong)align_to_power2_next32((u32)val);
+#else
+    #error Unsupported ARCH_WIDTH
+#endif
+}

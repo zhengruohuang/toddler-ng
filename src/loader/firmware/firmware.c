@@ -1,12 +1,14 @@
 #include "common/include/inttypes.h"
 #include "loader/include/loader.h"
 #include "loader/include/lib.h"
+#include "loader/include/devtree.h"
 #include "loader/include/firmware.h"
 
 
 void init_firmware()
 {
     struct firmware_args *fw_args = get_fw_args();
+    init_devtree();
 
     switch (fw_args->type) {
     case FW_NONE:
@@ -23,6 +25,10 @@ void init_firmware()
         init_appended_fdt();
         init_atags(fw_args->atags.atags);
         break;
+    case FW_OFW:
+        init_ofw(fw_args->ofw.ofw);
+        ofw_add_initrd(fw_args->ofw.initrd_start, fw_args->ofw.initrd_size);
+        break;
     default:
         panic("Unable to init firmware!\n");
         break;
@@ -34,9 +40,7 @@ void *firmware_translate_virt_to_phys(void *vaddr)
     struct firmware_args *fw_args = get_fw_args();
 
     if (fw_args->type == FW_OFW) {
-        // FIXME
-        panic("Not implemented!");
-        return vaddr;
+        return ofw_translate_virt_to_phys(vaddr);
     }
 
     struct loader_arch_funcs *arch_funcs = get_arch_funcs();
@@ -49,18 +53,32 @@ void *firmware_translate_virt_to_phys(void *vaddr)
 
 void *firmware_alloc_and_map_acc_win(void *paddr, ulong size, ulong align)
 {
+    /*
+     * This function allocates vaddr, and maps it to the given paddr
+     * Then returns vaddr
+     */
+
     struct firmware_args *fw_args = get_fw_args();
 
     if (fw_args->type == FW_OFW) {
-        // FIXME
-        panic("Not implemented!");
-        return paddr;
+        return ofw_alloc_and_map_acc_win(paddr, size, align);
     }
+
+    /*
+     * On some systems, before MMU is enabled or in some memory regions,
+     * there is a fixed mapping between vaddr and paddr, e.g. MIPS kseg0 and kseg1
+     * Thus we simply do an arch-specific translation
+     */
 
     struct loader_arch_funcs *arch_funcs = get_arch_funcs();
     if (arch_funcs->phys_to_access_win) {
         return arch_funcs->phys_to_access_win(paddr);
     }
+
+    /*
+     * Finally, on some systems, we directly work with physical memory,
+     * and thus vaddr allocation or translation is not needed
+     */
 
     return paddr;
 }

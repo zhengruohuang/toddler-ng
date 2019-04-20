@@ -1,5 +1,6 @@
 #include "common/include/inttypes.h"
 #include "common/include/mem.h"
+#include "common/include/abi.h"
 #include "common/include/io.h"
 #include "common/include/msr.h"
 #include "loader/include/lib.h"
@@ -219,6 +220,11 @@ void loader_entry(int kargc, char **kargv, char **env, ulong mem_size)
         fw_args.karg.env = env;
         fw_args.karg.mem_size = mem_size;
     }
+
+    // Prepare arch info
+    funcs.reserved_stack_size = 0x8000;
+    funcs.page_size = PAGE_SIZE;
+    funcs.num_reserved_got_entries = ELF_GOT_NUM_RESERVED_ENTRIES;
 
     // Prepare funcs
     funcs.init_arch = init_arch;

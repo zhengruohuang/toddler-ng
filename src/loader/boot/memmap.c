@@ -1,6 +1,7 @@
 #include "common/include/inttypes.h"
 #include "loader/include/devtree.h"
 #include "loader/include/lib.h"
+#include "loader/include/loader.h"
 #include "loader/include/lprintf.h"
 #include "loader/include/firmware.h"
 #include "loader/include/boot.h"
@@ -142,11 +143,11 @@ extern int __end;
 
 static void claim_loader()
 {
-    ulong reserved_stack_size = 0x8000;
+    struct loader_arch_funcs *funcs = get_arch_funcs();
 
     ulong vaddr = (ulong)&__start;
-    if (vaddr >= reserved_stack_size) {
-        vaddr -= reserved_stack_size;
+    if (vaddr >= funcs->reserved_stack_size) {
+        vaddr -= funcs->reserved_stack_size;
     } else {
         vaddr = 0;
     }
@@ -226,6 +227,17 @@ static void create_all_from_memory_node(struct devtree_node *chosen,
         memsize = devtree_get_prop_data_u64(fw_memsize);
     }
 
+    // Adjust memstart and memsize
+    struct loader_arch_funcs *funcs = get_arch_funcs();
+    if (funcs->phys_mem_range_min > memstart) {
+        memstart = funcs->phys_mem_range_min;
+    }
+    if (funcs->phys_mem_range_max && funcs->phys_mem_range_max > memstart &&
+        funcs->phys_mem_range_max - memstart < memsize
+    ) {
+        memsize = funcs->phys_mem_range_max;
+    }
+
     // Go through memory nodes
     int memstart_found = 0;
     int reg_idx = 0;
@@ -299,6 +311,17 @@ static void create_all_from_chosen_node(struct devtree_node *chosen)
 
     memstart = devtree_get_prop_data_u64(fw_memstart);
     memsize = devtree_get_prop_data_u64(fw_memsize);
+
+    // Adjust memstart and memsize
+    struct loader_arch_funcs *funcs = get_arch_funcs();
+    if (funcs->phys_mem_range_min > memstart) {
+        memstart = funcs->phys_mem_range_min;
+    }
+    if (funcs->phys_mem_range_max && funcs->phys_mem_range_max > memstart &&
+        funcs->phys_mem_range_max - memstart < memsize
+    ) {
+        memsize = funcs->phys_mem_range_max;
+    }
 
     struct memmap_entry *entry = &memmap[0];
     entry->start = devtree_get_prop_data_u64(fw_memstart);

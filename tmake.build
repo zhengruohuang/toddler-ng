@@ -7,13 +7,16 @@
 
 host_arch_alias = { \
     'i386'      : 'ia32',
+    'i686'      : 'ia32',
     'x86_64'    : 'amd64',
+    'amd64'     : 'amd64',
     'arm32'     : 'armv7',
     'aarch64'   : 'armv8',
     'mips'      : 'mips32b',
     'mipsel'    : 'mips32l',
     'mips64'    : 'mips64b',
     'mips64el'  : 'mips64l',
+    'powerpc'   : 'powerpc',
 }
 
 host_arch = platform.machine().strip()
@@ -89,6 +92,7 @@ b2c_dir         = target_dir + 'bin2c/'
 obj_dir         = target_dir + 'obj/'
 bin_dir         = target_dir + 'bin/'
 img_dir         = target_dir + 'img/'
+disasm_dir      = target_dir + 'disasm/'
 
 # Arch
 arch_tmake_name = 'tmake.arch.' + target_arch

@@ -10,6 +10,7 @@
  */
 #define ALIGN_UP(s, a)      (((s) + ((a) - 1)) & ~((a) - 1))
 #define ALIGN_DOWN(s, a)    ((s) & ~((a) - 1))
+#define ALIGNED(s, a)       (!((s) & ((a) - 1)))
 
 
 /*
@@ -18,12 +19,12 @@
 #define stop()              for (;;)
 #define abort()             __abort(__FILE__, __LINE__)
 #define warn(...)           __warn((void *)0, __FILE__, __LINE__, __VA_ARGS__)
-#define warn_if(ex, ...)    (void)(!(ex) || (__warn("!(" #ex ")", __FILE__, __LINE__, __VA_ARGS__), 0))
-#define warn_not(ex, ...)   (void)((ex) || (__warn(#ex, __FILE__, __LINE__, __VA_ARGS__), 0))
+#define warn_if(ex, ...)    (void)(!(ex) || (__warn("Condition (" #ex ") met",     __FILE__, __LINE__, __VA_ARGS__), 0))
+#define warn_not(ex, ...)   (void)((ex)  || (__warn("Condition (" #ex ") not met", __FILE__, __LINE__, __VA_ARGS__), 0))
 #define panic(...)          __panic((void *)0, __FILE__, __LINE__, __VA_ARGS__)
-#define panic_if(ex, ...)   (void)(!(ex) || (__panic("!(" #ex ")", __FILE__, __LINE__, __VA_ARGS__), 0))
-#define panic_not(ex, ...)  (void)((ex) || (__panic(#ex, __FILE__, __LINE__, __VA_ARGS__), 0))
-#define assert(ex)          (void)((ex) || (__assert(#ex, __FILE__, __LINE__, ""), 0))
+#define panic_if(ex, ...)   (void)(!(ex) || (__panic("Condition (" #ex ") met",     __FILE__, __LINE__, __VA_ARGS__), 0))
+#define panic_not(ex, ...)  (void)((ex)  || (__panic("Condition (" #ex ") not met", __FILE__, __LINE__, __VA_ARGS__), 0))
+#define assert(ex)          (void)((ex)  || (__assert(#ex, __FILE__, __LINE__, ""), 0))
 
 extern void __abort(const char *file, int line);
 extern void __warn(const char *ex, const char *file, int line, const char *msg, ...);
@@ -56,6 +57,10 @@ extern int clz64(u64 val);
 extern int clz32(u32 val);
 extern int clz16(u16 val);
 extern int clz(ulong val);
+
+extern u64 align_to_power2_next64(u64 val);
+extern u32 align_to_power2_next32(u32 val);
+extern ulong align_to_power2_next(ulong val);
 
 
 /*

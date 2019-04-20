@@ -9,7 +9,7 @@ int lprintf(const char *fmt, ...)
     va_list va;
     va_start(va, fmt);
 
-    ret = vlprintf(fmt, va);
+    ret = vlprintf(fmt, &va);
 
     va_end(va);
 

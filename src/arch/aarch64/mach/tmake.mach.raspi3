@@ -1,0 +1,24 @@
+#!/usr/bin/python
+
+
+def build_mach():
+    pass
+
+
+# Setup callback functions
+build_actions['build_mach'] = build_mach
+
+# Setup mach options
+build_opts['dts'] = find_deepest_arch_file('dts/raspi3.dts')
+
+build_opts['embed_fdt'] = False
+build_opts['embed_coreimg'] = False
+
+build_opts['qemu'] = {
+    'machine'   : 'raspi3',
+    'memory'    : 1024,
+    'graphic'   : False,
+    'bootargs'  : 'test',
+    'bootimg'   : img_dir + 'tdlrboot.bin',
+    'mp'        : '4',
+}

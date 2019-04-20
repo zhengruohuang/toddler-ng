@@ -1,6 +1,7 @@
 #include "common/include/inttypes.h"
 #include "common/include/io.h"
 #include "common/include/mem.h"
+#include "common/include/abi.h"
 #include "common/include/msr.h"
 #include "loader/include/lib.h"
 #include "loader/include/firmware.h"
@@ -76,54 +77,82 @@ static void *setup_page()
     return root_page;
 }
 
-static void map_page(void *page_table, void *vaddr, void *paddr,
+static void map_page(void *page_table, void *vaddr, void *paddr, int block,
     int cache, int exec, int write)
 {
     struct l1table *l1table = page_table;
     int l1idx = GET_L1PTE_INDEX((ulong)vaddr);
     struct l1page_table_entry *l1entry = &l1table->entries[l1idx];
 
-    struct l2table *l2table = NULL;
-    if (!l1entry->pte.present) {
-        l2table = alloc_l2table();
-        memzero(l2table, L2PAGE_TABLE_SIZE);
+    // 1-level block mapping
+    if (block) {
+        if (l1entry->block.present) {
+            panic_if((ulong)l1entry->block.bfn != ADDR_TO_BFN((ulong)paddr) ||
+                l1entry->block.no_exec != !exec ||
+                l1entry->block.read_only != !write ||
+                l1entry->block.cacheable != cache,
+                "Trying to change an existing mapping from BFN %lx to %lx!",
+                (ulong)l1entry->block.bfn, ADDR_TO_BFN((ulong)paddr));
+        }
 
-        l1entry->pte.present = 1;
-        l1entry->pte.pfn = ADDR_TO_PFN((ulong)l2table);
-    } else {
-        l2table = (void *)PFN_TO_ADDR((ulong)l1entry->pte.pfn);
+        else {
+            l1entry->block.present = 1;
+            l1entry->block.bfn = ADDR_TO_BFN((ulong)paddr);
+            l1entry->block.no_exec = !exec;
+            l1entry->block.read_only = !write;
+            l1entry->block.user_access = 0;   // Kernel page
+            l1entry->block.user_write = 1;    // Kernel page write is determined by read_only
+            l1entry->block.cacheable = cache;
+            l1entry->block.cache_inner = l1entry->block.cache_outer = 0x1;
+                                // write-back, write-allocate when cacheable
+                                // See TEX[2], TEX[1:0] and CB
+        }
     }
 
-    int l2idx = GET_L2PTE_INDEX((ulong)vaddr);
-    struct l2page_table_entry *l2entry = &l2table->entries[l2idx];
-
-    if (l2entry->present) {
-        panic_if((ulong)l2entry->pfn != ADDR_TO_PFN((ulong)paddr),
-            "Trying to change an existing mapping from PFN %lx to %lx!",
-            (ulong)l2entry->pfn, ADDR_TO_PFN((ulong)paddr));
-
-        panic_if((int)l2entry->cacheable != cache,
-            "Trying to change cacheable attribute!");
-
-        if (exec) l2entry->no_exec = 0;
-        if (write) l2entry->read_only = 0;
-    }
-
+    // 2-level page mapping
     else {
-        l2entry->present = 1;
-        l2entry->pfn = ADDR_TO_PFN((ulong)paddr);
-        l2entry->no_exec = !exec;
-        l2entry->read_only = !write;
-        l2entry->user_access = 0;   // Kernel page
-        l2entry->user_write = 1;    // Kernel page write is determined by read_only
-        l2entry->cacheable = cache;
-        l2entry->cache_inner = l2entry->cache_outer = 0x1;
-                                    // write-back, write-allocate when cacheable
-                                    // See TEX[2], TEX[1:0] and CB
-    }
+        struct l2table *l2table = NULL;
+        if (!l1entry->pte.present) {
+            l2table = alloc_l2table();
+            memzero(l2table, L2PAGE_TABLE_SIZE);
 
-    for (int i = 0; i < 3; i++) {
-        l2table->entries_dup[i][l2idx].value = l2entry->value;
+            l1entry->pte.present = 1;
+            l1entry->pte.pfn = ADDR_TO_PFN((ulong)l2table);
+        } else {
+            l2table = (void *)PFN_TO_ADDR((ulong)l1entry->pte.pfn);
+        }
+
+        int l2idx = GET_L2PTE_INDEX((ulong)vaddr);
+        struct l2page_table_entry *l2entry = &l2table->entries[l2idx];
+
+        if (l2entry->present) {
+            panic_if((ulong)l2entry->pfn != ADDR_TO_PFN((ulong)paddr),
+                "Trying to change an existing mapping from PFN %lx to %lx!",
+                (ulong)l2entry->pfn, ADDR_TO_PFN((ulong)paddr));
+
+            panic_if((int)l2entry->cacheable != cache,
+                "Trying to change cacheable attribute!");
+
+            if (exec) l2entry->no_exec = 0;
+            if (write) l2entry->read_only = 0;
+        }
+
+        else {
+            l2entry->present = 1;
+            l2entry->pfn = ADDR_TO_PFN((ulong)paddr);
+            l2entry->no_exec = !exec;
+            l2entry->read_only = !write;
+            l2entry->user_access = 0;   // Kernel page
+            l2entry->user_write = 1;    // Kernel page write is determined by read_only
+            l2entry->cacheable = cache;
+            l2entry->cache_inner = l2entry->cache_outer = 0x1;
+                                // write-back, write-allocate when cacheable
+                                // See TEX[2], TEX[1:0] and CB
+        }
+
+        for (int i = 0; i < 3; i++) {
+            l2table->entries_dup[i][l2idx].value = l2entry->value;
+        }
     }
 }
 
@@ -138,11 +167,29 @@ static int map_range(void *page_table, void *vaddr, void *paddr, ulong size,
 
     for (ulong cur_vaddr = vaddr_start, cur_paddr = paddr_start;
         cur_vaddr < vaddr_end;
-        cur_vaddr += PAGE_SIZE, cur_paddr += PAGE_SIZE
     ) {
-        map_page(page_table, (void *)cur_vaddr, (void *)cur_paddr,
-            cache, exec, write);
-        mapped_pages++;
+        // 1MB block
+        if (ALIGNED(cur_vaddr, L1BLOCK_SIZE) &&
+            ALIGNED(cur_paddr, L1BLOCK_SIZE) &&
+            vaddr_end - cur_vaddr >= L1BLOCK_SIZE
+        ) {
+            map_page(page_table, (void *)cur_vaddr, (void *)cur_paddr, 1,
+                cache, exec, write);
+
+            mapped_pages += L1BLOCK_PAGE_COUNT;
+            cur_vaddr += L1BLOCK_SIZE;
+            cur_paddr += L1BLOCK_SIZE;
+        }
+
+        // 4KB page
+        else {
+            map_page(page_table, (void *)cur_vaddr, (void *)cur_paddr, 0,
+                cache, exec, write);
+
+            mapped_pages++;
+            cur_vaddr += PAGE_SIZE;
+            cur_paddr += PAGE_SIZE;
+        }
     }
 
     return mapped_pages;
@@ -269,6 +316,11 @@ void loader_entry(ulong zero, ulong mach_id, void *mach_cfg)
         fw_args.type = FW_ATAGS;
         fw_args.atags.atags = mach_cfg;
     }
+
+    // Prepare arch info
+    funcs.reserved_stack_size = 0x8000;
+    funcs.page_size = PAGE_SIZE;
+    funcs.num_reserved_got_entries = ELF_GOT_NUM_RESERVED_ENTRIES;
 
     // Prepare funcs
     funcs.init_arch = init_arch;

@@ -21,7 +21,9 @@ _start:
     bne __core_wait               // IF (CPU ID != 0) Branch To Infinite Loop (Core ID 1..3)
 
     // Set up stack
-    ldr     sp, =LOADER_BASE - 0x10
+    //ldr     sp, =LOADER_BASE - 0x10
+    ldr     sp, =_start
+    sub     sp, sp, #0x10
 
     // Set up PC
     bl      __setup_pc
