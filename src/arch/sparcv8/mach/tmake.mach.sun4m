@@ -1,0 +1,26 @@
+#!/usr/bin/python
+
+
+def build_mach():
+    pass
+
+
+# Setup callback functions
+build_actions['build_mach'] = build_mach
+
+# Setup mach options
+build_opts['dts'] = find_deepest_arch_file('dts/empty.dts')
+
+build_opts['embed_fdt'] = True
+build_opts['embed_coreimg'] = True
+
+build_opts['qemu'] = {
+    'machine'   : 'SS-20',
+    'cpu'       : 'TI-SuperSparc-II',
+    'memory'    : 128,
+    'graphic'   : False,
+    'bootargs'  : 'test',
+    'bootimg'   : img_dir + 'tdlrboot.bin',
+    'mp'        : '1',
+}
+

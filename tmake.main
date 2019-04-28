@@ -152,6 +152,8 @@ def build_loader():
         gen_embed_c(coreimg_c, coreimg, 'embedded_coreimg', 8)
         loader_files.append(coreimg_c)
 
+    print(loader_files)
+
     # Build loader
     build_files(
         bin_dir + 'tdlrldr.elf',

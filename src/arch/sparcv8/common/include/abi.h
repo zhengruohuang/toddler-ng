@@ -1,0 +1,9 @@
+#ifndef __ARCH_SPARCV8_COMMON_INCLUDE_ABI_H__
+#define __ARCH_SPARCV8_COMMON_INCLUDE_ABI_H__
+
+
+#define POSITION_INDEP                  0
+#define ELF_GOT_NUM_RESERVED_ENTRIES    1
+
+
+#endif

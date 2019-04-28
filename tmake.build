@@ -176,6 +176,8 @@ def gen_embed_c(target_name, src_name, symbol_name, align):
         echo=print_compile, title=get_filename(target_name),
         msg='Embed bin: {0} -> {1}'.format(rel_path(src_name), rel_path(target_name)))
 
+    record_update(target_name)
+
 #-------------------------------------------------------------------------------
 
 

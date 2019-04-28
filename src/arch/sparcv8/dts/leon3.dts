@@ -1,0 +1,32 @@
+/dts-v1/;
+
+/ {
+    model = "qemu-leon3";
+    compatible = "qemu,leon3";
+
+    #address-cells = <1>;
+    #size-cells = <1>;
+
+    chosen {
+        stdout-path = &uart;
+    };
+
+    memory@40000000 {
+        reg = <0x40000000 0x8000000>;
+    };
+
+    uart: uart@80000100 {
+        compatible = "grlib,uart";
+        reg = <0x80000100 0x100>;
+    };
+
+    irq: irqmap@80000100 {
+        compatible = "grlib,irqmap";
+        reg = <0x80000200 0x100>;
+    };
+
+    timer: gptimer@80000300 {
+        compatible = "grlib,gptimer";
+        reg = <0x80000300 0x100>;
+    };
+};

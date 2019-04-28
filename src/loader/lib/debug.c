@@ -19,7 +19,7 @@ void __warn(const char *ex, const char *file, int line, const char *msg, ...)
     } else {
         lprintf("!!! WARN !!!\nFile: %s, line: %d\n", file, line);
     }
-    vlprintf(msg, &va);
+    vlprintf(msg, va);
     lprintf("\n");
 
     va_end(va);
@@ -35,7 +35,7 @@ void __panic(const char *ex, const char *file, int line, const char *msg, ...)
     } else {
         lprintf("!!! PANIC !!!\nFile: %s, line %d\n", file, line);
     }
-    vlprintf(msg, &va);
+    vlprintf(msg, va);
     lprintf("\n");
 
     va_end(va);
@@ -48,7 +48,7 @@ void __assert(const char *ex, const char *file, int line, const char *msg, ...)
     va_start(va, msg);
 
     lprintf("!!! ASSERT FAILED: %s !!!\nFile: %s, line: %d\n", ex, file, line);
-    vlprintf(msg, &va);
+    vlprintf(msg, va);
     lprintf("\n");
 
     va_end(va);

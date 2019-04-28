@@ -29,6 +29,9 @@ void init_firmware()
         init_ofw(fw_args->ofw.ofw);
         ofw_add_initrd(fw_args->ofw.initrd_start, fw_args->ofw.initrd_size);
         break;
+    case FW_OBP:
+        init_obp(fw_args->obp.obp);
+        break;
     default:
         panic("Unable to init firmware!\n");
         break;
@@ -41,6 +44,8 @@ void *firmware_translate_virt_to_phys(void *vaddr)
 
     if (fw_args->type == FW_OFW) {
         return ofw_translate_virt_to_phys(vaddr);
+    } else if (fw_args->type == FW_OBP) {
+        return obp_translate_virt_to_phys(vaddr);
     }
 
     struct loader_arch_funcs *arch_funcs = get_arch_funcs();
@@ -62,6 +67,8 @@ void *firmware_alloc_and_map_acc_win(void *paddr, ulong size, ulong align)
 
     if (fw_args->type == FW_OFW) {
         return ofw_alloc_and_map_acc_win(paddr, size, align);
+    } else if (fw_args->type == FW_OBP) {
+        return obp_alloc_and_map_acc_win(paddr, size, align);
     }
 
     /*
