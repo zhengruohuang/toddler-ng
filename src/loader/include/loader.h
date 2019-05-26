@@ -17,6 +17,7 @@ enum firmware_types {
     FW_KARG,
     FW_PPC_FDT,
     FW_BOARD,
+    FW_SRM,
     FW_SH_HDR,
 };
 
@@ -74,6 +75,14 @@ struct firmware_args {
             void *initrd_start, *initrd_end;
             void *cmd_start, *cmd_end;
         } board;
+
+        // Alpha SRM
+        struct {
+            char *cmdline;
+            void *initrd_start;
+            ulong initrd_size;
+            void *hwrpb_base;
+        } srm;
     };
 };
 

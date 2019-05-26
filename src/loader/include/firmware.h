@@ -66,4 +66,11 @@ extern void *obp_translate_virt_to_phys(void *vaddr);
 extern void *obp_alloc_and_map_acc_win(void *paddr, ulong size, ulong align);
 
 
+/*
+ * SRM
+ */
+extern void init_srm(void *hwrpb_base);
+extern void srm_add_initrd(void *initrd_start, ulong initrd_size);
+
+
 #endif

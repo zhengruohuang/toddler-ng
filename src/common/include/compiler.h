@@ -30,6 +30,10 @@
 #define entry_func      __attribute__((section("entry")))
 #endif
 
+#ifndef aligned_var
+#define aligned_var(a)  __attribute__((aligned(a)))
+#endif
+
 
 #endif
 

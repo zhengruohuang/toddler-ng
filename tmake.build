@@ -17,6 +17,7 @@ host_arch_alias = { \
     'mips64'    : 'mips64b',
     'mips64el'  : 'mips64l',
     'powerpc'   : 'powerpc',
+    'alpha'     : 'alpha',
 }
 
 host_arch = platform.machine().strip()

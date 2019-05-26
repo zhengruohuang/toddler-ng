@@ -32,6 +32,10 @@ void init_firmware()
     case FW_OBP:
         init_obp(fw_args->obp.obp);
         break;
+    case FW_SRM:
+        init_srm(fw_args->srm.hwrpb_base);
+        srm_add_initrd(fw_args->srm.initrd_start, fw_args->srm.initrd_size);
+        break;
     default:
         panic("Unable to init firmware!\n");
         break;

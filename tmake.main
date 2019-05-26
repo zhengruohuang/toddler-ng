@@ -213,6 +213,7 @@ def run_qemu(opts):
     embed_coreimg = build_opts['embed_coreimg'] if 'embed_coreimg' in build_opts else False
     embed_fdt = build_opts['embed_fdt'] if 'embed_fdt' in build_opts else False
     bootargs = opts['bootargs'] if 'bootargs' in opts else False
+    bios = opts['bios'] if 'bios' in opts else None
 
     cmd = qemu + \
         ' -cpu {0}'.format(cpu) + \
@@ -220,6 +221,7 @@ def run_qemu(opts):
         ' -m {0}'.format(mem) + \
         ' -serial mon:stdio' + \
         ('' if graphic else ' -nographic') + \
+        (' -bios {0}'.format(bios) if bios else '') + \
         ' -kernel {0}'.format(bootimg) + \
         ('' if embed_coreimg else ' -initrd {0}'.format(coreimg)) + \
         ('' if embed_fdt else ' -dtb {0}'.format(fdt)) + \
