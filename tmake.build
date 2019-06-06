@@ -28,8 +28,8 @@ host_info = platform.architecture()
 host_os = platform.platform()
 
 target_arch = 'ia32'
-target_mach = 'multiboot'
-target_model = ''
+target_mach = 'pc'
+target_model = 'multiboot'
 
 # Parse the target cmd
 for argv in sys.argv:
@@ -169,9 +169,12 @@ def find_deepest_arch_file(match):
 
     return None
 
-def gen_embed_c(target_name, src_name, symbol_name, align):
-    cmd = tools_bin_dir + 'bin2c {0} {1} {2} {3}'.format(
-        src_name, target_name, symbol_name, align)
+def gen_embed_c(target_name, src_name, symbol_name, align, section=None):
+    cmd = tools_bin_dir + \
+        'bin2c --bin {0} --c {1} --symbol {2} --align {3}'.format(
+            src_name, target_name, symbol_name, align)
+    if section:
+        cmd += ' --section {0}'.format(section)
 
     operation(target_name, [ src_name ], cmd,
         echo=print_compile, title=get_filename(target_name),
@@ -216,6 +219,21 @@ def perform_emu():
 
 
 #-------------------------------------------------------------------------------
+# Toolchain
+#-------------------------------------------------------------------------------
+
+def get_toolchain(name):
+    if name in build_toolchains:
+        return build_toolchains[name]
+    elif 'default' in build_toolchains:
+        return build_toolchains['default']
+    else:
+        panic('Unable to find toolchain: {0}'.format(name))
+
+#-------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------
 # Main
 #-------------------------------------------------------------------------------
 
@@ -235,6 +253,7 @@ print_info('path.target', 'Target @ {0}'.format(target_all_dir))
 # Include component make scripts
 build_actions = {}
 build_opts = {}
+build_toolchains = {}
 include(tools_src_dir + 'tmake.tools')
 include(arch_dir + arch_tmake_name)
 include(mach_dir + mach_tmake_name)

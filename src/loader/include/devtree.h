@@ -9,9 +9,9 @@
 /*
  * Node
  */
-struct devtree_node *devtree_find_child_node(struct devtree_node *node,
+extern struct devtree_node *devtree_find_child_node(struct devtree_node *node,
     const char *name);
-struct devtree_prop *devtree_find_prop(struct devtree_node *node,
+extern struct devtree_prop *devtree_find_prop(struct devtree_node *node,
     const char *name);
 extern struct devtree_node *devtree_walk(const char *path);
 
@@ -19,6 +19,11 @@ extern struct devtree_node *devtree_walk(const char *path);
 /*
  * Prop
  */
+extern void devtree_get_reg_num_cells(struct devtree_node *node,
+    int *num_addr_cells, int *num_size_cells);
+extern void devtree_get_ranges_num_cells(struct devtree_node *node,
+    int *num_child_addr_cells, int *num_parent_addr_cells, int *num_size_cells);
+
 extern u64 devtree_translate_addr(struct devtree_node *node, u64 addr);
 extern int devtree_get_addr(struct devtree_node *node, int idx,
     const char *name, u64 *addr, u64 *size);
@@ -68,5 +73,3 @@ extern void init_devtree();
 
 
 #endif
-
-

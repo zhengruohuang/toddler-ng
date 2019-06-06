@@ -73,4 +73,10 @@ extern void init_srm(void *hwrpb_base);
 extern void srm_add_initrd(void *initrd_start, ulong initrd_size);
 
 
+/*
+ * Multiboot
+ */
+extern void init_multiboot(void *multiboot);
+
+
 #endif

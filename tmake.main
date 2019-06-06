@@ -12,13 +12,13 @@ def build_hal():
         hal_files,
         ext_ld_deps = [ hal_ld ],
         ld_script = hal_ld,
-        toolchain = arch_default_toolchain,
+        toolchain = get_toolchain('hal'),
     )
 
     disasm_exec(
         disasm_dir + 'tdlrhal.S',
         bin_dir + 'tdlrhal.elf',
-        toolchain = arch_default_toolchain,
+        toolchain = get_toolchain('hal'),
     )
 
 def build_kernel():
@@ -33,13 +33,13 @@ def build_kernel():
         kernel_files,
         ext_ld_deps = [ kernel_ld ],
         ld_script = kernel_ld,
-        toolchain = arch_default_toolchain,
+        toolchain = get_toolchain('kernel'),
     )
 
     disasm_exec(
         disasm_dir + 'tdlrkrnl.S',
         bin_dir + 'tdlrkrnl.elf',
-        toolchain = arch_default_toolchain,
+        toolchain = get_toolchain('kernel'),
     )
 
 def build_klibc():
@@ -52,7 +52,7 @@ def build_klibc():
         bin_dir + 'tdlrklibc.a',
 
         klib_files,
-        toolchain = arch_default_toolchain,
+        toolchain = get_toolchain('user'),
     )
 
 def build_user():
@@ -68,7 +68,7 @@ def build_user():
         ext_libs = [ klibc ],
         ext_ld_deps = [ user_ld ],
         ld_script = user_ld,
-        toolchain = arch_default_toolchain,
+        toolchain = get_toolchain('user'),
     )
 
     # Build system
@@ -79,7 +79,7 @@ def build_user():
         ext_libs = [ klibc ],
         ext_ld_deps = [ user_ld ],
         ld_script = user_ld,
-        toolchain = arch_default_toolchain,
+        toolchain = get_toolchain('user'),
     )
 
     # Build shell
@@ -90,7 +90,7 @@ def build_user():
         ext_libs = [ klibc ],
         ext_ld_deps = [ user_ld ],
         ld_script = user_ld,
-        toolchain = arch_default_toolchain,
+        toolchain = get_toolchain('user'),
     )
 
 def build_fdt():
@@ -160,14 +160,14 @@ def build_loader():
         loader_files,
         ext_ld_deps = [ loader_ld ],
         ld_script = loader_ld,
-        toolchain = arch_default_toolchain,
+        toolchain = get_toolchain('loader'),
     )
 
     # Disasm
     disasm_exec(
         disasm_dir + 'tdlrldr.S',
         bin_dir + 'tdlrldr.elf',
-        toolchain = arch_default_toolchain,
+        toolchain = get_toolchain('loader'),
     )
 
 def build_boot():

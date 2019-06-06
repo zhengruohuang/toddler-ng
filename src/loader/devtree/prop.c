@@ -27,7 +27,7 @@ static void get_num_cells(struct devtree_node *node,
     }
 }
 
-static void get_reg_num_cells(struct devtree_node *node,
+void devtree_get_reg_num_cells(struct devtree_node *node,
     int *num_addr_cells, int *num_size_cells)
 {
     // Default
@@ -41,7 +41,7 @@ static void get_reg_num_cells(struct devtree_node *node,
     }
 }
 
-static void get_ranges_num_cells(struct devtree_node *node,
+void devtree_get_ranges_num_cells(struct devtree_node *node,
     int *num_child_addr_cells, int *num_parent_addr_cells, int *num_size_cells)
 {
     // Default
@@ -91,7 +91,7 @@ static int get_ranges(struct devtree_node *node, int idx,
     }
 
     int num_parent_cells = 1, num_child_cells = 1, num_size_cells = 1;
-    get_ranges_num_cells(node, &num_parent_cells, &num_child_cells,
+    devtree_get_ranges_num_cells(node, &num_parent_cells, &num_child_cells,
         &num_size_cells);
 
     int pair_size = (num_parent_cells + num_child_cells + num_size_cells) << 2;
@@ -153,7 +153,7 @@ int devtree_get_addr(struct devtree_node *node, int idx, const char *name,
     }
 
     int num_addr_cells = 1, num_size_cells = 1;
-    get_reg_num_cells(node, &num_addr_cells, &num_size_cells);
+    devtree_get_reg_num_cells(node, &num_addr_cells, &num_size_cells);
 
     int pair_size = (num_addr_cells + num_size_cells) << 2;
     if (!pair_size || pair_size > prop->len) {
@@ -199,7 +199,7 @@ int devtree_get_translated_addr(struct devtree_node *node, int idx,
     if (addr) *addr = val_addr;
     if (size) *size = val_size;
 
-    return idx;
+    return next_idx;
 }
 
 int devtree_get_translated_reg(struct devtree_node *node, int idx,

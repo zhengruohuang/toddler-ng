@@ -29,8 +29,8 @@ The next generation Toddler
 
 | Target                | Loader    | HAL       |
 | --------------------- | --------- | --------- |
-| ia32-pc-multiboot     | Active    | Planned   |
-| amd64-pc-multiboot    | Planned   | Planned   |
+| ia32-pc-multiboot     | Current   | Planned   |
+| amd64-pc-multiboot    | Current   | Planned   |
 | alpha-clipper-qemu    | Active    | Planned   |
 | armv7-raspi2-qemu     | Current   | Planned   |
 | aarch64v8-raspi3-qemu | Current   | Planned   |

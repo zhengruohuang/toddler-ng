@@ -40,6 +40,7 @@ arch_default_toolchain.set_opt('ld', 'ld')
 arch_default_toolchain.set_opt('asflags', '-O2 -nostdlib -fno-builtin -fno-stack-protector -fPIC -march=armv8-a -mgeneral-regs-only -std=c99 -Wall')
 arch_default_toolchain.set_opt('ccflags', '-O2 -nostdlib -fno-builtin -fno-stack-protector -fPIC -march=armv8-a -mgeneral-regs-only -std=c99 -Wall')
 arch_default_toolchain.set_opt('ldflags', '-s -static')
+build_toolchains['default'] = arch_default_toolchain
 
 
 # Setup callback functions

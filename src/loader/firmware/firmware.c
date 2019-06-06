@@ -36,6 +36,9 @@ void init_firmware()
         init_srm(fw_args->srm.hwrpb_base);
         srm_add_initrd(fw_args->srm.initrd_start, fw_args->srm.initrd_size);
         break;
+    case FW_MULTIBOOT:
+        init_multiboot(fw_args->multiboot.multiboot);
+        break;
     default:
         panic("Unable to init firmware!\n");
         break;

@@ -98,24 +98,24 @@ static inline void mmio_write64(unsigned long addr, u64 val)
 }
 
 
-static inline u8 port_read8(unsigned long addr)
+static inline u8 ioport_read8(unsigned long addr)
     { return mmio_read8(addr); }
-static inline void port_write8(unsigned long addr, u8 val)
+static inline void ioport_write8(unsigned long addr, u8 val)
     { mmio_write8(addr, val); }
 
-static inline u16 port_read16(unsigned long addr)
+static inline u16 ioport_read16(unsigned long addr)
     { return mmio_read16(addr); }
-static inline void port_write16(unsigned long addr, u16 val)
+static inline void ioport_write16(unsigned long addr, u16 val)
     { mmio_write16(addr, val); }
 
-static inline u32 port_read32(unsigned long addr)
+static inline u32 ioport_read32(unsigned long addr)
     { return mmio_read32(addr); }
-static inline void port_write32(unsigned long addr, u32 val)
+static inline void ioport_write32(unsigned long addr, u32 val)
     { mmio_write32(addr, val); }
 
-static inline u64 port_read64(unsigned long addr)
+static inline u64 ioport_read64(unsigned long addr)
     { return mmio_read64(addr); }
-static inline void port_write64(unsigned long addr, u64 val)
+static inline void ioport_write64(unsigned long addr, u64 val)
     { mmio_write64(addr, val); }
 
 

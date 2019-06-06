@@ -22,7 +22,8 @@ static struct memmap_entry *insert_entry(int idx)
     }
 
     for (int i = entry_count - 1; i >= idx; i--) {
-        memmap[i + 1] = memmap[i];
+        memcpy(&memmap[i + 1], &memmap[i], sizeof(struct memmap_entry));
+        //memmap[i + 1].start = memmap[i].start;
     }
 
     entry_count++;
@@ -39,7 +40,8 @@ static void remove_entry(int idx)
 
     int i = 0;
     for (i = idx; i < entry_count - 1; i++) {
-        memmap[i] = memmap[i + 1];
+        memcpy(&memmap[i], &memmap[i + 1], sizeof(struct memmap_entry));
+        //memmap[i] = memmap[i + 1];
     }
     memzero(&memmap[i], sizeof(struct memmap_entry));
 
@@ -168,10 +170,12 @@ static void claim_memrsv()
     for (struct devtree_prop *memrsv_entry = devtree_get_prop(memrsv);
         memrsv_entry; memrsv_entry = devtree_get_next_prop(memrsv_entry)
     ) {
-       u64 *data = devtree_get_prop_data(memrsv_entry);
-       u64 addr = swap_big_endian64(*data++);
-       u64 size = swap_big_endian64(*data);
-       claim_region(addr, size, MEMMAP_USED);
+        u64 *data = devtree_get_prop_data(memrsv_entry);
+        u64 addr = swap_big_endian64(*data++);
+        u64 size = swap_big_endian64(*data);
+
+        lprintf("Memory reserve, addr: %llx, size: %llx\n", addr, size);
+        claim_region(addr, size, MEMMAP_USED);
     }
 }
 
@@ -272,9 +276,11 @@ static void create_all_from_memory_node(struct devtree_node *chosen,
         int extend = 0;
         struct memmap_entry *entry = &memmap[entry_count];
         if (entry_count) {
-            entry = &memmap[entry_count - 1];
-            u64 prev_end = entry->start + entry->size;
+            struct memmap_entry *prev_entry = &memmap[entry_count - 1];
+            u64 prev_end = prev_entry->start + prev_entry->size;
+
             if (prev_end >= addr && addr + size >= prev_end) {
+                entry = prev_entry;
                 extend = 1;
                 size = addr + size - prev_end;
                 addr = prev_end;
@@ -300,6 +306,8 @@ static void create_all_from_memory_node(struct devtree_node *chosen,
     if (!memsize) {
         memsize = size_up_to_now;
     }
+
+    lprintf("Total memory size: %llx\n", memsize);
 }
 
 static void create_all_from_chosen_node(struct devtree_node *chosen)
@@ -359,6 +367,7 @@ void init_memmap()
 
     // Create all memory map
     create_all();
+    print_memmap();
 
     // Claim already used regions
     claim_firmware();

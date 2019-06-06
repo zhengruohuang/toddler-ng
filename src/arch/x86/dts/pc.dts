@@ -1,0 +1,9 @@
+/dts-v1/;
+
+/ {
+    #address-cells = <2>;
+    #size-cells = <2>;
+    chosen { };
+    aliases { };
+    memory@0 { device_type = "memory"; };
+};

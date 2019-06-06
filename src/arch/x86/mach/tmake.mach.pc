@@ -1,0 +1,24 @@
+#!/usr/bin/python
+
+
+def build_mach():
+    pass
+
+
+# Setup callback functions
+build_actions['build_mach'] = build_mach
+
+# Setup mach options
+build_opts['dts'] = find_deepest_arch_file('dts/pc.dts')
+
+build_opts['embed_fdt'] = True
+build_opts['embed_coreimg'] = False
+
+build_opts['qemu'] = {
+    'machine'   : 'pc',
+    'memory'    : 512,
+    'graphic'   : True,
+    'bootargs'  : 'test',
+    'bootimg'   : bin_dir + 'tdlrprel.elf', #'img_dir + tdlrboot.elf',
+    'mp'        : '4',
+}
