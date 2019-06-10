@@ -204,6 +204,22 @@ int is_fdt_header(void *fdt)
     return hdr && swap_big_endian32(hdr->magic) == FDT_HEADER_MAGIC;
 }
 
+int copy_fdt(void *buf, void *src, size_t size)
+{
+    if (!is_fdt_header(src)) {
+        return -1;
+    }
+
+    u32 fdt_size = swap_big_endian32(((struct fdt_header *)src)->total_size);
+    if (fdt_size > size) {
+        return -1;
+    }
+
+    memcpy(buf, src, fdt_size);
+
+    return fdt_size;
+}
+
 void init_supplied_fdt(void *supplied_fdt)
 {
     struct fdt_header *hdr = supplied_fdt;

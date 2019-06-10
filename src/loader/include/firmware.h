@@ -45,6 +45,7 @@ extern void init_atags(void *atags);
  * FDT
  */
 extern int is_fdt_header(void *fdt);
+extern int copy_fdt(void *buf, void *src, size_t size);
 extern void init_supplied_fdt(void *supplied_fdt);
 extern void init_appended_fdt();
 

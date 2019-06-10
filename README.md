@@ -43,9 +43,9 @@ The next generation Toddler
 | sparcv8-leon3-qemu    | Current   | Planned   |
 | sparcv8-sun4m-generic | Active    | Planned   |
 | sparcv9-sun4u-generic | Planned   | Planned   |
-| riscv32-spkie-qemu    | Planned   | Planned   |
-| riscv64-spkie-qemu    | Planned   | Planned   |
-| m68k-mcf-qemu         | Planned   | Planned   |
+| riscv32-virt-qemu     | Current   | Planned   |
+| riscv64-virt-qemu     | Current   | Planned   |
+| m68k-mcf-qemu         | Active    | Planned   |
 | sh4-shix-qemu         | Planned   | Planned   |
 | or1k-sim-qemu         | Planned   | Planned   |
 | ia64-ski-generic      | Planned   | Planned   |

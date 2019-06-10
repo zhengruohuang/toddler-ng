@@ -1,0 +1,52 @@
+#!/usr/bin/python
+
+
+def run_arm_qemu(mp):
+    if not in_dict('qemu', build_opts):
+        return
+
+    opts = copy.deepcopy(build_opts['qemu'])
+    opts['exec'] = 'qemu-system-riscv64'
+    if not 'cpu' in opts:
+        opts['cpu'] = 'rv64gcsu-v1.10.0'
+    if not mp:
+        opts['mp'] = False
+
+    run_qemu(opts)
+
+
+def build_arch():
+    pass
+
+def qemu8():
+    run_arm_qemu(True)
+
+def qemu_gui():
+    run_arm_qemu(False)
+
+def qemu():
+    run_arm_qemu(False)
+
+def start_emu():
+    emu_type = 'qemu'
+    if emu_type in build_actions:
+        build_actions[emu_type]()
+
+
+# Setup arch toolchain
+arch_default_toolchain = copy.deepcopy(default_toolchain)
+arch_default_toolchain.set_opt('prefix', 'riscv64-linux-gnu-')
+arch_default_toolchain.set_opt('ld', 'ld')
+arch_default_toolchain.set_opt('asflags', '-O2 -nostdlib -fno-builtin -fno-stack-protector -fno-PIC -mcmodel=medany -std=c99 -Wall')
+arch_default_toolchain.set_opt('ccflags', '-O2 -nostdlib -fno-builtin -fno-stack-protector -fno-PIC -mcmodel=medany -std=c99 -Wall')
+arch_default_toolchain.set_opt('ldflags', '-s -static')
+build_toolchains['default'] = arch_default_toolchain
+
+
+# Setup callback functions
+build_actions['build_arch'] = build_arch
+
+build_actions['qemu'] = qemu
+build_actions['qemu8'] = qemu8
+build_actions['qemu_gui'] = qemu_gui
+build_actions['start_emu'] = start_emu

@@ -57,7 +57,7 @@ static void print_prop_data(struct devtree_prop *prop)
         lprintf("<");
         for (int i = 0; i < len32; i++) {
             if (i) lprintf(" ");
-            lprintf("%x", swap_big_endian(data32[i]));
+            lprintf("%x", swap_big_endian32(data32[i]));
         }
         lprintf(">");
     } else {
