@@ -45,13 +45,14 @@ The next generation Toddler
 | sparcv9-sun4u-generic | Planned   | Planned   |
 | riscv32-virt-qemu     | Current   | Planned   |
 | riscv64-virt-qemu     | Current   | Planned   |
-| m68k-mcf-qemu         | Active    | Planned   |
-| sh4-shix-qemu         | Planned   | Planned   |
+| m68k-atari-aranym     | Initial   | Planned   |
+| sh4-r2d-qemu          | Initial   | Planned   |
 | or1k-sim-qemu         | Planned   | Planned   |
 | ia64-ski-generic      | Planned   | Planned   |
 | s390-virtio-qemu      | Planned   | Planned   |
 | zarch-virtio-qemu     | Planned   | Planned   |
 | hppa-sim-qemu         | Planned   | Planned   |
+| vax-simh-generic      | Planned   | Planned   |
 
 ### Kernel
 

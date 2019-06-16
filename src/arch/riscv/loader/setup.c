@@ -135,9 +135,6 @@ static int map_range(void *page_table, void *vaddr, void *ppaddr, ulong size,
     u64 paddr_start = ALIGN_DOWN(paddr, PAGE_SIZE);
 
     int mapped_pages = 0;
-    if (vaddr_start >> 63) {
-        page_table += PAGE_SIZE;
-    }
 
     u64 cur_paddr = paddr_start;
     for (ulong cur_vaddr = vaddr_start; cur_vaddr < vaddr_end; ) {
