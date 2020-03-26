@@ -12,7 +12,7 @@ The next generation Toddler
 * Console, shell, and utilities
 
 ## Long-term Goals
-* NetBSD as an environmental system
+* NetBSD as an environment system
 * X11
 * Package management system
 * Run on real machines
@@ -32,7 +32,7 @@ The next generation Toddler
 | ia32-pc-multiboot     | Current   | Planned   |
 | amd64-pc-multiboot    | Current   | Planned   |
 | alpha-clipper-qemu    | Active    | Planned   |
-| armv7-raspi2-qemu     | Current   | Planned   |
+| armv7-raspi2-qemu     | Current   | Active    |
 | aarch64v8-raspi3-qemu | Current   | Planned   |
 | mips32l-malta-generic | Current   | Planned   |
 | mips32b-malta-generic | Current   | Planned   |
@@ -52,14 +52,15 @@ The next generation Toddler
 | s390-virtio-qemu      | Planned   | Planned   |
 | zarch-virtio-qemu     | Planned   | Planned   |
 | hppa-sim-qemu         | Planned   | Planned   |
-| vax-simh-generic      | Planned   | Planned   |
+| vax-sim-simh          | Planned   | Planned   |
 
 ### Kernel
 
 | Item                  | Status    |
 | --------------------- | --------- |
 | Process management    | Planned   |
-| Memory management     | Planned   |
+| Page allocation       | Current   |
+| Object allocation     | Planned   |
 | IPC                   | Planned   |
 | Kernel call           | Planned   |
 | System API            | Planned   |
@@ -70,7 +71,6 @@ The next generation Toddler
 | --------------------- | --------- |
 | Virtual file system   | Planned   |
 | User account system   | Planned   |
-| Driver management     | Planned   |
 | Device management     | Planned   |
 | Text UI               | Planned   |
 | Graphics UI           | Planned   |
@@ -80,7 +80,6 @@ The next generation Toddler
 | Partition             | Planned   |
 | File systems          | Planned   |
 | RAM FS                | Planned   |
-| Interrupt             | Planned   |
 | Serial                | Planned   |
 | Video                 | Planned   |
 | Disk                  | Planned   |
