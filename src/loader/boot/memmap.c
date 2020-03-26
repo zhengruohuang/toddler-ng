@@ -1,4 +1,5 @@
 #include "common/include/inttypes.h"
+#include "common/include/memmap.h"
 #include "loader/include/devtree.h"
 #include "loader/include/lib.h"
 #include "loader/include/loader.h"
@@ -11,18 +12,18 @@
 
 
 static int entry_count = 0;
-static struct memmap_entry memmap[MAX_MEMMAP_SIZE];
+static struct loader_memmap_entry memmap[MAX_MEMMAP_SIZE];
 static u64 memstart = 0, memsize = 0;
 
 
-static struct memmap_entry *insert_entry(int idx)
+static struct loader_memmap_entry *insert_entry(int idx)
 {
     if (idx > entry_count) {
         return NULL;
     }
 
     for (int i = entry_count - 1; i >= idx; i--) {
-        memcpy(&memmap[i + 1], &memmap[i], sizeof(struct memmap_entry));
+        memcpy(&memmap[i + 1], &memmap[i], sizeof(struct loader_memmap_entry));
         //memmap[i + 1].start = memmap[i].start;
     }
 
@@ -40,10 +41,10 @@ static void remove_entry(int idx)
 
     int i = 0;
     for (i = idx; i < entry_count - 1; i++) {
-        memcpy(&memmap[i], &memmap[i + 1], sizeof(struct memmap_entry));
+        memcpy(&memmap[i], &memmap[i + 1], sizeof(struct loader_memmap_entry));
         //memmap[i] = memmap[i + 1];
     }
-    memzero(&memmap[i], sizeof(struct memmap_entry));
+    memzero(&memmap[i], sizeof(struct loader_memmap_entry));
 
     entry_count--;
 }
@@ -51,8 +52,8 @@ static void remove_entry(int idx)
 static void merge_consecutive_regions()
 {
     for (int i = 0; i < entry_count - 1; ) {
-        struct memmap_entry *entry = &memmap[i];
-        struct memmap_entry *next = &memmap[i + 1];
+        struct loader_memmap_entry *entry = &memmap[i];
+        struct loader_memmap_entry *next = &memmap[i + 1];
 
         if (entry->start + entry->size == next->start &&
             entry->flags == next->flags
@@ -70,7 +71,7 @@ static void claim_region(u64 start, u64 size, int flag)
     u64 end = start + size;
 
     for (int i = 0; i < entry_count && size; i++) {
-        struct memmap_entry *entry = &memmap[i];
+        struct loader_memmap_entry *entry = &memmap[i];
         u64 entry_end = entry->start + entry->size;
 
         if (end <= entry->start) {
@@ -85,7 +86,7 @@ static void claim_region(u64 start, u64 size, int flag)
         } else if (start <= entry->start &&
             end > entry->start && end < entry_end
         ) {
-            struct memmap_entry *claimed = insert_entry(i);
+            struct loader_memmap_entry *claimed = insert_entry(i);
             claimed->start = entry->start;
             claimed->size = end - entry->start;
             claimed->flags = flag;
@@ -100,7 +101,7 @@ static void claim_region(u64 start, u64 size, int flag)
         else if (start > entry->start && start < entry_end &&
             end >= entry_end
         ) {
-            struct memmap_entry *claimed = insert_entry(++i);
+            struct loader_memmap_entry *claimed = insert_entry(++i);
             claimed->start = start;
             claimed->size = entry_end - start;
             claimed->flags = flag;
@@ -110,14 +111,14 @@ static void claim_region(u64 start, u64 size, int flag)
             size -= entry_end - start;
             start = entry_end;
         } else if (start > entry->start && end < entry_end) {
-            struct memmap_entry *claimed = insert_entry(++i);
+            struct loader_memmap_entry *claimed = insert_entry(++i);
             claimed->start = start;
             claimed->size = size;
             claimed->flags = flag;
 
             entry->size = start - entry->start;
 
-            struct memmap_entry *next = insert_entry(++i);
+            struct loader_memmap_entry *next = insert_entry(++i);
             next->start = end;
             next->size = entry_end - end;
             next->flags = entry->flags;
@@ -274,9 +275,9 @@ static void create_all_from_memory_node(struct devtree_node *chosen,
 
         // See if we can extend the previous entry
         int extend = 0;
-        struct memmap_entry *entry = &memmap[entry_count];
+        struct loader_memmap_entry *entry = &memmap[entry_count];
         if (entry_count) {
-            struct memmap_entry *prev_entry = &memmap[entry_count - 1];
+            struct loader_memmap_entry *prev_entry = &memmap[entry_count - 1];
             u64 prev_end = prev_entry->start + prev_entry->size;
 
             if (prev_end >= addr && addr + size >= prev_end) {
@@ -331,7 +332,7 @@ static void create_all_from_chosen_node(struct devtree_node *chosen)
         memsize = funcs->phys_mem_range_max;
     }
 
-    struct memmap_entry *entry = &memmap[0];
+    struct loader_memmap_entry *entry = &memmap[0];
     entry->start = devtree_get_prop_data_u64(fw_memstart);
     entry->size = memsize;
     entry->flags = MEMMAP_USABLE;
@@ -351,10 +352,10 @@ static void create_all()
     }
 }
 
-static void print_memmap()
+void print_memmap()
 {
     for (int i = 0; i < entry_count; i++) {
-        struct memmap_entry *entry = &memmap[i];
+        struct loader_memmap_entry *entry = &memmap[i];
         lprintf("Memory region #%d @ %llx - %llx, size: %llx, flag: %d\n", i,
             entry->start, entry->start + entry->size, entry->size, entry->flags
         );
@@ -382,10 +383,14 @@ void init_memmap()
     print_memmap();
 }
 
-const struct memmap_entry *get_memmap(int *num_entries)
+struct loader_memmap_entry *get_memmap(int *num_entries, int *limit)
 {
     if (num_entries) {
         *num_entries = entry_count;
+    }
+
+    if (limit) {
+        *limit = MAX_MEMMAP_SIZE;
     }
 
     return memmap;
@@ -410,12 +415,12 @@ void *memmap_alloc_phys(ulong size, ulong align)
     }
 
     if (align) {
-        panic_if(popcount(align) != 1, "Must align to power of 2!");
+        panic_if(popcount(align) > 1, "Must align to power of 2!");
         size = ALIGN_UP(size, align);
     }
 
     for (int i = 0; i < entry_count; i++) {
-        struct memmap_entry *entry = &memmap[i];
+        struct loader_memmap_entry *entry = &memmap[i];
         if (entry->flags == MEMMAP_USABLE && entry->size >= size) {
             ulong aligned_start = (ulong)entry->start;
             if (align) {

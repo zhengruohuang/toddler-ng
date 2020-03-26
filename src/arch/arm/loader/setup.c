@@ -3,10 +3,12 @@
 #include "common/include/mem.h"
 #include "common/include/abi.h"
 #include "common/include/msr.h"
+#include "loader/include/lprintf.h"
 #include "loader/include/lib.h"
 #include "loader/include/firmware.h"
 #include "loader/include/boot.h"
 #include "loader/include/loader.h"
+#include "loader/include/devtree.h"
 
 
 /*
@@ -96,6 +98,7 @@ static void map_page(void *page_table, void *vaddr, void *paddr, int block,
         }
 
         else {
+            l1entry->value = 0;
             l1entry->block.present = 1;
             l1entry->block.bfn = ADDR_TO_BFN((ulong)paddr);
             l1entry->block.no_exec = !exec;
@@ -159,6 +162,10 @@ static void map_page(void *page_table, void *vaddr, void *paddr, int block,
 static int map_range(void *page_table, void *vaddr, void *paddr, ulong size,
     int cache, int exec, int write)
 {
+    lprintf("Map, page_dir_pfn: %p, vaddr @ %p, paddr @ %p, size: %ld, cache: %d, exec: %d, write: %d\n",
+       page_table, vaddr, paddr, size, cache, exec, write
+    );
+
     ulong vaddr_start = ALIGN_DOWN((ulong)vaddr, PAGE_SIZE);
     ulong paddr_start = ALIGN_DOWN((ulong)paddr, PAGE_SIZE);
     ulong vaddr_end = ALIGN_UP((ulong)vaddr + size, PAGE_SIZE);
@@ -173,6 +180,8 @@ static int map_range(void *page_table, void *vaddr, void *paddr, ulong size,
             ALIGNED(cur_paddr, L1BLOCK_SIZE) &&
             vaddr_end - cur_vaddr >= L1BLOCK_SIZE
         ) {
+            //lprintf("1MB, vaddr @ %lx, paddr @ %lx, len: %d\n", cur_vaddr, cur_paddr, L1BLOCK_SIZE);
+
             map_page(page_table, (void *)cur_vaddr, (void *)cur_paddr, 1,
                 cache, exec, write);
 
@@ -201,17 +210,20 @@ static int map_range(void *page_table, void *vaddr, void *paddr, ulong size,
  */
 static void enable_mmu(void *root_page)
 {
-    // FIXME: map PL011
-    map_range(root_page, (void *)PL011_BASE, (void *)PL011_BASE, 0x100, 0, 0, 1);
-
-    // Copy the page table address to cp15
+    // Copy the page table base
     write_trans_tab_base0((ulong)root_page);
+    write_trans_tab_base1((ulong)root_page);
 
     // Enable permission check for domain0
     struct domain_access_ctrl_reg domain;
     read_domain_access_ctrl(domain.value);
     domain.domain0 = 0x1;
     write_domain_access_ctrl(domain.value);
+
+    // Set page table ctrl reg
+    struct trans_tab_base_ctrl_reg ttbcr;
+    ttbcr.value = 0;
+    write_trans_tab_base_ctrl(ttbcr.value);
 
     // Enable the MMU
     struct sys_ctrl_reg sys_ctrl;
@@ -277,6 +289,16 @@ static void jump_to_hal()
 
 
 /*
+ * Finalize
+ */
+static void final_arch()
+{
+    // FIXME: map PL011
+    map_range(root_page, (void *)PL011_BASE, (void *)PL011_BASE, 0x100, 0, 0, 1);
+}
+
+
+/*
  * Init arch
  */
 static void init_arch()
@@ -328,6 +350,7 @@ void loader_entry(ulong zero, ulong mach_id, void *mach_cfg)
     funcs.map_range = map_range;
     funcs.access_win_to_phys = access_win_to_phys;
     funcs.phys_to_access_win = phys_to_access_win;
+    funcs.final_arch = final_arch;
     funcs.jump_to_hal = jump_to_hal;
 
     // Go to loader!

@@ -2,6 +2,7 @@
 #include "loader/include/loader.h"
 #include "loader/include/firmware.h"
 #include "loader/include/boot.h"
+#include "loader/include/lprintf.h"
 
 
 /*
@@ -44,7 +45,7 @@ struct loader_args *get_loader_args()
 
 
 /*
- * Init arch
+ * Wrappers
  */
 static void init_arch()
 {
@@ -53,10 +54,18 @@ static void init_arch()
     }
 }
 
+static void final_arch()
+{
+    if (arch_funcs && arch_funcs->final_arch) {
+        arch_funcs->final_arch();
+    }
 
-/*
- * Jump to HAL
- */
+    // Save memory map
+    loader_args.memmap = get_memmap(&loader_args.num_memmap_entries,
+                                    &loader_args.num_memmap_limit);
+    print_memmap();
+}
+
 static void jump_to_hal()
 {
     panic_if(!arch_funcs || !arch_funcs->jump_to_hal,
@@ -101,6 +110,9 @@ void loader(struct firmware_args *args, struct loader_arch_funcs *funcs)
 
     // Load HAL and kernel
     load_hal_and_kernel();
+
+    // Finalize
+    final_arch();
 
     // Jump to HAL
     jump_to_hal();

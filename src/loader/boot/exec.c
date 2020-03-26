@@ -1,6 +1,7 @@
 #include "common/include/inttypes.h"
 #include "common/include/arch.h"
 #include "common/include/elf.h"
+#include "loader/include/lprintf.h"
 #include "loader/include/lib.h"
 #include "loader/include/firmware.h"
 #include "loader/include/boot.h"
@@ -209,11 +210,13 @@ void load_hal_and_kernel()
     struct loader_args *largs = get_loader_args();
 
     largs->hal_entry = (void *)load_elf("tdlrhal.elf",
-        (ulong *)&largs->hal_start, (ulong *)&largs->hal_end);
+        &largs->hal_start, &largs->hal_end);
 
     lprintf("HAL @ %p to %p, entry @ %p\n", largs->hal_start, largs->hal_end,
         largs->hal_entry);
 
     largs->kernel_entry = (void *)load_elf("tdlrkrnl.elf",
-        (ulong *)&largs->kernel_start, (ulong *)&largs->kernel_end);
+        &largs->kernel_start, &largs->kernel_end);
+
+    largs->hal_grow = 1;
 }

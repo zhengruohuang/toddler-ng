@@ -215,6 +215,66 @@ def perform_emu():
     if 'start_emu' in build_actions:
         build_actions['start_emu']()
 
+def perform_clean():
+    print_title('Cleaning target: ' + target_name)
+
+    print_info('remove', target_dir)
+    cmd = 'rm -rf ' + target_dir
+    exec_cmd(cmd)
+
+def perform_clean_all():
+    print_title('Cleaning all')
+
+    print_info('remove', target_all_dir)
+    cmd = 'rm -rf ' + target_all_dir
+    exec_cmd(cmd)
+
+def perform_stats():
+    print_title('Collect source code statistics')
+
+    global_ext_list = []
+    global_files = {}
+    global_lines = {}
+
+    dir_list = [ doc_dir, tools_src_dir, src_dir ]
+
+    for pdir in dir_list:
+        subdirs = get_subdir(pdir) or []
+        for i in range(len(subdirs)):
+            subdirs[i] = pdir + subdirs[i] + '/'
+        subdirs.append(pdir)
+
+        for dir in subdirs:
+            ret = stats_dir(dir, None)
+
+            if dir != pdir:
+                continue;
+
+            ext_list = ret[0]
+            stats_files = ret[1]
+            stats_lines = ret[2]
+
+            for fext in ext_list:
+                if not fext in global_ext_list:
+                    global_ext_list.append(fext)
+                    global_files[fext] = 0
+                    global_lines[fext] = 0
+
+                global_files[fext] += stats_files[fext]
+                global_lines[fext] += stats_lines[fext]
+
+    total_files = 0
+    total_lines = 0
+
+    print_action('stats', 'Aggregate')
+    for fext in sorted(ext_list):
+        print_info(fext, 'File count: {0}, line count: {1}'.format(global_files[fext], global_lines[fext]))
+
+        total_files += global_files[fext]
+        total_lines += global_lines[fext]
+
+    print_info('total', 'File count: {0}, line count: {1}'.format(total_files, total_lines))
+
 #-------------------------------------------------------------------------------
 
 

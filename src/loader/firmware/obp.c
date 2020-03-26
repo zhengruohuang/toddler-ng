@@ -4,6 +4,7 @@
 #include "loader/include/lib.h"
 #include "loader/include/obp.h"
 #include "loader/include/devtree.h"
+#include "loader/include/lprintf.h"
 
 
 #define MAX_OBP_BUF_LEN     512

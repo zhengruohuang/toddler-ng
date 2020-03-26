@@ -221,7 +221,7 @@ class gnu_toolchain(toolchain):
             'cc': 'gcc', 'as': 'gcc', 'ld': 'gcc', 'ar': 'ar', 'pp': 'cpp',
             'strip': 'strip', 'objdump': 'objdump', 'objcopy': 'objcopy',
             'ppflags': '', 'ccflags': '', 'asflags': '', 'ldflags': '',
-            'includes': [], 'macros': [],
+            'arflags': '', 'includes': [], 'macros': [],
         }
 
     def compose_dep_c(self, target_name, src_name, **kwargs):
@@ -280,13 +280,14 @@ class gnu_toolchain(toolchain):
 
     def compose_ld(self, target_name, src_name, **kwargs):
         script = ('-T ' + kwargs['ld_script']) if in_dict('ld_script', kwargs) else ''
+        ext_libs = (' '.join(kwargs['ext_libs'])) if in_dict('ext_libs', kwargs) else ''
         return self.opts['prefix'] + self.opts['ld'] + \
             ' ' + self.opts['ldflags'] + ' ' + script + \
-            ' -o ' + target_name + ' ' + src_name
+            ' -o ' + target_name + ' ' + ext_libs + ' ' + src_name + ' ' + ext_libs
 
     def compose_ar(self, target_name, src_name, **kwargs):
         return self.opts['prefix'] + self.opts['ar'] + \
-            ' -crD ' + self.opts['ldflags'] + \
+            ' -crD ' + self.opts['arflags'] + \
             ' ' + target_name + ' ' + src_name
 
     def compose_disasm(self, target_name, src_name, **kwargs):
@@ -504,6 +505,9 @@ def link_objs(target_name, obj_names, **kwargs):
 
         kwargs.update({'ld_script': pp_ld_script})
         ld_deps += [pp_ld_script]
+
+    if in_dict('ext_libs', kwargs):
+        ld_deps += kwargs['ext_libs']
 
     cmd = compose_toolchain_cmd(target_name, ' '.join(obj_names), 'ld', **kwargs)
     operation(target_name, ld_deps, cmd,

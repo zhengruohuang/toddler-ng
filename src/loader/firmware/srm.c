@@ -2,6 +2,7 @@
 #include "loader/include/lib.h"
 #include "loader/include/devtree.h"
 #include "loader/include/firmware.h"
+#include "loader/include/lprintf.h"
 
 
 #define PARAM_OFFSET -0x6000

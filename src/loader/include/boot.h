@@ -3,28 +3,15 @@
 
 
 #include "common/include/inttypes.h"
+#include "loader/include/loader.h"
 
 
 /*
  * Memory map
  */
-enum memmap_entry_type {
-    MEMMAP_NONE = 0,
-    MEMMAP_USABLE,
-    MEMMAP_LOADER,
-    MEMMAP_DEDICATED,
-    MEMMAP_USED,
-    MEMMAP_INVALID,
-};
-
-struct memmap_entry {
-    u64 start;
-    u64 size;
-    int flags;
-} packed_struct;
-
+extern void print_memmap();
 extern void init_memmap();
-extern const struct memmap_entry *get_memmap(int *num_entries);
+extern struct loader_memmap_entry *get_memmap(int *num_entries, int *limit);
 extern u64 get_memmap_range(u64 *start);
 extern void *memmap_alloc_phys(ulong size, ulong align);
 

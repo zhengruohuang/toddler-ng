@@ -1,15 +1,28 @@
 #!/usr/bin/python
 
 
+def build_libk():
+    print_info('libk', 'Building Libk')
+
+    libk_files = get_all_arch_files('libk/', [ '.c', '.S' ])
+
+    lib_files(
+        bin_dir + 'tdlrlibk.a',
+        libk_files,
+        toolchain = get_toolchain('loader'),
+    )
+
 def build_hal():
     print_info('hal', 'Building HAL')
 
     hal_ld = find_deepest_arch_file('hal/hal.ld')
     hal_files = get_all_arch_files('hal/', [ '.c', '.S' ])
+    libk = bin_dir + 'tdlrlibk.a'
 
     build_files(
         bin_dir + 'tdlrhal.elf',
         hal_files,
+        ext_libs = [ libk ],
         ext_ld_deps = [ hal_ld ],
         ld_script = hal_ld,
         toolchain = get_toolchain('hal'),
@@ -27,10 +40,12 @@ def build_kernel():
 
     kernel_ld = find_deepest_arch_file('kernel/kernel.ld')
     kernel_files = get_all_arch_files('kernel/', [ '.c', '.S' ])
+    libk = bin_dir + 'tdlrlibk.a'
 
     build_files(
         bin_dir + 'tdlrkrnl.elf',
         kernel_files,
+        ext_libs = [ libk ],
         ext_ld_deps = [ kernel_ld ],
         ld_script = kernel_ld,
         toolchain = get_toolchain('kernel'),
@@ -186,6 +201,7 @@ def build_boot():
     )
 
 def build_main():
+    build_libk()
     build_hal()
     build_kernel()
     build_klibc()

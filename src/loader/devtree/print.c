@@ -13,10 +13,10 @@ static void print_ident(int ident)
     }
 }
 
-static void print_digit(char c)
-{
-    lprintf("%c", c > 10 ? 'a' + c - 10 : '0' + c);
-}
+// static void print_digit(char c)
+// {
+//     lprintf("%c", c > 10 ? 'a' + c - 10 : '0' + c);
+// }
 
 static void print_prop_data(struct devtree_prop *prop)
 {

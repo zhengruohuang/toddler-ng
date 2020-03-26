@@ -34,14 +34,14 @@ static inline struct fdt_struct *skip_begin_node(struct fdt_struct *node)
 {
     struct fdt_struct_begin *begin = (struct fdt_struct_begin *)node;
     ulong addr = (ulong)node + 4 + strlen(begin->name) + 1;
-    return (void *)ALIGN_UP(addr, 4ull);
+    return (void *)ALIGN_UP(addr, 4ul);
 }
 
 static inline struct fdt_struct *skip_prop_node(struct fdt_struct *node)
 {
     struct fdt_struct_prop *prop = (struct fdt_struct_prop *)node;
     ulong addr = (ulong)node + sizeof(struct fdt_struct_prop) + prop->len;
-    return (void *)ALIGN_UP(addr, 4ull);
+    return (void *)ALIGN_UP(addr, 4ul);
 }
 
 static inline void *get_prop_value(struct fdt_struct_prop *prop)

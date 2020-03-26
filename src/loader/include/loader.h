@@ -4,6 +4,7 @@
 
 #include "common/include/compiler.h"
 #include "common/include/inttypes.h"
+#include "loader/include/export.h"
 
 
 enum firmware_types {
@@ -95,6 +96,7 @@ struct loader_arch_funcs {
 
     // General
     void (*init_arch)();
+    void (*final_arch)();
     void (*jump_to_hal)();
 
     // Paging
@@ -107,23 +109,6 @@ struct loader_arch_funcs {
     // Probably only needed by MIPS
     void *(*access_win_to_phys)(void *vaddr);
     void *(*phys_to_access_win)(void *paddr);
-};
-
-struct loader_args {
-    // Arch-specific data
-    void *arch_args;
-
-    // Important data structures
-    void *devtree;
-    void *memmap;
-    void *page_table;
-
-    // HAL virtual layout, hal_grow: >=0 = grow up, <0 = grow down
-    void *hal_entry, *hal_start, *hal_end;
-    int hal_grow;
-
-    // Kernel virtual layout
-    void *kernel_entry, *kernel_start, *kernel_end;
 };
 
 

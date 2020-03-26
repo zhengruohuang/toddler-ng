@@ -43,6 +43,9 @@ void init_firmware()
         panic("Unable to init firmware!\n");
         break;
     }
+
+    struct loader_args *largs = get_loader_args();
+    largs->devtree = devtree_get_head();
 }
 
 void *firmware_translate_virt_to_phys(void *vaddr)

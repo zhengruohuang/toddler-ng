@@ -4,7 +4,7 @@
 
 .set    noreorder
 
-.extern hal
+.extern hal_entry
 
 .globl _start
 .align  2
@@ -22,7 +22,7 @@ _start:
     .cpload t9
 
     // Jump to HAL
-    la      t9, hal
+    la      t9, hal_entry
     jalr    t9
     nop
 

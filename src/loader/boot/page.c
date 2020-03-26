@@ -12,6 +12,7 @@ static void map_memmap_1to1()
     u64 memstart = 0;
     u64 memsize = get_memmap_range(&memstart);
 
+    // FIXME: u64 for paddr
     page_map_virt_to_phys((void *)memstart, (void *)memstart, memsize, 1, 1, 1);
 }
 
@@ -34,6 +35,8 @@ int page_map_virt_to_phys(void *vaddr, void *paddr, ulong size,
 
     struct loader_arch_funcs *funcs = get_arch_funcs();
     if (funcs->map_range) {
-        funcs->map_range(page_table, vaddr, paddr, size, cache, exec, write);
+        return funcs->map_range(page_table, vaddr, paddr, size, cache, exec, write);
     }
+
+    return 0;
 }

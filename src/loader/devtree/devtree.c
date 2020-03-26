@@ -121,14 +121,14 @@ struct devtree_prop *devtree_alloc_prop_u32(struct devtree_node *node,
     const char *name, u32 data)
 {
     data = swap_big_endian32(data);
-    devtree_alloc_prop(node, name, &data, sizeof(u32));
+    return devtree_alloc_prop(node, name, &data, sizeof(u32));
 }
 
 struct devtree_prop *devtree_alloc_prop_u64(struct devtree_node *node,
     const char *name, u64 data)
 {
     data = swap_big_endian64(data);
-    devtree_alloc_prop(node, name, &data, sizeof(u64));
+    return devtree_alloc_prop(node, name, &data, sizeof(u64));
 }
 
 
@@ -136,6 +136,11 @@ struct devtree_prop *devtree_alloc_prop_u64(struct devtree_node *node,
  * Tree traversal
  *  Note that the tree structure is stored in NATIVE ENDIAN
  */
+struct devtree_head *devtree_get_head()
+{
+    return head;
+}
+
 struct devtree_node *devtree_get_root()
 {
     if (!head || !head->root) {

@@ -122,6 +122,18 @@ struct trans_tab_base_reg {
     };
 };
 
+struct trans_tab_base_ctrl_reg {
+    union {
+        u32 value;
+
+        struct {
+            u32 ttbr0_width     : 3;
+            u32 reserved        : 28;
+            u32 ext_addr        : 1;
+        };
+    };
+};
+
 struct domain_access_ctrl_reg {
     union {
         u32 value;

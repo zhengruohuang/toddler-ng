@@ -7,7 +7,7 @@
 // r0 -> Loadr args
 _start:
     // Go to loader
-    bl      hal
+    bl      hal_entry
 
     // Should never reach here
 __stop:

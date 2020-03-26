@@ -3,6 +3,7 @@
 #include "loader/include/devtree.h"
 #include "loader/include/firmware.h"
 #include "loader/include/multiboot.h"
+#include "loader/include/lprintf.h"
 
 
 static struct multiboot_info *mbi;
@@ -40,8 +41,8 @@ static struct devtree_node *get_memrsv_node()
 
 static void find_and_parse_fdt()
 {
-    int found = 0;
     struct multiboot_mod_list *e = (void *)(ulong)mbi->mods_addr;
+
     for (int i = 0; i < mbi->mods_count && e; i++, e++) {
         char *str = (void *)(ulong)e->cmdline;
         if (strstr(str, "fdt.dtb") && e->mod_start) {

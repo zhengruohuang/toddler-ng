@@ -58,10 +58,12 @@
 #define L1PAGE_TABLE_SIZE           16384
 #define L1PAGE_TABLE_ENTRY_COUNT    4096
 #define L1PAGE_TABLE_ENTRY_BITS     12
+#define L1PAGE_TABLE_SIZE_IN_PAGES  4
 
 #define L2PAGE_TABLE_SIZE           4096
 #define L2PAGE_TABLE_ENTRY_COUNT    256
 #define L2PAGE_TABLE_ENTRY_BITS     8
+#define L2PAGE_TABLE_SIZE_IN_PAGES  1
 
 #define L1BLOCK_SIZE                0x100000ul
 #define L1BLOCK_PAGE_COUNT          256
@@ -78,7 +80,7 @@ struct l1page_table_entry {
             u32     present         : 1;
             u32     reserved1       : 2;
             u32     non_secure      : 1;
-            u32     reserved2       : 1;
+            u32     imp             : 1;
             u32     domain          : 4;
             u32     reserved3       : 1;
             u32     pfn_ext         : 2;
@@ -91,7 +93,7 @@ struct l1page_table_entry {
             u32     cache_inner     : 2;    // c, b
             u32     no_exec         : 1;
             u32     domain          : 4;
-            u32     reserved2       : 1;
+            u32     imp             : 1;
             u32     user_write      : 1;    // AP[0]
             u32     user_access     : 1;    // AP[1]
             u32     cache_outer     : 2;    // TEX[1:0]

@@ -1,5 +1,6 @@
 #include "common/include/inttypes.h"
 #include "loader/include/devtree.h"
+#include "loader/include/lprintf.h"
 #include "loader/include/lib.h"
 
 
