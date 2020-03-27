@@ -2,6 +2,7 @@
 #include "loader/include/loader.h"
 #include "loader/include/firmware.h"
 #include "loader/include/boot.h"
+#include "loader/include/devtree.h"
 #include "loader/include/lprintf.h"
 
 
@@ -33,7 +34,7 @@ struct firmware_args *get_fw_args()
     return fw_args;
 }
 
-struct loader_arch_funcs *get_arch_funcs()
+struct loader_arch_funcs *get_loader_arch_funcs()
 {
     return arch_funcs;
 }

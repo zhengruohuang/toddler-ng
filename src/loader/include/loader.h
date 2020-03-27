@@ -114,7 +114,7 @@ struct loader_arch_funcs {
 
 
 extern struct firmware_args *get_fw_args();
-extern struct loader_arch_funcs *get_arch_funcs();
+extern struct loader_arch_funcs *get_loader_arch_funcs();
 extern struct loader_args *get_loader_args();
 
 extern void loader(struct firmware_args *args,

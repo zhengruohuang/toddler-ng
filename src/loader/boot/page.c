@@ -18,7 +18,7 @@ static void map_memmap_1to1()
 
 void init_page()
 {
-    struct loader_arch_funcs *funcs = get_arch_funcs();
+    struct loader_arch_funcs *funcs = get_loader_arch_funcs();
     panic_if(!funcs->setup_page, "Arch loader must implement setup_page()!");
 
     page_table = funcs->setup_page();
@@ -33,7 +33,7 @@ int page_map_virt_to_phys(void *vaddr, void *paddr, ulong size,
 {
     //lprintf("To map %p -> %p, size: %lx\n", vaddr, paddr, size);
 
-    struct loader_arch_funcs *funcs = get_arch_funcs();
+    struct loader_arch_funcs *funcs = get_loader_arch_funcs();
     if (funcs->map_range) {
         return funcs->map_range(page_table, vaddr, paddr, size, cache, exec, write);
     }

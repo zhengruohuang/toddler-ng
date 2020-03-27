@@ -4,16 +4,15 @@
 
 #include "common/include/inttypes.h"
 #include "loader/include/loader.h"
+#include "libk/include/memmap.h"
 
 
 /*
  * Memory map
  */
-extern void print_memmap();
-extern void init_memmap();
-extern struct loader_memmap_entry *get_memmap(int *num_entries, int *limit);
 extern u64 get_memmap_range(u64 *start);
 extern void *memmap_alloc_phys(ulong size, ulong align);
+extern void init_memmap();
 
 
 /*

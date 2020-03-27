@@ -134,7 +134,7 @@ static void relocate_got(elf_native_header_t *elf,
     panic_if(sec->section_entsize != sizeof(elf_native_addr_t),
         "Unable to handle GOT entry size: %ld\n", (ulong)sec->section_entsize);
 
-    struct loader_arch_funcs *arch_funcs = get_arch_funcs();
+    struct loader_arch_funcs *arch_funcs = get_loader_arch_funcs();
 
     elf_native_addr_t *got = rebase_to_win(
         (void *)(ulong)sec->section_addr, target_win, access_win);
@@ -157,7 +157,7 @@ static ulong load_elf(const char *name, ulong *range_start, ulong *range_end)
     }
 
     // Get arch funcs
-    struct loader_arch_funcs *arch_funcs = get_arch_funcs();
+    struct loader_arch_funcs *arch_funcs = get_loader_arch_funcs();
 
     // Get range
     ulong vaddr_start = 0, vaddr_end = 0;

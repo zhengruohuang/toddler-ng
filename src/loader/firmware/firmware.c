@@ -58,7 +58,7 @@ void *firmware_translate_virt_to_phys(void *vaddr)
         return obp_translate_virt_to_phys(vaddr);
     }
 
-    struct loader_arch_funcs *arch_funcs = get_arch_funcs();
+    struct loader_arch_funcs *arch_funcs = get_loader_arch_funcs();
     if (arch_funcs->access_win_to_phys) {
         return arch_funcs->access_win_to_phys(vaddr);
     }
@@ -87,7 +87,7 @@ void *firmware_alloc_and_map_acc_win(void *paddr, ulong size, ulong align)
      * Thus we simply do an arch-specific translation
      */
 
-    struct loader_arch_funcs *arch_funcs = get_arch_funcs();
+    struct loader_arch_funcs *arch_funcs = get_loader_arch_funcs();
     if (arch_funcs->phys_to_access_win) {
         return arch_funcs->phys_to_access_win(paddr);
     }
