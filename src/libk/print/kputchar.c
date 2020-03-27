@@ -2,10 +2,10 @@
 #include "libk/include/kprintf.h"
 
 
-static periph_putchar_t putchar_func = NULL;
+static libk_putchar_t putchar_func = NULL;
 
 
-void init_libk_putchar(periph_putchar_t func)
+void init_libk_putchar(libk_putchar_t func)
 {
     putchar_func = func;
 }

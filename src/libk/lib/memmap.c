@@ -68,6 +68,8 @@ static void merge_consecutive_regions()
 
 void claim_memmap_region(u64 start, u64 size, int flags)
 {
+    //__kprintf("to claim @ %llx, size: %llx\n", start, size);
+
     u64 end = start + size;
 
     for (int i = 0; i < entry_count && size; i++) {
@@ -117,7 +119,7 @@ void claim_memmap_region(u64 start, u64 size, int flags)
 
         else if (start > entry->start && start < entry_end) {
             int ori_flags = entry->flags;
-            entry->size -= start - entry->start;
+            entry->size = start - entry->start;
 
             entry = insert_entry(i + 1);
 

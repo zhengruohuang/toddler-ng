@@ -153,7 +153,7 @@ int init_ns16550(const void *node, const char *opts)
     setup(node, opts);
 
     // Register putchar
-    init_putchar(putchar);
+    init_libk_putchar(putchar);
 
     return 0;
 }

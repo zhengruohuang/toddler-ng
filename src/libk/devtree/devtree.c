@@ -141,6 +141,11 @@ struct devtree_prop *devtree_alloc_prop_u64(struct devtree_node *node,
  * Tree traversal
  *  Note that the tree structure is stored in NATIVE ENDIAN
  */
+struct devtree_head *devtree_get_head()
+{
+    return head;
+}
+
 struct devtree_node *devtree_get_root()
 {
     if (!head || !head->root) {

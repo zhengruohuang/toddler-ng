@@ -95,6 +95,7 @@ struct loader_arch_funcs {
     u64 phys_mem_range_min, phys_mem_range_max;
 
     // General
+    void (*init_libk)();
     void (*init_arch)();
     void (*final_arch)();
     void (*jump_to_hal)();

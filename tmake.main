@@ -150,6 +150,7 @@ def build_loader():
     # Prepare loader file
     loader_ld = find_deepest_arch_file('loader/loader.ld')
     loader_files = get_all_arch_files('loader/', [ '.c', '.S' ])
+    libk = bin_dir + 'tdlrlibk.a'
 
     # Embed FDT
     embed_fdt = build_opts['embed_fdt'] if 'embed_fdt' in build_opts else False
@@ -173,6 +174,7 @@ def build_loader():
     build_files(
         bin_dir + 'tdlrldr.elf',
         loader_files,
+        ext_libs = [ libk ],
         ext_ld_deps = [ loader_ld ],
         ld_script = loader_ld,
         toolchain = get_toolchain('loader'),

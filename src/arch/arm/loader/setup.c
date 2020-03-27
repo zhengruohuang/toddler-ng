@@ -19,7 +19,7 @@
 #define PL011_DR                (PL011_BASE)
 #define PL011_FR                (PL011_BASE + 0x18ul)
 
-int arch_debug_putchar(int ch)
+static int raspi2_putchar(int ch)
 {
     // Wait until the UART has an empty space in the FIFO
     u32 ready = 0;
@@ -308,6 +308,15 @@ static void init_arch()
 
 
 /*
+ * Init libk
+ */
+static void init_libk()
+{
+    init_libk_putchar(raspi2_putchar);
+}
+
+
+/*
  * The ARM entry point
  */
 void loader_entry(ulong zero, ulong mach_id, void *mach_cfg)
@@ -345,6 +354,7 @@ void loader_entry(ulong zero, ulong mach_id, void *mach_cfg)
     funcs.num_reserved_got_entries = ELF_GOT_NUM_RESERVED_ENTRIES;
 
     // Prepare funcs
+    funcs.init_libk = init_libk;
     funcs.init_arch = init_arch;
     funcs.setup_page = setup_page;
     funcs.map_range = map_range;

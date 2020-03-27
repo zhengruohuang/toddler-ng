@@ -47,6 +47,13 @@ struct loader_args *get_loader_args()
 /*
  * Wrappers
  */
+static void init_libk()
+{
+    if (arch_funcs && arch_funcs->init_libk) {
+        arch_funcs->init_libk();
+    }
+}
+
 static void init_arch()
 {
     if (arch_funcs && arch_funcs->init_arch) {
@@ -88,6 +95,7 @@ void loader(struct firmware_args *args, struct loader_arch_funcs *funcs)
     arch_funcs = funcs;
 
     // Arch-specific
+    init_libk();
     init_arch();
 
     // Firmware and device tree
