@@ -167,14 +167,23 @@ static void construct_pfndb()
 {
     struct hal_exports *hal = get_hal_exports();
 
-    ulong prev_end = 0;
+    ulong prev_end = paddr_start;
     //ulong count = 0;
 
     for (int e = 0; e < hal->memmap_count; e++) {
         struct loader_memmap_entry *cur = &hal->memmap[e];
 
+        ulong aligned_start = ALIGN_UP((ulong)cur->start, PAGE_SIZE);
+        ulong aligned_end = ALIGN_DOWN((ulong)(cur->start + cur->size), PAGE_SIZE);
+
         // Fill in the hole between two zones (is there is a hole)
-        for (ulong i = prev_end; i < cur->start; i += PAGE_SIZE) {
+        if (prev_end < aligned_start) {
+            kprintf("\t\tHole   @ %lx - %lx (%lx), Usable: 0\n",
+                prev_end, aligned_start, aligned_start - prev_end
+            );
+        }
+
+        for (ulong i = prev_end; i < aligned_start; i += PAGE_SIZE) {
             struct pfndb_entry *entry = get_pfn_entry_by_paddr(i);
 
             entry->usable = 0;
@@ -192,7 +201,14 @@ static void construct_pfndb()
         }
 
         // Initialize the actual PFN entries
-        for (ulong i = cur->start; i < cur->start + cur->size; i += PAGE_SIZE) {
+        if (aligned_start < aligned_end) {
+            kprintf("\t\tRegion @ %lx - %lx (%lx), Usable: %d\n",
+                aligned_start, aligned_end, aligned_end - aligned_start,
+                cur->flags == MEMMAP_USABLE ? 1 : 0
+            );
+        }
+
+        for (ulong i = aligned_start; i < aligned_end; i += PAGE_SIZE) {
             struct pfndb_entry *entry = get_pfn_entry_by_paddr(i);
 
             if (cur->flags == MEMMAP_USABLE) {
@@ -220,12 +236,16 @@ static void construct_pfndb()
             //}
         }
 
-        prev_end = cur->start + cur->size;
+        prev_end = aligned_end;
     }
 
-    kprintf("\n\tRemaining: %p, End: %p ...", prev_end, paddr_end);
-
     // Fill the rest of the PFN database
+    if (prev_end < paddr_end) {
+        kprintf("\t\tLast   @ %lx - %lx (%lx), Usable: 0\n",
+            prev_end, paddr_end, paddr_end - prev_end
+        );
+    }
+
     for (ulong i = prev_end; i < paddr_end; i += PAGE_SIZE) {
         struct pfndb_entry *entry = get_pfn_entry_by_paddr(i);
 
@@ -236,11 +256,7 @@ static void construct_pfndb()
         entry->zeroed = 0;
         entry->kernel = 1;
         entry->swappable = 0;
-
-        kprintf(".");
     }
-
-    kprintf("\n");
 }
 
 void init_pfndb()
@@ -266,7 +282,7 @@ void init_pfndb()
     panic_if(!pfndb, "Unable to find a region to store PFNDB!\n");
 
     // Construct the PFN DB
-    kprintf("\tConstructing PFN database ...");
+    kprintf("\tConstructing PFN database\n");
     construct_pfndb();
 
     // Reserve the first page, aka Paddr = 0

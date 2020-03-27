@@ -47,7 +47,7 @@ static void claim_coreimg()
 
     if (coreimg_size && vaddr) {
         ulong paddr = (ulong)firmware_translate_virt_to_phys((void *)vaddr);
-        claim_memmap_region((u64)paddr, (u64)coreimg_size, MEMMAP_LOADER);
+        claim_memmap_region((u64)paddr, (u64)coreimg_size, MEMMAP_USED);
     }
 }
 
@@ -65,10 +65,16 @@ static void claim_loader()
         vaddr = 0;
     }
 
+    //vaddr = ALIGN_DOWN(vaddr, funcs->page_size);
+
+    //ulong vaddr_end = (ulong)&__end;
+    //vaddr_end = ALIGN_UP(vaddr_end, funcs->page_size);
+
     ulong size = (ulong)&__end - vaddr;
+    //ulong size = vaddr_end - vaddr;
 
     ulong paddr = (ulong)firmware_translate_virt_to_phys((void *)vaddr);
-    claim_memmap_region((u64)paddr, (u64)size, MEMMAP_LOADER);
+    claim_memmap_region((u64)paddr, (u64)size, MEMMAP_USED);
 }
 
 static void claim_memrsv()
@@ -106,7 +112,7 @@ static void claim_firmware()
         panic_if(avail_idx == -1, "Unable to get avail in memory node");
 
         if (addr) {
-            claim_memmap_region(prev_end, addr, MEMMAP_USED);
+            claim_memmap_region(prev_end, addr - prev_end, MEMMAP_USED);
         }
 
         prev_end = addr + size;
@@ -245,19 +251,19 @@ void init_memmap()
     print_memmap();
 
     // Claim already used regions
-    __kprintf("firmware\n");
+    //__kprintf("firmware\n");
     claim_firmware();
-    print_memmap();
+    //print_memmap();
 
-    __kprintf("memsrv\n");
+    //__kprintf("memsrv\n");
     claim_memrsv();
-    print_memmap();
+    //print_memmap();
 
-    __kprintf("loader\n");
+    //__kprintf("loader\n");
     claim_loader();
-    print_memmap();
+    //print_memmap();
 
-    __kprintf("coreimg\n");
+    //__kprintf("coreimg\n");
     claim_coreimg();
 
     // Done

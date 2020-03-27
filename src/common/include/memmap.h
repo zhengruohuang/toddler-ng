@@ -9,9 +9,8 @@
 enum loader_memmap_entry_type {
     MEMMAP_NONE = 0,
     MEMMAP_USABLE,
-    MEMMAP_LOADER,
-    MEMMAP_DEDICATED,
     MEMMAP_USED,
+    MEMMAP_USED_RECLAIM,
     MEMMAP_INVALID,
 };
 
