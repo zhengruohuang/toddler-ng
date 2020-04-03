@@ -93,6 +93,7 @@ struct loader_arch_funcs {
     ulong page_size;
     int num_reserved_got_entries;
     u64 phys_mem_range_min, phys_mem_range_max;
+    ulong mp_entry;
 
     // General
     void (*init_libk)();

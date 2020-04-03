@@ -6,7 +6,7 @@
 #include "hal/include/kprintf.h"
 #include "hal/include/lib.h"
 #include "hal/include/mp.h"
-#include "hal/include/dev.h"
+#include "hal/include/driver.h"
 
 
 /*
@@ -44,11 +44,25 @@ static void init_arch()
 {
 }
 
-static void init_int()
+static void init_arch_mp()
 {
 }
 
+static void init_int()
+{
+    init_int_handler();
+}
+
+static void init_int_mp()
+{
+    init_int_handler_mp();
+}
+
 static void init_mm()
+{
+}
+
+static void init_mm_mp()
 {
 }
 
@@ -68,22 +82,21 @@ static void disable_local_int()
 
 static void enable_local_int()
 {
+    kprintf("enable_local_int\n");
+
     __asm__ __volatile__ (
-        "cpsie iaf;"
+        "cpsie aif;"
         :
         :
         : "memory"
     );
 }
 
-static int get_cur_cpu_index()
+static ulong get_cur_mp_id()
 {
-    u32 cpu_idx = 0;
-
-    read_cpu_id(cpu_idx);
-    cpu_idx &= 0x3;
-
-    return (int)cpu_idx;
+    struct mp_affinity_reg mpidr;
+    read_cpu_id(mpidr.value);
+    return mpidr.lo24;
 }
 
 static void register_drivers()
@@ -92,6 +105,8 @@ static void register_drivers()
     REGISTER_DEV_DRIVER(bcm2836_percpu_intc);
 
     REGISTER_DEV_DRIVER(armv7_generic_timer);
+
+    REGISTER_DEV_DRIVER(armv7_cpu);
 }
 
 static ulong get_syscall_params(struct reg_context *regs, ulong *param0, ulong *param1, ulong *param2)
@@ -131,7 +146,7 @@ static void invalidate_tlb(ulong asid, ulong vaddr, size_t size)
     }
 }
 
-static void bringup_cpu(int cpu_id)
+static void start_cpu(int mp_seq, ulong mp_id, ulong entry)
 {
 }
 
@@ -182,15 +197,18 @@ static void init_thread_context(struct reg_context *context, ulong entry,
 /*
  * ARM HAL entry
  */
-void hal_entry(struct loader_args *largs)
+static void hal_entry_bsp(struct loader_args *largs)
 {
     struct hal_arch_funcs funcs;
     memzero(&funcs, sizeof(struct hal_arch_funcs));
 
     funcs.init_libk = init_libk;
     funcs.init_arch = init_arch;
+    funcs.init_arch_mp = init_arch_mp;
     funcs.init_int = init_int;
+    funcs.init_int_mp = init_int_mp;
     funcs.init_mm = init_mm;
+    funcs.init_mm_mp = init_mm_mp;
 
     funcs.putchar = raspi2_putchar;
     funcs.halt = halt_cur_cpu;
@@ -201,8 +219,9 @@ void hal_entry(struct loader_args *largs)
     funcs.unmap_range = unumap_range;
     funcs.translate = translate;
 
-    funcs.get_cur_cpu_index = get_cur_cpu_index;
-    funcs.bringup_cpu = bringup_cpu;
+    funcs.get_cur_mp_id = get_cur_mp_id;
+    funcs.mp_entry = largs->mp_entry;
+    funcs.start_cpu = start_cpu;
 
     funcs.register_drivers = register_drivers;
 
@@ -221,5 +240,36 @@ void hal_entry(struct loader_args *largs)
 
     funcs.invalidate_tlb = invalidate_tlb;
 
-    hal_entry_primary(largs, &funcs);
+    hal(largs, &funcs);
+}
+
+static void hal_entry_mp()
+{
+    // Switch to CPU-private stack
+    ulong sp = get_my_cpu_stack_top_vaddr();
+    ulong pc = (ulong)&hal_mp;
+
+    __asm__ __volatile__ (
+        // Set up stack top
+        "mov sp, %[sp];"
+
+        // Jump to target
+        "mov pc, %[pc];"
+        :
+        : [pc] "r" (pc), [sp] "r" (sp)
+        : "memory"
+    );
+}
+
+void hal_entry(struct loader_args *largs, int mp)
+{
+    if (mp) {
+        hal_entry_mp();
+    } else {
+        hal_entry_bsp(largs);
+    }
+
+    // Should never reach here
+    panic("Should never reach here");
+    while (1);
 }

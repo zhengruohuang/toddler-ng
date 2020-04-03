@@ -70,10 +70,38 @@ static void init_arch()
     }
 }
 
-static void init_arch_secondary()
+static void init_arch_mp()
 {
-    if (arch_funcs && arch_funcs->init_arch) {
-        arch_funcs->init_arch();
+    if (arch_funcs && arch_funcs->init_arch_mp) {
+        arch_funcs->init_arch_mp();
+    }
+}
+
+static void arch_init_int()
+{
+    if (arch_funcs && arch_funcs->init_int) {
+        arch_funcs->init_int();
+    }
+}
+
+static void arch_init_int_mp()
+{
+    if (arch_funcs && arch_funcs->init_int_mp) {
+        arch_funcs->init_int_mp();
+    }
+}
+
+static void arch_init_mm()
+{
+    if (arch_funcs && arch_funcs->init_mm) {
+        arch_funcs->init_mm();
+    }
+}
+
+static void arch_init_mm_mp()
+{
+    if (arch_funcs && arch_funcs->init_mm_mp) {
+        arch_funcs->init_mm_mp();
     }
 }
 
@@ -91,10 +119,10 @@ ulong arch_hal_direct_access(ulong paddr, int count, int cache)
     return 0;
 }
 
-int arch_get_cpu_index()
+ulong arch_get_cur_mp_id()
 {
-    if (arch_funcs->get_cur_cpu_index) {
-        return arch_funcs->get_cur_cpu_index();
+    if (arch_funcs->get_cur_mp_id) {
+        return arch_funcs->get_cur_mp_id();
     }
 
     panic_if(get_num_cpus() != 1,
@@ -102,10 +130,11 @@ int arch_get_cpu_index()
     return 0;
 }
 
-void arch_bringup_cpu(int index)
+void arch_start_cpu(int mp_seq, ulong mp_id, ulong entry)
 {
-    if (arch_funcs->bringup_cpu) {
-        arch_funcs->bringup_cpu(index);
+    if (arch_funcs->start_cpu) {
+        arch_funcs->start_cpu(mp_seq, mp_id, entry);
+        return;
     }
 
     panic_if(get_num_cpus() != 1,
@@ -149,8 +178,8 @@ void arch_disable_local_int()
 
 void arch_enable_local_int()
 {
-    if (arch_funcs->arch_disable_local_int) {
-        return arch_funcs->arch_disable_local_int();
+    if (arch_funcs->arch_enable_local_int) {
+        return arch_funcs->arch_enable_local_int();
     }
 
     panic("Arch HAL must implement enable_local_int!");
@@ -175,9 +204,23 @@ void arch_kernel_dispatch_prep(ulong sched_id, struct kernel_dispatch_info *kdi)
 
 
 /*
+ * Debug
+ */
+#include "common/include/msr.h"
+
+static void show_pending_int()
+{
+    struct int_status_reg isr;
+    read_int_status(isr.value);
+
+    kprintf("Pending: %x\n", isr.value);
+}
+
+
+/*
  * Common entry
  */
-void hal_entry_primary(struct loader_args *largs, struct hal_arch_funcs *funcs)
+void hal(struct loader_args *largs, struct hal_arch_funcs *funcs)
 {
     // BSS
     init_bss();
@@ -193,58 +236,62 @@ void hal_entry_primary(struct loader_args *largs, struct hal_arch_funcs *funcs)
     // Init pre-kernel palloc
     init_pre_palloc();
     init_mem_map();
+    arch_init_mm();
+
+    // Init devices
+    init_dev();
 
     // Init CPU
     init_topo();
     init_per_cpu_area();
     init_halt();
 
-    // Init multi task context
-    init_context();
-
     // Init interrupt
+    init_context();
     init_int_state();
     init_int_seq();
     init_syscall();
-
-    // Init devices
-    init_dev();
+    arch_init_int();
 
     // Init kernel
-    init_kernel();
+    //init_kernel();
 
     // Bring up secondary processors
     bringup_all_secondary_cpus();
 
     // Unlock all secondary CPUs
-    release_secondary_cpu_lock();
+    //release_secondary_cpu_lock();
 
     // Start all devices
     start_all_devices();
 
     // And finally, enable local interrupts
-    //enable_local_int();
+    enable_local_int();
 
+    //while (1)
     kprintf("HAL done!\n");
 
     while (1);
 }
 
-void hal_entry_secondary()
+void hal_mp()
 {
     // Init arch
-    init_arch_secondary();
+    init_arch_mp();
 
-    // Init multi task context
-    init_context();
+    // Init MM
+    arch_init_mm();
 
     // Init interrupt
-    init_int_state();
+    init_halt_mp();
+    init_context_mp();
+    init_int_state_mp();
+    arch_init_int_mp();
 
     // Init done, wait for the global signal to start working
     secondary_cpu_init_done();
 
-    // Start working
+    // Start all devices
 
     // And finally, enable local interrupts
     enable_local_int();

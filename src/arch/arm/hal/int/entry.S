@@ -16,6 +16,15 @@
 int_entry_wrapper_begin:
 
 int_vector_table:
+/*    b .
+    b .
+    b .
+    b .
+    b .
+    b .
+    b .
+    b .*/
+
     /* 0x00: reset ~ SVC */
     ldr pc, int_entry_jump_table
 

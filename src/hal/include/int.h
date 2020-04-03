@@ -22,8 +22,10 @@ enum int_handling_type {
  * Interrupt handler
  */
 struct int_context {
+    ulong mp_seq;
     ulong vector;
     ulong error_code;
+    void *param;
 
     struct reg_context *regs;
 };
@@ -53,6 +55,7 @@ extern int set_int_handler(int seq, int_handler_t hdlr);
 extern int alloc_int_seq(int_handler_t hdlr);
 extern void free_int_seq(int seq);
 extern int_handler_t get_int_handler(int seq);
+extern int invoke_int_handler(int seq, struct int_context *ictxt, struct kernel_dispatch_info *kdi);
 
 
 /*
@@ -64,12 +67,15 @@ extern void init_syscall();
 /*
  * Int state
  */
-int get_local_int_state();
-void set_local_int_state(int enabled);
-int disable_local_int();
-void enable_local_int();
-int restore_local_int(int enabled);
-void init_int_state();
+extern int get_local_int_state();
+extern void set_local_int_state(int enabled);
+
+extern int disable_local_int();
+extern void enable_local_int();
+extern int restore_local_int(int enabled);
+
+extern void init_int_state();
+extern void init_int_state_mp();
 
 
 /*
@@ -82,8 +88,9 @@ extern_per_cpu(ulong, cur_tcb_vaddr);
 
 extern void switch_context(ulong sched_id, struct reg_context *context,
                     ulong page_dir_pfn, int user_mode, ulong asid, ulong tcb);
-extern void init_context();
 
+extern void init_context();
+extern void init_context_mp();
 
 
 #endif

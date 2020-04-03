@@ -27,7 +27,8 @@ typedef int (*putchar_t)(int s);
 typedef void (*halt_t)(int count, ...);
 
 // MP
-typedef int (*get_cur_cpu_index_t)();
+typedef ulong (*get_cur_mp_id_t)();
+typedef int (*get_cur_mp_seq_t)();
 
 // Interrupts
 typedef int (*disable_local_int_t)();
@@ -76,7 +77,8 @@ struct hal_exports {
 
     // MP
     int num_cpus;
-    get_cur_cpu_index_t get_cur_cpu_index;
+    get_cur_mp_id_t get_cur_mp_id;
+    get_cur_mp_seq_t get_cur_mp_seq;
 
     // Physical memory info
     int memmap_count;

@@ -5,15 +5,9 @@
 #include "hal/include/kprintf.h"
 #include "hal/include/hal.h"
 #include "hal/include/lib.h"
+#include "hal/include/mem.h"
 #include "hal/include/int.h"
 #include "hal/include/mp.h"
-
-
-/*
- * Asm externs
- */
-extern void int_entry_wrapper_begin();
-extern void int_entry_wrapper_end();
 
 
 /*
@@ -23,6 +17,9 @@ static void *kernel_page_table;
 
 void int_handler_entry(int except, struct reg_context *context)
 {
+    kprintf("Interrupt!\n");
+    while (1);
+
     // Switch to kernel's page table
     write_trans_tab_base0(kernel_page_table);
     inv_tlb_all();
@@ -126,9 +123,14 @@ void int_handler_entry(int except, struct reg_context *context)
 /*
  * Initialization
  */
+#define FIXED_EVT_VADDR 0xffff0000ul
+
+extern void int_entry_wrapper_begin();
+extern void int_entry_wrapper_end();
+
 decl_per_cpu(ulong, cur_int_stack_top);
 
-void init_handler_secondary()
+void init_int_handler_mp()
 {
     // Enable high addr vector
     struct sys_ctrl_reg sys_ctrl;
@@ -137,8 +139,7 @@ void init_handler_secondary()
     write_sys_ctrl(sys_ctrl.value);
 
     // Set up stack top for context saving
-    ulong stack_top = get_my_cpu_area_start_vaddr() +
-        PER_CPU_STACK_TOP_OFFSET - sizeof(struct reg_context);
+    ulong stack_top = get_my_cpu_stack_top_vaddr() - sizeof(struct reg_context);
 
     // Align the stack to 16B
     stack_top = ALIGN_DOWN(stack_top, 16);
@@ -188,18 +189,23 @@ void init_handler_secondary()
     );
 }
 
-void init_handler()
+void init_int_handler()
 {
     struct loader_args *largs = get_loader_args();
     kernel_page_table = largs->page_table;
 
+    // Map the fixed EVT @ 0xffff0000ul
+    ulong ppfn = pre_palloc(1);
+    ulong paddr = PFN_TO_ADDR(ppfn);
+    hal_map_range(FIXED_EVT_VADDR, paddr, PAGE_SIZE, 1);
+
     // Copy the vectors to the target address
-    void *vec_target = (void *)0xffff0000ul;
+    void *vec_target = (void *)FIXED_EVT_VADDR;
     kprintf("Copy interrupt vectors @ %p -> %p\n",
         int_entry_wrapper_begin, vec_target);
 
     memcpy(vec_target, int_entry_wrapper_begin,
            (ulong)int_entry_wrapper_end - (ulong)int_entry_wrapper_begin);
 
-    init_handler_secondary();
+    init_int_handler_mp();
 }

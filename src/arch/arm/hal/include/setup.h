@@ -12,8 +12,8 @@
  */
 extern_per_cpu(ulong, cur_int_stack_top);
 
-extern void init_handler_secondary();
-extern void init_handler();
+extern void init_int_handler_mp();
+extern void init_int_handler();
 
 
 /*

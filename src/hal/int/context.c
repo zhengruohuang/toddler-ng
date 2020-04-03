@@ -46,3 +46,8 @@ void init_context()
     ulong *cur_tcb = get_per_cpu(ulong, cur_tcb_vaddr);
     *cur_tcb = 0;
 }
+
+void init_context_mp()
+{
+    init_context();
+}

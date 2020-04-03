@@ -19,8 +19,11 @@ struct hal_arch_funcs {
     // Inits
     void (*init_libk)();
     void (*init_arch)();
+    void (*init_arch_mp)();
     void (*init_int)();
+    void (*init_int_mp)();
     void (*init_mm)();
+    void (*init_mm_mp)();
 
     // General
     putchar_t putchar;
@@ -36,10 +39,11 @@ struct hal_arch_funcs {
     page_translate_t translate;
 
     // Get CPU index
-    get_cur_cpu_index_t get_cur_cpu_index;
+    get_cur_mp_id_t get_cur_mp_id;
 
     // Bring up secondary CPU
-    void (*bringup_cpu)(int index);
+    ulong mp_entry;
+    void (*start_cpu)(int mp_seq, ulong mp_id, ulong entry);
 
     // Dev
     void (*register_drivers)();
@@ -71,8 +75,8 @@ extern struct loader_args *get_loader_args();
 extern struct hal_arch_funcs *get_hal_arch_funcs();
 
 extern ulong arch_hal_direct_access(ulong paddr, int count, int cache);
-extern int arch_get_cpu_index();
-extern void arch_bringup_cpu(int index);
+extern ulong arch_get_cur_mp_id();
+extern void arch_start_cpu(int mp_seq, ulong mp_id, ulong entry);
 extern void arch_register_drivers();
 extern ulong arch_get_syscall_params(struct reg_context *regs, ulong *param0, ulong *param1, ulong *param2);
 extern void arch_set_syscall_return(struct reg_context *regs, int succeed, ulong return0, ulong return1);
@@ -83,8 +87,8 @@ extern void arch_switch_to(ulong sched_id, struct reg_context *context,
                            ulong page_dir_pfn, int user_mode, ulong asid, ulong tcb);
 extern void arch_kernel_dispatch_prep(ulong sched_id, struct kernel_dispatch_info *kdi);
 
-extern void hal_entry_primary(struct loader_args *largs, struct hal_arch_funcs *funcs);
-extern void hal_entry_secondary();
+extern void hal(struct loader_args *largs, struct hal_arch_funcs *funcs);
+extern void hal_mp();
 
 
 

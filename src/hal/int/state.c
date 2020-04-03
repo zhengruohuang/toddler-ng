@@ -3,8 +3,10 @@
 #include "hal/include/hal.h"
 
 
+/*
+ * Get/Set state
+ */
 static decl_per_cpu(int, interrupt_enabled);
-
 
 int get_local_int_state()
 {
@@ -20,6 +22,10 @@ void set_local_int_state(int enabled)
     *ptr = enabled;
 }
 
+
+/*
+ * Disable/Enable/Restore
+ */
 int disable_local_int()
 {
     arch_disable_local_int();
@@ -52,7 +58,16 @@ int restore_local_int(int enabled)
     return cur_state;
 }
 
+
+/*
+ * Init
+ */
 void init_int_state()
+{
+    set_local_int_state(0);
+}
+
+void init_int_state_mp()
 {
     set_local_int_state(0);
 }

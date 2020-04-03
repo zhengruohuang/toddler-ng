@@ -106,7 +106,7 @@ struct l1page_table_entry {
             u32     bfn             : 12;
         } block;
     };
-} packed_struct;
+} packed4_struct;
 
 struct l2page_table_entry {
     union {
@@ -126,14 +126,14 @@ struct l2page_table_entry {
             u32     pfn             : 20;
         };
     };
-} packed_struct;
+} packed4_struct;
 
 struct page_frame {
     union {
         u8 value_u8[4096];
         u32 value_u32[1024];
     };
-} packed_struct;
+} packed4_struct;
 
 struct l1table {
     union {
@@ -143,7 +143,7 @@ struct l1table {
 
         struct l1page_table_entry entries[L1PAGE_TABLE_ENTRY_COUNT];
     };
-} packed_struct;
+} packed4_struct;
 
 struct l2table {
     union {
@@ -156,7 +156,7 @@ struct l2table {
             struct l2page_table_entry entries_dup[3][256];
         };
     };
-} packed_struct;
+} packed4_struct;
 
 
 

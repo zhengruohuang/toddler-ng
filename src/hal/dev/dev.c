@@ -1,9 +1,10 @@
 #include "common/include/inttypes.h"
-#include "hal/include/hal.h"
-#include "hal/include/lib.h"
-#include "hal/include/dev.h"
 #include "hal/include/devtree.h"
 #include "hal/include/kprintf.h"
+#include "hal/include/hal.h"
+#include "hal/include/lib.h"
+#include "hal/include/int.h"
+#include "hal/include/dev.h"
 
 
 enum dev_driver_type {
@@ -18,7 +19,7 @@ struct dev_record {
 
     enum dev_driver_type type;
     struct internal_dev_driver *driver;
-    void *driver_param;
+    struct driver_param driver_param;
 
     struct dev_record *next;
 
@@ -31,8 +32,7 @@ struct inttree_node {
 
     int fw_id;
     int fw_int_parent_id;
-    int fw_int_encode_count;
-    int *fw_int_encode;
+    struct driver_int_encode fw_int_encode;
 
     int is_int_ctrl;
     int int_handler_seq;
@@ -117,7 +117,7 @@ void start_all_devices()
 {
     for (struct dev_record *dev = dev_list; dev; dev = dev->next) {
         if (dev->driver && dev->driver->start) {
-            dev->driver->start(dev->driver_param);
+            dev->driver->start(&dev->driver_param);
         }
     }
 }
@@ -136,7 +136,7 @@ static void probe_dev(struct dev_record *dev, struct fw_dev_info *fw_info)
             if (prob != FW_DEV_PROBE_FAILED) {
                 dev->driver = drv;
                 if (drv->setup) {
-                    drv->setup(dev->driver_param);
+                    drv->setup(&dev->driver_param);
                 }
                 break;
             }
@@ -164,8 +164,8 @@ static struct dev_record *enum_devtree_node(struct devtree_node *node)
     dev->int_node->fw_id = devtree_get_phandle(node);
     dev->int_node->fw_int_parent_id = devtree_get_int_parent(node, 0);
     dev->int_node->is_int_ctrl = devtree_is_intc(node);
-    dev->int_node->fw_int_encode = devtree_get_int_encode(node,
-                                   &dev->int_node->fw_int_encode_count);
+    dev->int_node->fw_int_encode.data = devtree_get_int_encode(node,
+                                   &dev->int_node->fw_int_encode.size);
 
     // Keep traversing
     struct devtree_node *child = devtree_get_child_node(node);
@@ -214,6 +214,13 @@ static void find_all_int_children(struct dev_record *intc_dev)
             } else {
                 dev->int_node->sibling = intc_dev->int_node->child;
                 intc_dev->int_node->child = dev->int_node;
+
+                if (intc_dev->driver && intc_dev->driver->setup_int &&
+                    dev->driver
+                ) {
+                    intc_dev->driver->setup_int(&intc_dev->driver_param,
+                        &dev->int_node->fw_int_encode, &dev->driver_param);
+                }
             }
         }
     }
@@ -227,14 +234,17 @@ static void build_int_hierarchy()
 
             dev->int_node->next = int_list;
             int_list = dev->int_node;
-
-            if (dev->driver && dev->driver->setup_int) {
-                dev->driver->setup_int(dev->driver_param);
-            }
         }
     }
 
     panic_if(!int_hierarchy, "No root intc found!\n");
+}
+
+int handle_dev_int(struct int_context *ictxt, struct kernel_dispatch_info *kdi)
+{
+    int seq = int_hierarchy->dev->driver_param.int_seq;
+    ictxt->param = &int_hierarchy->dev->driver_param;
+    return invoke_int_handler(seq, ictxt, kdi);
 }
 
 

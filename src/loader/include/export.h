@@ -15,6 +15,9 @@ struct loader_args {
     void *devtree;
     void *page_table;
 
+    // MP
+    ulong mp_entry;
+
     // HAL virtual layout, hal_grow: >=0 = grow up, <0 = grow down
     void *hal_entry;
     ulong hal_start, hal_end;

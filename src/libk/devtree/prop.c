@@ -288,7 +288,7 @@ int devtree_get_int_parent(struct devtree_node *node, int idx)
 
 int *devtree_get_int_encode(struct devtree_node *node, int *count)
 {
-    struct devtree_prop *prop = devtree_find_prop(node, "interrupt");
+    struct devtree_prop *prop = devtree_find_prop(node, "interrupts");
     if (!prop) {
         return NULL;
     }

@@ -7,6 +7,12 @@
 #include "hal/include/hal.h"
 
 
+#define PER_CPU_AREA_PAGE_COUNT     1
+#define PER_CPU_AREA_SIZE           (PAGE_SIZE * PER_CPU_AREA_PAGE_COUNT)
+#define PER_CPU_DATA_START_OFFSET   ((PER_CPU_AREA_SIZE / 2) + 16)
+#define PER_CPU_STACK_TOP_OFFSET    ((PER_CPU_AREA_SIZE / 2) - 16)
+
+
 static ulong per_cpu_area_start_paddr = 0;
 static ulong per_cpu_area_start_vaddr = 0;
 
@@ -16,15 +22,25 @@ static int cur_per_cpu_offset = 0;
 /*
  * Access per-CPU vars
  */
-static ulong get_per_cpu_area_start_vaddr(int cpu_id)
+static ulong get_per_cpu_area_start_vaddr(int cpu_seq)
 {
-    assert(cpu_id < get_num_cpus());
-    return per_cpu_area_start_vaddr + PER_CPU_AREA_SIZE * cpu_id;
+    assert(cpu_seq < get_num_cpus());
+    return per_cpu_area_start_vaddr + PER_CPU_AREA_SIZE * cpu_seq;
 }
 
 ulong get_my_cpu_area_start_vaddr()
 {
-    return get_per_cpu_area_start_vaddr(arch_get_cpu_index());
+    return get_per_cpu_area_start_vaddr(get_cur_mp_seq());
+}
+
+ulong get_my_cpu_data_area_start_vaddr()
+{
+    return get_my_cpu_area_start_vaddr() + PER_CPU_DATA_START_OFFSET;
+}
+
+ulong get_my_cpu_stack_top_vaddr()
+{
+    return get_my_cpu_area_start_vaddr() + PER_CPU_STACK_TOP_OFFSET;
 }
 
 static void init_per_cpu_var(int *offset, size_t size)
@@ -41,7 +57,7 @@ void *access_per_cpu_var(int *offset, size_t size)
         init_per_cpu_var(offset, size);
     }
 
-    return (void *)(get_my_cpu_area_start_vaddr() + PER_CPU_DATA_START_OFFSET + *offset);
+    return (void *)(get_my_cpu_data_area_start_vaddr() + *offset);
 }
 
 

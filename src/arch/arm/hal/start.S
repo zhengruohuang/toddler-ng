@@ -2,11 +2,12 @@
 
 .global _start
 
-.extern hal
+.extern hal_entry
 
 // r0 -> Loadr args
+// r1 -> MP
 _start:
-    // Go to loader
+    // Go to HAL
     bl      hal_entry
 
     // Should never reach here

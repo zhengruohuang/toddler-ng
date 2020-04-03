@@ -16,3 +16,8 @@ void init_halt()
     int *flag = get_per_cpu(int, halt_cpu_flag);
     *flag = 0;
 }
+
+void init_halt_mp()
+{
+    init_halt();
+}

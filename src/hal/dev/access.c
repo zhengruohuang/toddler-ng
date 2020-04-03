@@ -20,7 +20,7 @@ struct dev_pfn_record {
 
     ulong vpfn;
     ulong ppfn;
-} packed_struct;
+};
 
 
 static int cur_dev_pfn_record_count = 0;

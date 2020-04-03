@@ -2,6 +2,7 @@
 #define __ARCH_ARM_COMMON_INCLUDE_MSR_H__
 
 
+#include "common/include/compiler.h"
 #include "common/include/inttypes.h"
 
 
@@ -120,7 +121,7 @@ struct trans_tab_base_reg {
 
         u32 base_addr;
     };
-};
+} packed4_struct;
 
 struct trans_tab_base_ctrl_reg {
     union {
@@ -132,7 +133,7 @@ struct trans_tab_base_ctrl_reg {
             u32 ext_addr        : 1;
         };
     };
-};
+} packed4_struct;
 
 struct domain_access_ctrl_reg {
     union {
@@ -157,7 +158,7 @@ struct domain_access_ctrl_reg {
             u32 domain15    : 2;
         };
     };
-};
+} packed4_struct;
 
 #define read_trans_tab_base0(value)     __mrc(value, p15, 0, 0, c2, c0)
 #define write_trans_tab_base0(value)    __mcr(value, p15, 0, 0, c2, c0)
@@ -193,10 +194,31 @@ struct sys_ctrl_reg {
             u32 reserved3       : 7;
         };
     };
-};
+} packed4_struct;
 
 #define read_sys_ctrl(value)    __mrc(value, p15, 0, 0, c1, c0)
 #define write_sys_ctrl(value)   __mcr(value, p15, 0, 0, c1, c0)
+
+
+/*
+ * Interrupt Status Register
+ */
+struct int_status_reg {
+    union {
+        u32 value;
+
+        struct {
+            u32 reserved1   : 6;
+            u32 fiq         : 1;
+            u32 irq         : 1;
+            u32 abort       : 1;
+            u32 reserved2   : 23;
+        };
+    };
+} packed4_struct;
+
+#define read_int_status(value)  __mrc(value, p15, 0, 0, c12, c1)
+#define write_int_status(value) __mcr(value, p15, 0, 0, c12, c1)
 
 
 /*
@@ -240,7 +262,7 @@ struct proc_status_reg {
             u32 negative        : 1;
         };
     };
-};
+} packed4_struct;
 
 #define read_current_proc_status(value)     __mrs(value, CPSR)
 #define write_current_proc_status(value)    __msr(value, CPSR)
@@ -260,6 +282,9 @@ struct proc_status_reg {
 #define read_generic_timer_phys_interval(value)  __mrc(value, p15, 0, 0, c14, c2)
 #define write_generic_timer_phys_interval(value) __mcr(value, p15, 0, 0, c14, c2)
 
+#define read_generic_timer_phys_interval(value)  __mrc(value, p15, 0, 0, c14, c2)
+#define write_generic_timer_phys_interval(value) __mcr(value, p15, 0, 0, c14, c2)
+
 #define read_generic_timer_phys_compare(hi, lo)  __mrrc(lo, hi, p15, 2, c14)
 #define write_generic_timer_phys_compare(hi, lo) __mcrr(lo, hi, p15, 2, c14)
 
@@ -267,6 +292,39 @@ struct proc_status_reg {
 /*
  * MP CPU ID
  */
+struct mp_affinity_reg {
+    union {
+        u32 value;
+
+        struct {
+            u32 cpu_id      : 2;
+            u32 reserved1   : 6;
+            u32 cluster_id  : 4;
+            u32 reserved2   : 20;
+        };
+
+        struct {
+            u32 aff0        : 8;
+            u32 aff1        : 8;
+            u32 aff2        : 8;
+            u32 smt         : 1;
+            u32 reserved3   : 5;
+            u32 uniproc     : 1;
+            u32 mp_ext      : 1;
+        };
+
+        struct {
+            u32 lo24        : 24;
+            u32 hi8         : 8;
+        };
+
+        struct {
+            u32 lo12        : 12;
+            u32 hi20        : 20;
+        };
+    };
+} packed4_struct;
+
 #define read_cpu_id(value)     __mrc(value, p15, 0, 5, c0, c0)
 
 

@@ -70,6 +70,12 @@ int_handler_t get_int_handler(int seq)
     return handler;
 }
 
+int invoke_int_handler(int seq, struct int_context *ictxt, struct kernel_dispatch_info *kdi)
+{
+    int_handler_t handler = get_int_handler(seq);
+    return handler(ictxt, kdi);
+}
+
 void init_int_seq()
 {
     int i;

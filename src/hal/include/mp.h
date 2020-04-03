@@ -9,11 +9,6 @@
 /*
  * Per-CPU var
  */
-#define PER_CPU_AREA_PAGE_COUNT     1
-#define PER_CPU_AREA_SIZE           PAGE_SIZE
-#define PER_CPU_DATA_START_OFFSET   (PAGE_SIZE >> 1)
-#define PER_CPU_STACK_TOP_OFFSET    ((PAGE_SIZE >> 1) - 16)
-
 #ifndef decl_per_cpu
 #define decl_per_cpu(type, name)    int __##name##_per_cpu_offset = -1
 #endif
@@ -27,6 +22,9 @@
 #endif
 
 extern ulong get_my_cpu_area_start_vaddr();
+extern ulong get_my_cpu_data_area_start_vaddr();
+extern ulong get_my_cpu_stack_top_vaddr();
+
 extern void *access_per_cpu_var(int *offset, size_t size);
 extern void init_per_cpu_area();
 
@@ -35,6 +33,15 @@ extern void init_per_cpu_area();
  * Topology
  */
 extern int get_num_cpus();
+
+extern void setup_mp_id_trans(int cpus, int fields, ...);
+extern void add_mp_id_trans(ulong mp_id);
+extern void final_mp_id_trans();
+
+extern ulong get_mp_id_by_seq(int mp_seq);
+extern int get_mp_seq_by_id(ulong mp_id);
+extern int get_cur_mp_seq();
+
 extern void init_topo();
 
 
@@ -51,6 +58,7 @@ extern void secondary_cpu_init_done();
  */
 extern void halt_all_cpus(int count, ...);
 extern void init_halt();
+extern void init_halt_mp();
 
 
 #endif

@@ -2,6 +2,7 @@
 #define __KERNEL_INCLUDE_MEM__
 
 
+#include "common/include/compiler.h"
 #include "common/include/inttypes.h"
 
 
@@ -22,7 +23,7 @@ struct pfndb_entry {
             u16 swappable   : 1;
         };
     };
-} packed_struct;
+} packed2_struct;
 
 extern struct pfndb_entry *get_pfn_entry_by_pfn(ulong pfn);
 extern struct pfndb_entry *get_pfn_entry_by_paddr(ulong paddr);

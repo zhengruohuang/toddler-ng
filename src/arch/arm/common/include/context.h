@@ -15,7 +15,7 @@ struct reg_context {
     union { u32 r13; u32 sp; };
     union { u32 r14; u32 lr; };
     u32 cpsr;
-} packedstruct;
+} packed4_struct;
 
 
 #endif

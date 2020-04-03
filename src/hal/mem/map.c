@@ -6,12 +6,13 @@
 
 static void *hal_page_table;
 static generic_map_range_t generic_map_range;
+static page_translate_t generic_translate;
 
 
 int hal_map_range(ulong vaddr, ulong paddr, ulong size, int cache)
 {
     return generic_map_range(hal_page_table, vaddr, paddr, size,
-                             cache, 0, 1, 1, 0, pre_palloc);
+                             cache, 1, 1, 1, 0, pre_palloc);
 }
 
 int kernel_map_range(void *page_table, ulong vaddr, ulong paddr, size_t length,
@@ -23,6 +24,12 @@ int kernel_map_range(void *page_table, ulong vaddr, ulong paddr, size_t length,
                              kernel_palloc);
 }
 
+ulong hal_translate(ulong vaddr)
+{
+    return generic_translate(hal_page_table, vaddr);
+}
+
+
 void init_mem_map()
 {
     struct loader_args *largs = get_loader_args();
@@ -30,4 +37,5 @@ void init_mem_map()
 
     hal_page_table = largs->page_table;
     generic_map_range = funcs->map_range;
+    generic_translate = funcs->translate;
 }

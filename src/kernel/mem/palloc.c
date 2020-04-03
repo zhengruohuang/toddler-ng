@@ -29,6 +29,7 @@
 struct palloc_node {
     union {
         ulong value;
+
         struct {
             ulong order     : PALLOC_ORDER_BITS;
             ulong tag       : PALLOC_REGION_BITS;
@@ -38,7 +39,7 @@ struct palloc_node {
             ulong next      : PFN_BITS;
         };
     };
-} packed_struct;
+};
 
 struct palloc_region {
     int region_tag;

@@ -245,7 +245,7 @@ static void enable_caches_bpred()
     write_sys_ctrl(sys_ctrl.value);
 }
 
-static void call_hal(void *entry, struct loader_args *largs)
+static void call_hal(void *entry, int mp, struct loader_args *largs)
 {
     ulong sp;
 
@@ -265,11 +265,12 @@ static void call_hal(void *entry, struct loader_args *largs)
 
         // Pass the argument
         "mov r0, %[largs];"
+        "mov r1, %[mp];"
 
         // Call C
         "mov pc, %[hal];"
         :
-        : [hal] "r" (entry), [largs] "r" (largs), [stack] "r" (sp)
+        : [hal] "r" (entry), [largs] "r" (largs), [mp] "r" (mp), [stack] "r" (sp)
         : "memory"
     );
 }
@@ -281,10 +282,20 @@ static void jump_to_hal()
 
     enable_mmu(largs->page_table);
     enable_caches_bpred();
-    call_hal(largs->hal_entry, largs);
+    call_hal(largs->hal_entry, 0, largs);
 
 //     hal_start hal = largs->hal_entry;
 //     hal(largs);
+}
+
+static void jump_to_hal_mp()
+{
+    struct loader_args *largs = get_loader_args();
+    lprintf("Jump to HAL @ %p\n", largs->hal_entry);
+
+    enable_mmu(largs->page_table);
+    enable_caches_bpred();
+    call_hal(largs->hal_entry, 1, largs);
 }
 
 
@@ -353,6 +364,10 @@ void loader_entry(ulong zero, ulong mach_id, void *mach_cfg)
     funcs.page_size = PAGE_SIZE;
     funcs.num_reserved_got_entries = ELF_GOT_NUM_RESERVED_ENTRIES;
 
+    // MP entry
+    extern void _start_mp();
+    funcs.mp_entry = (ulong)&_start_mp;
+
     // Prepare funcs
     funcs.init_libk = init_libk;
     funcs.init_arch = init_arch;
@@ -365,8 +380,20 @@ void loader_entry(ulong zero, ulong mach_id, void *mach_cfg)
 
     // Go to loader!
     loader(&fw_args, &funcs);
+
+    // Should never reach here
+    panic("Should never reach here");
+    while (1);
 }
 
-void loader_entry_ap()
+void loader_entry_mp()
 {
+    lprintf("Loader MP!\n");
+
+    // Go to HAL!
+    jump_to_hal_mp();
+
+    // Should never reach here
+    panic("Should never reach here");
+    while (1);
 }
