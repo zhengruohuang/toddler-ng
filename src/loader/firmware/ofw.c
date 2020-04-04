@@ -155,7 +155,7 @@ static void copy_node(ofw_phandle_t handle, struct devtree_node *parent)
         }
 
         // Create the devtree node
-        //lprintf("Copy node: |%s|\n", node_name);
+        //kprintf("Copy node: |%s|\n", node_name);
         struct devtree_node *node = devtree_alloc_node(parent, node_name);
 
         // Find and copy props
@@ -163,7 +163,7 @@ static void copy_node(ofw_phandle_t handle, struct devtree_node *parent)
             memcpy(name, name_next, OFW_TREE_PROPERTY_MAX_NAMELEN);
         ) {
             int data_len = (int)get_prop_len(handle, name);
-            //lprintf("\tCopy prop: %s, len: %d\n", name, data_len);
+            //kprintf("\tCopy prop: %s, len: %d\n", name, data_len);
 
             struct devtree_prop *prop = devtree_alloc_prop(node, name, NULL, data_len);
             if (data_len) {

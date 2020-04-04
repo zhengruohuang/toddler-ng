@@ -169,7 +169,7 @@ static void map_page(void *page_table, void *vaddr, void *paddr, int block,
 static int map_range(void *page_table, void *vaddr, void *paddr, ulong size,
     int cache, int exec, int write)
 {
-    lprintf("Mapping %p -> %p, size: %lx, cache: %d, exec: %d, write: %d\n",
+    kprintf("Mapping %p -> %p, size: %lx, cache: %d, exec: %d, write: %d\n",
             vaddr, paddr, size, cache, exec, write);
 
     ulong vaddr_start = ALIGN_DOWN((ulong)vaddr, PAGE_SIZE);
@@ -246,7 +246,7 @@ static void enable_mmu()
 static void jump_to_hal()
 {
     struct loader_args *largs = get_loader_args();
-    lprintf("Jump to HAL @ %p\n", largs->hal_entry);
+    kprintf("Jump to HAL @ %p\n", largs->hal_entry);
 
     enable_mmu();
 
@@ -260,13 +260,13 @@ static void jump_to_hal()
  */
 static void test_reg_win(int level)
 {
-    lprintf("Enter level: %d\n", level);
+    kprintf("Enter level: %d\n", level);
 
     if (level < 32) {
         test_reg_win(level + 1);
     }
 
-    lprintf("Leave level: %d\n", level);
+    kprintf("Leave level: %d\n", level);
 }
 
 static void init_arch()
@@ -279,8 +279,8 @@ static void init_arch()
     arch_debug_putchar('o');
     arch_debug_putchar('d');
     arch_debug_putchar('\n');
-    lprintf("Test: %d, %d, %d, %d, %d\n", 1, 2, 3, 4, 5);
-    lprintf("Test: %s\n", "test");
+    kprintf("Test: %d, %d, %d, %d, %d\n", 1, 2, 3, 4, 5);
+    kprintf("Test: %s\n", "test");
 //     while (1);
 #endif
 

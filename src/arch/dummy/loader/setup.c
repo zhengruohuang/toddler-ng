@@ -117,7 +117,7 @@ static void call_hal(struct loader_args *largs)
 static void jump_to_hal()
 {
     struct loader_args *largs = get_loader_args();
-    lprintf("Jump to HAL @ %p\n", largs->hal_entry);
+    kprintf("Jump to HAL @ %p\n", largs->hal_entry);
 
     call_hal(largs);
 }

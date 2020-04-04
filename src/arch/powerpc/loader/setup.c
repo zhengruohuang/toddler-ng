@@ -72,7 +72,7 @@ static void init_pht()
     pht_hash_mask = (pht_size >> 16) - 1;
     pht_group_count = pht_size / sizeof(struct pht_group);
 
-    lprintf("Aligned memory range: %llx, PHT size: %lx\n", aligned_range, pht_size);
+    kprintf("Aligned memory range: %llx, PHT size: %lx\n", aligned_range, pht_size);
 
     // Allocate and map PHT
     pht_phys = memmap_alloc_phys(pht_size, pht_size);
@@ -192,7 +192,7 @@ static void *setup_page()
 static void map_page(void *page_table, void *vaddr, void *paddr, int block,
     int cache, int exec, int write)
 {
-    //lprintf("To map %p -> %p, block: %d\n", vaddr, paddr, block);
+    //kprintf("To map %p -> %p, block: %d\n", vaddr, paddr, block);
 
     struct page_frame *table = page_table;
     int l0idx = GET_L0PTE_INDEX((ulong)vaddr);
@@ -209,10 +209,10 @@ static void map_page(void *page_table, void *vaddr, void *paddr, int block,
             entry->next_level = 1;
             entry->pfn = ADDR_TO_PFN((ulong)l1table);
 
-            //lprintf("Next level PFN2 @ %x\n", entry->pfn);
+            //kprintf("Next level PFN2 @ %x\n", entry->pfn);
         } else {
             //if (!entry->next_level) {
-            //    lprintf("Next level PFN @ %x\n", entry->pfn);
+            //    kprintf("Next level PFN @ %x\n", entry->pfn);
             //}
             panic_if(!entry->next_level, "Must have next level!");
             l1table = (void *)PFN_TO_ADDR((ulong)entry->pfn);
@@ -395,7 +395,7 @@ static void real_mode_entry(struct loader_args *largs, void *call_hal_paddr)
 static void jump_to_hal()
 {
     struct loader_args *largs = get_loader_args();
-    lprintf("Jump to HAL @ %p\n", largs->hal_entry);
+    kprintf("Jump to HAL @ %p\n", largs->hal_entry);
 
     // Set up arch loader args
     arch_loader_args.pht = firmware_translate_virt_to_phys(pht);
@@ -408,7 +408,7 @@ static void jump_to_hal()
     void *largs_paddr = firmware_translate_virt_to_phys(largs);
     void *real_mode_entry_paddr = firmware_translate_virt_to_phys(real_mode_entry);
     void *call_hal_paddr = firmware_translate_virt_to_phys(call_hal);
-    lprintf("largs_paddr @ %p, real_mode_entry_paddr @ %p, call_hal_paddr @ %p\n",
+    kprintf("largs_paddr @ %p, real_mode_entry_paddr @ %p, call_hal_paddr @ %p\n",
             largs_paddr, real_mode_entry_paddr, call_hal_paddr);
 
     call_real_mode(largs_paddr, real_mode_entry_paddr, call_hal_paddr, stack_paddr);

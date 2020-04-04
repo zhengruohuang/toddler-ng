@@ -3,7 +3,7 @@
 #include "common/include/mem.h"
 #include "common/include/abi.h"
 #include "common/include/msr.h"
-#include "loader/include/lprintf.h"
+#include "loader/include/kprintf.h"
 #include "loader/include/lib.h"
 #include "loader/include/firmware.h"
 #include "loader/include/boot.h"
@@ -162,7 +162,7 @@ static void map_page(void *page_table, void *vaddr, void *paddr, int block,
 static int map_range(void *page_table, void *vaddr, void *paddr, ulong size,
     int cache, int exec, int write)
 {
-    lprintf("Map, page_dir_pfn: %p, vaddr @ %p, paddr @ %p, size: %ld, cache: %d, exec: %d, write: %d\n",
+    kprintf("Map, page_dir_pfn: %p, vaddr @ %p, paddr @ %p, size: %ld, cache: %d, exec: %d, write: %d\n",
        page_table, vaddr, paddr, size, cache, exec, write
     );
 
@@ -180,7 +180,7 @@ static int map_range(void *page_table, void *vaddr, void *paddr, ulong size,
             ALIGNED(cur_paddr, L1BLOCK_SIZE) &&
             vaddr_end - cur_vaddr >= L1BLOCK_SIZE
         ) {
-            //lprintf("1MB, vaddr @ %lx, paddr @ %lx, len: %d\n", cur_vaddr, cur_paddr, L1BLOCK_SIZE);
+            //kprintf("1MB, vaddr @ %lx, paddr @ %lx, len: %d\n", cur_vaddr, cur_paddr, L1BLOCK_SIZE);
 
             map_page(page_table, (void *)cur_vaddr, (void *)cur_paddr, 1,
                 cache, exec, write);
@@ -278,7 +278,7 @@ static void call_hal(void *entry, int mp, struct loader_args *largs)
 static void jump_to_hal()
 {
     struct loader_args *largs = get_loader_args();
-    lprintf("Jump to HAL @ %p\n", largs->hal_entry);
+    kprintf("Jump to HAL @ %p\n", largs->hal_entry);
 
     enable_mmu(largs->page_table);
     enable_caches_bpred();
@@ -291,7 +291,7 @@ static void jump_to_hal()
 static void jump_to_hal_mp()
 {
     struct loader_args *largs = get_loader_args();
-    lprintf("Jump to HAL @ %p\n", largs->hal_entry);
+    kprintf("Jump to HAL @ %p\n", largs->hal_entry);
 
     enable_mmu(largs->page_table);
     enable_caches_bpred();
@@ -345,7 +345,7 @@ void loader_entry(ulong zero, ulong mach_id, void *mach_cfg)
     memzero(&funcs, sizeof(struct loader_arch_funcs));
     memzero(&fw_args, sizeof(struct firmware_args));
 
-//     lprintf("zero: %lx, mach_id: %lx, cfg: %p\n", zero, mach_id, mach_cfg);
+//     kprintf("zero: %lx, mach_id: %lx, cfg: %p\n", zero, mach_id, mach_cfg);
 //     while (1);
 
     // Prepare arg
@@ -388,7 +388,7 @@ void loader_entry(ulong zero, ulong mach_id, void *mach_cfg)
 
 void loader_entry_mp()
 {
-    lprintf("Loader MP!\n");
+    kprintf("Loader MP!\n");
 
     // Go to HAL!
     jump_to_hal_mp();

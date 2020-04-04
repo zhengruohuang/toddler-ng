@@ -3,7 +3,7 @@
 #include "loader/include/devtree.h"
 #include "loader/include/lib.h"
 #include "loader/include/loader.h"
-#include "loader/include/lprintf.h"
+#include "loader/include/kprintf.h"
 #include "loader/include/firmware.h"
 #include "loader/include/boot.h"
 
@@ -91,7 +91,7 @@ static void claim_memrsv()
         u64 addr = swap_big_endian64(*data++);
         u64 size = swap_big_endian64(*data);
 
-        lprintf("Memory reserve, addr: %llx, size: %llx\n", addr, size);
+        kprintf("Memory reserve, addr: %llx, size: %llx\n", addr, size);
         claim_memmap_region(addr, size, MEMMAP_USED);
     }
 }
@@ -171,7 +171,7 @@ static void create_all_from_memory_node(struct devtree_node *chosen,
             continue;
         }
 
-        lprintf("Memory region @ %llx, size: %llx, idx: %d\n", addr, size, reg_idx);
+        kprintf("Memory region @ %llx, size: %llx, idx: %d\n", addr, size, reg_idx);
 
         // Adjust start addr and memstart
         if (addr + size <= memstart) {
@@ -201,7 +201,7 @@ static void create_all_from_memory_node(struct devtree_node *chosen,
         memsize = size_up_to_now;
     }
 
-    lprintf("Total memory size: %llx\n", memsize);
+    kprintf("Total memory size: %llx\n", memsize);
 }
 
 static void create_all_from_chosen_node(struct devtree_node *chosen)

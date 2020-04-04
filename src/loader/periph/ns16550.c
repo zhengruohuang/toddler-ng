@@ -1,5 +1,5 @@
 #include "common/include/inttypes.h"
-#include "loader/include/lprintf.h"
+#include "loader/include/kprintf.h"
 #include "loader/include/firmware.h"
 
 

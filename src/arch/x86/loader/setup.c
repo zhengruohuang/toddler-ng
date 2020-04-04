@@ -162,7 +162,7 @@ static void map_page(void *page_table, void *vaddr, void *paddr,
 static int map_range(void *page_table, void *vaddr, void *paddr, ulong size,
     int cache, int exec, int write)
 {
-    lprintf("To map range @ %p -> %p, size: %lx\n", vaddr, paddr, size);
+    kprintf("To map range @ %p -> %p, size: %lx\n", vaddr, paddr, size);
 
     ulong vaddr_start = ALIGN_DOWN((ulong)vaddr, PAGE_SIZE);
     ulong paddr_start = ALIGN_DOWN((ulong)paddr, PAGE_SIZE);
@@ -208,10 +208,10 @@ static void call_hal(struct loader_args *largs)
 static void jump_to_hal()
 {
     struct loader_args *largs = get_loader_args();
-    lprintf("Jump to HAL @ %p\n", largs->hal_entry);
+    kprintf("Jump to HAL @ %p\n", largs->hal_entry);
 
     enable_mmu(largs->page_table);
-    lprintf("Page root @ %p\n", largs->page_table);
+    kprintf("Page root @ %p\n", largs->page_table);
 
     call_hal(largs);
 }
@@ -231,8 +231,8 @@ static void init_arch()
  */
 void loader_entry(ulong magic, void *mbi)
 {
-    lprintf("Hello!\n");
-    lprintf("Hello, magic: %lx, mbi @ %p!\n", magic, mbi);
+    kprintf("Hello!\n");
+    kprintf("Hello, magic: %lx, mbi @ %p!\n", magic, mbi);
 //     while (1);
 
     /*

@@ -4,7 +4,7 @@
 #include "loader/include/lib.h"
 #include "loader/include/obp.h"
 #include "loader/include/devtree.h"
-#include "loader/include/lprintf.h"
+#include "loader/include/kprintf.h"
 
 
 #define MAX_OBP_BUF_LEN     512
@@ -81,7 +81,7 @@ static int get_node_name(int node, char *buf, int buf_len)
         return 1;
     }
 
-//     lprintf("Here?\n");
+//     kprintf("Here?\n");
 
     int name_len = (int)get_prop_len(node, "name");
     get_prop(node, "name", buf, buf_len);
@@ -130,7 +130,7 @@ static int get_node_name(int node, char *buf, int buf_len)
         }
     }
 
-    lprintf("|%s|\n", buf);
+    kprintf("|%s|\n", buf);
 
     // FIXME
     return name_len;
@@ -146,7 +146,7 @@ static void copy_node(int handle, struct devtree_node *parent)
 {
     // Process all nodes in the same level
     for (int i = 0; handle; handle = get_peer_node(handle), i++) {
-        lprintf("Handle: %d, peer: %d, child: %d\n", handle, get_peer_node(handle), get_child_node(handle));
+        kprintf("Handle: %d, peer: %d, child: %d\n", handle, get_peer_node(handle), get_child_node(handle));
 
         // Root should not have a peer
         if (!parent) {
@@ -160,7 +160,7 @@ static void copy_node(int handle, struct devtree_node *parent)
         }
 
         // Create the devtree node
-        lprintf("Copy node: |%s|\n", node_name);
+        kprintf("Copy node: |%s|\n", node_name);
         struct devtree_node *node = devtree_alloc_node(parent, node_name);
 
         // Find and copy props
@@ -168,7 +168,7 @@ static void copy_node(int handle, struct devtree_node *parent)
             name = get_next_prop(handle, name)
         ) {
             int data_len = (int)get_prop_len(handle, name);
-            lprintf("\tCopy prop: %s, len: %d\n", name, data_len);
+            kprintf("\tCopy prop: %s, len: %d\n", name, data_len);
 
             struct devtree_prop *prop = devtree_alloc_prop(node, name, NULL, data_len);
             if (data_len) {
@@ -179,12 +179,12 @@ static void copy_node(int handle, struct devtree_node *parent)
         // Go to child node
         int child = get_child_node(handle);
         if (child) {
-            lprintf("Next level\n");
+            kprintf("Next level\n");
             copy_node(child, node);
         }
     }
 
-    lprintf("Done\n");
+    kprintf("Done\n");
 }
 
 static void copy_devtree()

@@ -79,7 +79,7 @@ struct devtree_node *devtree_alloc_node(struct devtree_node *parent,
 {
     struct devtree_node *node = alloc_struct(sizeof(struct devtree_node));
 
-    //lprintf("devtree alloc node: %s @ %p, parent @ %p, remain: %d\n", name,
+    //kprintf("devtree alloc node: %s @ %p, parent @ %p, remain: %d\n", name,
     //    node, parent, remain_size);
 
     node->name = DEVTREE_OFFSET(head,
@@ -107,7 +107,7 @@ struct devtree_node *devtree_alloc_node(struct devtree_node *parent,
 struct devtree_prop *devtree_alloc_prop(struct devtree_node *node,
     const char *name, const void *data, int len)
 {
-    //lprintf("devtree alloc prop: %s, remain: %d\n", name, remain_size);
+    //kprintf("devtree alloc prop: %s, remain: %d\n", name, remain_size);
 
     struct devtree_prop *prop = alloc_struct(sizeof(struct devtree_prop));
 

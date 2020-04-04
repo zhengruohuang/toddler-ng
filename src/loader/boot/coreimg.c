@@ -1,7 +1,7 @@
 #include "common/include/inttypes.h"
 #include "common/include/coreimg.h"
 #include "loader/include/devtree.h"
-#include "loader/include/lprintf.h"
+#include "loader/include/kprintf.h"
 #include "loader/include/lib.h"
 
 
@@ -62,7 +62,7 @@ void *find_supplied_coreimg(int *size)
         *size = (int)(end - start);
     }
 
-    lprintf("supplied coreimg @ %llx, end @ %llx\n", start, end);
+    kprintf("supplied coreimg @ %llx, end @ %llx\n", start, end);
 
     return (void *)(ulong)start;
 }

@@ -3,7 +3,7 @@
 #include "loader/include/devtree.h"
 #include "loader/include/firmware.h"
 #include "loader/include/multiboot.h"
-#include "loader/include/lprintf.h"
+#include "loader/include/kprintf.h"
 
 
 static struct multiboot_info *mbi;
@@ -53,7 +53,7 @@ static void find_and_parse_fdt()
             }
         }
 
-        lprintf("Mod @ %x, end @ %x, str: %s\n", e->mod_start, e->mod_end, str);
+        kprintf("Mod @ %x, end @ %x, str: %s\n", e->mod_start, e->mod_end, str);
     }
 
     if (!devtree_get_root()) {
@@ -75,7 +75,7 @@ static void find_and_parse_initrd()
             devtree_alloc_prop_u64(chosen, "initrd-start", initrd_start);
             devtree_alloc_prop_u64(chosen, "initrd-end", initrd_end);
 
-            lprintf("Coreimg @ %x, end @ %x, str: %s\n", e->mod_start, e->mod_end, str);
+            kprintf("Coreimg @ %x, end @ %x, str: %s\n", e->mod_start, e->mod_end, str);
             break;
         }
     }
@@ -96,14 +96,14 @@ static void parse_cmd()
         }
     }
 
-    lprintf("Bootarg: %s\n", bootargs_str ? bootargs_str : "(empty)");
+    kprintf("Bootarg: %s\n", bootargs_str ? bootargs_str : "(empty)");
 }
 
 static void parse_mmap()
 {
     u32 mem_start = mbi->mem_lower;
     u32 mem_end = mbi->mem_upper;
-    lprintf("Mem start @ %x, end @ %x\n", mem_start, mem_end);
+    kprintf("Mem start @ %x, end @ %x\n", mem_start, mem_end);
 
     // First find out total memory size and total number of available slots
     u64 memsize = 0;
@@ -118,7 +118,7 @@ static void parse_mmap()
             slots++;
         }
 
-        lprintf("MMap entry @ %p, size: %x, start @ %llx, len: %llx, type: %u\n",
+        kprintf("MMap entry @ %p, size: %x, start @ %llx, len: %llx, type: %u\n",
             e, e->size, e->addr, e->len, e->type);
     }
 
@@ -159,14 +159,14 @@ static void parse_mmap()
                 ((u32 *)mem_reg_slots)[mem_reg_idx++] = swap_big_endian32(start);
                 ((u32 *)mem_reg_slots)[mem_reg_idx++] = swap_big_endian32(len);
 
-                lprintf("Avail slot @ %x, len: %x\n", start, len);
+                kprintf("Avail slot @ %x, len: %x\n", start, len);
             } else if (num_addr_cells == 2) {
                 u64 start = e->addr;
                 u64 len = e->len;
                 ((u64 *)mem_reg_slots)[mem_reg_idx++] = swap_big_endian64(start);
                 ((u64 *)mem_reg_slots)[mem_reg_idx++] = swap_big_endian64(len);
 
-                lprintf("Avail slot 64 @ %llx, len: %llx\n", start, len);
+                kprintf("Avail slot 64 @ %llx, len: %llx\n", start, len);
             }
         }
     }
@@ -181,7 +181,7 @@ static void build_reserve_node()
 
 static void parse_framebuffer()
 {
-    lprintf("Framebuffer @ %llx, pitch: %u, width: %u, height: %u, bpp: %u, type: %d\n",
+    kprintf("Framebuffer @ %llx, pitch: %u, width: %u, height: %u, bpp: %u, type: %d\n",
         mbi->framebuffer_addr, mbi->framebuffer_pitch,
         mbi->framebuffer_width, mbi->framebuffer_height,
         mbi->framebuffer_bpp, mbi->framebuffer_type

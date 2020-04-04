@@ -2,7 +2,7 @@
 #include "loader/include/lib.h"
 #include "loader/include/devtree.h"
 #include "loader/include/firmware.h"
-#include "loader/include/lprintf.h"
+#include "loader/include/kprintf.h"
 
 
 #define PARAM_OFFSET -0x6000
@@ -289,7 +289,7 @@ static void add_bootarg()
     struct firmware_args *fw_args = get_fw_args();
     char *cmdline = fw_args->srm.cmdline;
     if (cmdline && *cmdline) {
-        lprintf("bootarg: %s\n", cmdline);
+        kprintf("bootarg: %s\n", cmdline);
     }
 }
 

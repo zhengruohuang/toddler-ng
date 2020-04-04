@@ -130,7 +130,7 @@ static int map_range(void *page_table, void *vaddr, void *paddr, ulong size,
 {
     return 0;
 
-//     lprintf("Mapping %p -> %p, size: %lx, cache: %d, exec: %d, write: %d\n",
+//     kprintf("Mapping %p -> %p, size: %lx, cache: %d, exec: %d, write: %d\n",
 //             vaddr, paddr, size, cache, exec, write);
 //
 //     ulong vaddr_start = ALIGN_DOWN((ulong)vaddr, PAGE_SIZE);
@@ -191,7 +191,7 @@ typedef void (*hal_start)(struct loader_args *largs);
 static void jump_to_hal()
 {
     struct loader_args *largs = get_loader_args();
-    lprintf("Jump to HAL @ %p\n", largs->hal_entry);
+    kprintf("Jump to HAL @ %p\n", largs->hal_entry);
 
     while (1);
 
@@ -226,7 +226,7 @@ void loader_entry(void *arg1, void *arg2, void *arg3, void *arg4, void *arg5)
     arch_debug_putchar('o');
     arch_debug_putchar('o');
     arch_debug_putchar('d');
-    lprintf("Hello, arg1 @ %p, arg2 @ %p, arg3 @ %p, arg4 @ %p, arg5 @ %p\n",
+    kprintf("Hello, arg1 @ %p, arg2 @ %p, arg3 @ %p, arg4 @ %p, arg5 @ %p\n",
         arg1, arg2, arg3, arg4, arg5);
 //     while (1);
 
@@ -246,7 +246,7 @@ void loader_entry(void *arg1, void *arg2, void *arg3, void *arg4, void *arg5)
     // Prepare initrd
     ulong *initrd_start = (void *)(0xfffffc0001010000ull + PARAM_OFFSET + 0x100ull);
     ulong *initrd_size = (void *)(0xfffffc0001010000ull + PARAM_OFFSET + 0x108ull);
-    lprintf("initrd_start @ %lx, initrd_size: %lx\n", *initrd_start, *initrd_size);
+    kprintf("initrd_start @ %lx, initrd_size: %lx\n", *initrd_start, *initrd_size);
 
     // Prepare arg
     fw_args.type = FW_SRM;

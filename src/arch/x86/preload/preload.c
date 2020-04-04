@@ -103,7 +103,7 @@ static void enter_long_mode_and_call_boot(ulong ptr, ulong magic)
     gdt64_ptr.base = (u64)(ulong)&gdt64;
     gdt64_ptr.limit = sizeof(gdt64) - 1;
 
-    //lprintf("GDT entry size: %d\n", sizeof(struct global_desc_table_entry));
+    //kprintf("GDT entry size: %d\n", sizeof(struct global_desc_table_entry));
 
     __asm__ __volatile__ (
         "lgdtl %[gdt_ptr];"

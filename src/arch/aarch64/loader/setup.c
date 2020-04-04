@@ -264,7 +264,7 @@ static void set_mair()
     mair.attri[MAIR_IDX_NON_CACHEABLE].inner = MAIR_INNER_NON_CACHEABLE;
     mair.attri[MAIR_IDX_NON_CACHEABLE].outer = MAIR_OUTER_NON_CACHEABLE;
 
-    lprintf("mair: %llx\n", mair.value);
+    kprintf("mair: %llx\n", mair.value);
     write_mem_attri_indirect_el1(mair.value);
 }
 
@@ -297,7 +297,7 @@ static void set_tcr()
     tcr.shareability0 = 0x3;    // Inner
     tcr.shareability1 = 0x3;
 
-    lprintf("tcr: %llx\n", tcr.value);
+    kprintf("tcr: %llx\n", tcr.value);
     write_trans_ctrl_el1(tcr.value);
 }
 
@@ -311,7 +311,7 @@ static void set_ttbr(void *root_page)
     ttbr.base_addr = ((ulong)root_page) >> 1;
     ttbr.cnp = 1;
 
-    lprintf("ttbr: %llx, root @ %p\n", ttbr.value, root_page);
+    kprintf("ttbr: %llx, root @ %p\n", ttbr.value, root_page);
     write_trans_tab_base0_el1(ttbr.value);
 }
 
@@ -342,7 +342,7 @@ static void set_sctlr()
     // MMU
     sctlr.mmu = 1;
 
-    lprintf("sctlr: %llx\n", sctlr.value);
+    kprintf("sctlr: %llx\n", sctlr.value);
     write_sys_ctrl_el1(sctlr.value);
 }
 
@@ -351,17 +351,17 @@ static void enable_mmu_caches(void *root_page)
     // FIXME: map PL011
     map_range(root_page, (void *)PL011_BASE, (void *)PL011_BASE, 0x100, 0, 0, 1);
 
-    lprintf("Here0\n");
+    kprintf("Here0\n");
     check_mmfr();
-    lprintf("Here1\n");
+    kprintf("Here1\n");
     set_mair();
-    lprintf("Here2\n");
+    kprintf("Here2\n");
     set_tcr();
-    lprintf("Here3\n");
+    kprintf("Here3\n");
     set_ttbr(root_page);
-    lprintf("Here4\n");
+    kprintf("Here4\n");
     set_sctlr();
-    lprintf("Here5\n");
+    kprintf("Here5\n");
 }
 
 typedef void (*hal_start)(struct loader_args *largs);
@@ -372,7 +372,7 @@ static void call_hal(struct loader_args *largs)
     struct cur_except_level_reg cur_el;
     read_cur_except_level(cur_el.value);
 
-    lprintf("Cur EL: %d\n", (int)cur_el.except_level);
+    kprintf("Cur EL: %d\n", (int)cur_el.except_level);
 //     while (1);
 
     if (cur_el.except_level == 1) {
@@ -384,7 +384,7 @@ static void call_hal(struct loader_args *largs)
 static void jump_to_hal()
 {
     struct loader_args *largs = get_loader_args();
-    lprintf("Jump to HAL @ %p\n", largs->hal_entry);
+    kprintf("Jump to HAL @ %p\n", largs->hal_entry);
 
     enable_mmu_caches(largs->page_table);
     call_hal(largs);
@@ -495,7 +495,7 @@ static void init_arch()
     setup_indiv_sp();
     switch_to_el1();
 
-    lprintf("Arch initialized!\n");
+    kprintf("Arch initialized!\n");
 }
 
 
@@ -517,7 +517,7 @@ void loader_entry(void *fdt, void *res0, void *res1, void *res2)
     memzero(&funcs, sizeof(struct loader_arch_funcs));
     memzero(&fw_args, sizeof(struct firmware_args));
 
-//     lprintf("fdt: %p, res0: %p, res1: %p, res2: %p\n", fdt, res0, res1, res2);
+//     kprintf("fdt: %p, res0: %p, res1: %p, res2: %p\n", fdt, res0, res1, res2);
 //     while (1);
 
     // Prepare arg

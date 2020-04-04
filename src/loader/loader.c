@@ -3,7 +3,7 @@
 #include "loader/include/firmware.h"
 #include "loader/include/boot.h"
 #include "loader/include/devtree.h"
-#include "loader/include/lprintf.h"
+#include "loader/include/kprintf.h"
 
 
 /*
@@ -132,6 +132,6 @@ void loader(struct firmware_args *args, struct loader_arch_funcs *funcs)
     // Done
     devtree_print(NULL);
 
-    lprintf("Done!\n");
+    kprintf("Done!\n");
     while (1);
 }

@@ -1,6 +1,6 @@
 #include "common/include/inttypes.h"
 #include "loader/include/devtree.h"
-#include "loader/include/lprintf.h"
+#include "loader/include/kprintf.h"
 #include "loader/include/lib.h"
 
 
@@ -231,5 +231,5 @@ void init_bootargs()
     }
 
     bootargs = devtree_get_prop_data(prop);
-    lprintf("Bootargs: %s\n", bootargs);
+    kprintf("Bootargs: %s\n", bootargs);
 }

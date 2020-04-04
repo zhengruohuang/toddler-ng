@@ -122,7 +122,7 @@ static void map_page(void *page_table, void *vaddr, u64 paddr, int block,
 static int map_range(void *page_table, void *vaddr, void *ppaddr, ulong size,
     int cache, int exec, int write)
 {
-    lprintf("Map range @ %p -> %p, size: %lx, cache: %d, exec: %d, write: %d\n",
+    kprintf("Map range @ %p -> %p, size: %lx, cache: %d, exec: %d, write: %d\n",
         vaddr, ppaddr, size, cache, exec, write);
 
     u64 paddr = (ulong)ppaddr;
@@ -238,10 +238,10 @@ static void call_hal(struct loader_args *largs)
 static void jump_to_hal()
 {
     struct loader_args *largs = get_loader_args();
-    lprintf("Jump to HAL @ %p\n", largs->hal_entry);
+    kprintf("Jump to HAL @ %p\n", largs->hal_entry);
 
     enable_mmu(largs->page_table);
-    lprintf("Page root @ %p\n", largs->page_table);
+    kprintf("Page root @ %p\n", largs->page_table);
 
     call_hal(largs);
 }
@@ -323,7 +323,7 @@ static void init_arch()
  */
 void loader_entry(ulong cfg_type, void *cfg)
 {
-    lprintf("cfg_type: %d, cfg @ %p, magic: %x\n", cfg_type, cfg, *(u32 *)cfg);
+    kprintf("cfg_type: %d, cfg @ %p, magic: %x\n", cfg_type, cfg, *(u32 *)cfg);
 
     /*
      * BSS will be initialized at the beginning of loader() func
