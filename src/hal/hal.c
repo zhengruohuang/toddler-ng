@@ -204,20 +204,6 @@ void arch_kernel_dispatch_prep(ulong sched_id, struct kernel_dispatch_info *kdi)
 
 
 /*
- * Debug
- */
-#include "common/include/msr.h"
-
-static void show_pending_int()
-{
-    struct int_status_reg isr;
-    read_int_status(isr.value);
-
-    kprintf("Pending: %x\n", isr.value);
-}
-
-
-/*
  * Common entry
  */
 void hal(struct loader_args *largs, struct hal_arch_funcs *funcs)
@@ -238,19 +224,21 @@ void hal(struct loader_args *largs, struct hal_arch_funcs *funcs)
     init_mem_map();
     arch_init_mm();
 
+    // Init int seq and default handlers
+    init_int_seq();
+    init_int_handler();
+    init_syscall();
+
     // Init devices
     init_dev();
 
     // Init CPU
     init_topo();
     init_per_cpu_area();
-    init_halt();
 
     // Init interrupt
     init_context();
     init_int_state();
-    init_int_seq();
-    init_syscall();
     arch_init_int();
 
     // Init kernel
@@ -280,10 +268,9 @@ void hal_mp()
     init_arch_mp();
 
     // Init MM
-    arch_init_mm();
+    arch_init_mm_mp();
 
     // Init interrupt
-    init_halt_mp();
     init_context_mp();
     init_int_state_mp();
     arch_init_int_mp();

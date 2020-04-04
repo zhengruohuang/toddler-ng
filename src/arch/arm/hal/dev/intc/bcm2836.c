@@ -263,8 +263,69 @@ struct bcm2836_record {
 
 
 /*
+ * Int manipulation
+ */
+static void enable_irq(struct bcm2836_record *record, int mp_seq, int irq)
+{
+    panic_if(irq < 0 || irq > 9, "Invalid IRQ!\n");
+    panic_if(mp_seq < 0 || mp_seq > 3, "Invalid MP seq!\n");
+
+    if (irq < 4) {
+        record->mmio->core_timer_int_ctrl[mp_seq].value |= 0x1 << irq;
+    } else if (irq < 8) {
+        record->mmio->core_mailbox_int_ctrl[mp_seq].value |= 0x1 << (irq - 4);
+    } else if (irq == 8) {
+        record->mmio->gpu_int_routing.value = 0;
+        record->mmio->local_int_routing.value = 0;
+    } else if (irq == 9) {
+        record->mmio->pmu_int_routing_set.value = 0x1 << mp_seq;
+    }
+}
+
+static void disable_irq(struct bcm2836_record *record, int mp_seq, int irq)
+{
+    panic_if(irq < 0 || irq > 9, "Invalid IRQ!\n");
+    panic_if(mp_seq < 0 || mp_seq > 3, "Invalid MP seq!\n");
+
+    if (irq < 4) {
+        record->mmio->core_timer_int_ctrl[mp_seq].value &= ~(0x1 << irq);
+    } else if (irq < 8) {
+        record->mmio->core_mailbox_int_ctrl[mp_seq].value &= ~(0x1 << (irq - 4));
+    } else if (irq == 8) {
+        // Cannot be disabled
+    } else if (irq == 9) {
+        record->mmio->pmu_int_routing_clear.value = 0x1 << mp_seq;
+    }
+}
+
+
+/*
  * Interrupt handler
  */
+static int invoke(struct bcm2836_record *record, int cpu,
+                  int irq, struct driver_param *int_dev,
+                  struct int_context *ictxt, struct kernel_dispatch_info *kdi)
+{
+    if (irq == -1) {
+        return INT_HANDLE_SIMPLE;
+    }
+
+    disable_irq(record, cpu, irq);
+
+    int handle_type = INT_HANDLE_SIMPLE;
+    if (int_dev && int_dev->int_seq) {
+        ictxt->param = int_dev->record;
+        handle_type = invoke_int_handler(int_dev->int_seq, ictxt, kdi);
+
+        if (INT_HANDLE_KEEP_MASKED & ~handle_type) {
+            enable_irq(record, cpu, irq);
+        }
+    }
+
+    return handle_type & INT_HANDLE_CALL_KERNEL ?
+            INT_HANDLE_CALL_KERNEL : INT_HANDLE_SIMPLE;
+}
+
 static int handler(struct int_context *ictxt, struct kernel_dispatch_info *kdi)
 {
     struct bcm2836_record *record = ictxt->param;
@@ -272,28 +333,16 @@ static int handler(struct int_context *ictxt, struct kernel_dispatch_info *kdi)
 
     u32 irq_mask = record->mmio->core_irq_src[cpu].value;
     int num_irqs = popcount32(irq_mask);
+    int handle_type = INT_HANDLE_SIMPLE;
 
-    int handle_type = INT_HANDLE_TYPE_HAL;
-
-    // Only one
-    if (num_irqs == 1) {
+    while (num_irqs) {
         int irq = ctz32(irq_mask);
         struct driver_param *int_dev = record->int_devs[irq];
-        if (int_dev && int_dev->int_seq) {
-            handle_type = invoke_int_handler(int_dev->int_seq, ictxt, kdi);
-        }
-    }
 
-    // More than one
-    else if (num_irqs > 1) {
-        for (int i = 0; i < 8; i++) {
-            u32 irq = 0x1 << i;
-            struct driver_param *int_dev = record->int_devs[irq];
-            if (irq_mask & irq && int_dev && int_dev->int_seq) {
-                handle_type = invoke_int_handler(int_dev->int_seq, ictxt, kdi);
-                break;
-            }
-        }
+        handle_type |= invoke(record, cpu, irq, int_dev, ictxt, kdi);
+
+        irq_mask &= ~(0x1 << irq);
+        num_irqs = popcount32(irq_mask);
     }
 
     return handle_type;
@@ -303,7 +352,7 @@ static int handler(struct int_context *ictxt, struct kernel_dispatch_info *kdi)
 /*
  * Driver interface
  */
-static void start_cpu(void *param, int seq, ulong id, ulong entry)
+static void start_cpu(struct driver_param *param, int seq, ulong id, ulong entry)
 {
     panic_if(seq >= 4, "Unable to start CPU #%ld @ %lx\n", seq, id);
 
@@ -312,42 +361,43 @@ static void start_cpu(void *param, int seq, ulong id, ulong entry)
 
     kprintf("Seq: %d, ID: %lx, entry @ %lx\n", seq, id, entry);
 
-    struct bcm2836_record *record = param;
+    struct bcm2836_record *record = param->record;
     record->mmio->core_mailbox_write_set[seq].mb3 = entry;
 }
 
 static void start(struct driver_param *param)
 {
-
 }
 
 static void setup_int(struct driver_param *param, struct driver_int_encode *encode, struct driver_param *dev)
 {
-    kprintf("set int, data: %p, size: %d\n", encode->data, encode->size);
-
     struct bcm2836_record *record = param->record;
     int num_ints = encode->size / sizeof(int);
     int *int_srcs = encode->data;
 
     for (int g = 0; g < num_ints; g += 2) {
-        int src = swap_big_endian32(int_srcs[g]);
+        int irq = swap_big_endian32(int_srcs[g]);
 
-        switch (src) {
+        switch (irq) {
         case 0:
         case 2:
         case 3:
             break;
         case 1:
-            for (int c = 0; c < 4; c++) {
-                record->mmio->core_timer_int_ctrl[c].value = 0x2;
-            }
             record->int_devs[1] = dev;
+            for (int c = 0; c < 4; c++) {
+                enable_irq(record, c, irq);
+            }
             break;
+        case 4:
+        case 5:
+        case 6:
+        case 7:
         case 8:
         case 9:
             break;
         default:
-            panic("Unknown int src: %d\n", src);
+            panic("Unknown int src: %d\n", irq);
             break;
         }
     }
@@ -355,14 +405,6 @@ static void setup_int(struct driver_param *param, struct driver_int_encode *enco
 
 static void setup(struct driver_param *param)
 {
-    struct bcm2836_record *record = param->record;
-
-    // Init the four core timer ints - IRQ phys timer non secure
-//     record->mmio->core_timer_int_ctrl[0].value = 0x2;
-//     record->mmio->core_timer_int_ctrl[1].value = 0x2;
-//     record->mmio->core_timer_int_ctrl[2].value = 0x2;
-//     record->mmio->core_timer_int_ctrl[3].value = 0x2;
-
     // Register special function
     REG_SPECIAL_DRV_FUNC(start_cpu, param, start_cpu);
 }
@@ -381,6 +423,9 @@ static int probe(struct fw_dev_info *fw_info, struct driver_param *param)
         memzero(record, sizeof(struct bcm2836_record));
         param->record = record;
         param->int_seq = alloc_int_seq(handler);
+
+        int num_int_cells = devtree_get_num_int_cells(fw_info->devtree_node);
+        panic_if(num_int_cells != 2, "#int-cells must be 2\n");
 
         u64 reg = 0, size = 0;
         int next = devtree_get_translated_reg(fw_info->devtree_node, 0, &reg, &size);

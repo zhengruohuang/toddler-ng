@@ -29,10 +29,10 @@ extern void init_dev();
 /*
  * Special
  */
-typedef void (*start_cpu_t)(void *param, int seq, ulong id, ulong entry);
-typedef void (*detect_topology_t)(void *param);
-typedef void (*cpu_power_on_t)(void *param, ulong id);
-typedef void (*cpu_power_off_t)(void *param, ulong id);
+typedef void (*start_cpu_t)(struct driver_param *param, int seq, ulong id, ulong entry);
+typedef void (*detect_topology_t)(struct driver_param *param);
+typedef void (*cpu_power_on_t)(struct driver_param *param, ulong id);
+typedef void (*cpu_power_off_t)(struct driver_param *param, ulong id);
 
 struct special_drv_func_record {
     void *param;

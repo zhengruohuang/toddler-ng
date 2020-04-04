@@ -12,8 +12,8 @@
  */
 extern_per_cpu(ulong, cur_int_stack_top);
 
-extern void init_int_handler_mp();
-extern void init_int_handler();
+extern void init_int_entry_mp();
+extern void init_int_entry();
 
 
 /*
@@ -31,12 +31,6 @@ extern int map_range(void *page_table, ulong vaddr, ulong paddr, ulong size,
                      int cache, int exec, int write, int kernel, int override,
                      palloc_t palloc);
 extern int unumap_range(void *page_table, ulong vaddr, ulong paddr, ulong size);
-
-
-/*
- * Halt
- */
-extern void halt_cur_cpu(int count, va_list args);
 
 
 #endif

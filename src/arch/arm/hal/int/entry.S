@@ -77,7 +77,7 @@ int_entry_wrapper_end:
     sub lr, lr, \pc_sub
 .endm
 
-.macro SAVE_REGS
+.macro SAVE
     /* Disable all interrupts */
     cpsid iaf
 
@@ -101,7 +101,7 @@ int_entry_wrapper_end:
     sub sp, sp, #4
 .endm
 
-.macro ENTER_C vector
+.macro HANDLE vector
     /* Prepare C arguments */
     mov r0, \vector
     mov r1, sp
@@ -155,50 +155,50 @@ int_entry_wrapper_end:
  */
 reset_handler_entry:
     PREPARE
-    SAVE_REGS
-    ENTER_C #INT_VECTOR_RESET
+    SAVE
+    HANDLE #INT_VECTOR_RESET
     RETURN #0x13
 
 undefined_handler_entry:
     PREPARE
-    SAVE_REGS
-    ENTER_C #INT_VECTOR_UNDEFINED
+    SAVE
+    HANDLE #INT_VECTOR_UNDEFINED
     RETURN #0x1b
 
 svc_handler_entry:
     PREPARE
-    SAVE_REGS
-    ENTER_C #INT_VECTOR_SVC
+    SAVE
+    HANDLE #INT_VECTOR_SVC
     RETURN #0x13
 
 fetch_abort_handler_entry:
     PREPARE_PC #4
-    SAVE_REGS
-    ENTER_C #INT_VECTOR_FETCH
+    SAVE
+    HANDLE #INT_VECTOR_FETCH
     RETURN #0x17
 
 data_abort_handler_entry:
     PREPARE_PC #8
-    SAVE_REGS
-    ENTER_C #INT_VECTOR_DATA
+    SAVE
+    HANDLE #INT_VECTOR_DATA
     RETURN #0x17
 
 reserved_handler_entry:
     PREPARE
-    SAVE_REGS
-    ENTER_C #INT_VECTOR_RESERVED
+    SAVE
+    HANDLE #INT_VECTOR_RESERVED
     RETURN #0x13
 
 irq_handler_entry:
     PREPARE_PC #4
-    SAVE_REGS
-    ENTER_C #INT_VECTOR_IRQ
+    SAVE
+    HANDLE #INT_VECTOR_IRQ
     RETURN #0x12
 
 fiq_handler_entry:
     PREPARE_PC #4
-    SAVE_REGS
-    ENTER_C #INT_VECTOR_FIQ
+    SAVE
+    HANDLE #INT_VECTOR_FIQ
     RETURN #0x11
 
 

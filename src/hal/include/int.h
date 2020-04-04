@@ -2,6 +2,7 @@
 #define __HAL_INCLUDE_INT_H__
 
 
+#include "common/include/compiler.h"
 #include "common/include/inttypes.h"
 #include "common/include/context.h"
 #include "hal/include/dispatch.h"
@@ -12,9 +13,14 @@
  * Handling type
  */
 enum int_handling_type {
-    INT_HANDLE_TYPE_TAKEOVER,
-    INT_HANDLE_TYPE_HAL,
-    INT_HANDLE_TYPE_KERNEL,
+    INT_HANDLE_SIMPLE       = 0x00,
+
+    INT_HANDLE_STAY_HAL     = 0x00,
+    INT_HANDLE_CALL_KERNEL  = 0x01,
+
+    INT_HANDLE_AUTO_UNMASK  = 0x00,
+    INT_HANDLE_KEEP_MASKED  = 0x10,
+
 };
 
 
@@ -22,21 +28,28 @@ enum int_handling_type {
  * Interrupt handler
  */
 struct int_context {
-    ulong mp_seq;
     ulong vector;
     ulong error_code;
-    void *param;
 
     struct reg_context *regs;
-};
+
+    ulong mp_seq;
+    void *param;
+} natural_struct;
 
 typedef int (*int_handler_t)(struct int_context *ictxt, struct kernel_dispatch_info *kdi);
+
+extern void int_handler(int seq, struct int_context *ictxt);
+extern void init_int_handler();
 
 
 /*
  * Interrupt seqs
  */
-#define INT_SEQ_DUMMY       126
+#define INT_SEQ_INVALID     0
+#define INT_SEQ_PANIC       124
+#define INT_SEQ_DUMMY       125
+#define INT_SEQ_DEV         126
 #define INT_SEQ_SYSCALL     127
 #define INT_SEQ_ALLOC_START 128
 #define INT_SEQ_ALLOC_END   255

@@ -6,6 +6,9 @@
 #include "hal/include/dev.h"
 
 
+#define INT_FREQ_DIV    8
+
+
 struct generic_timer_phys_ctrl_reg {
     union {
         u32 value;
@@ -41,6 +44,8 @@ int is_generic_timer_asserted()
  */
 static int handler(struct int_context *ictxt, struct kernel_dispatch_info *kdi)
 {
+    //kprintf("Timer!\n");
+
     struct armv7_generic_timer_record *record = ictxt->param;
     struct generic_timer_phys_ctrl_reg ctrl;
 
@@ -58,7 +63,7 @@ static int handler(struct int_context *ictxt, struct kernel_dispatch_info *kdi)
     ctrl.masked = 0;
     write_generic_timer_phys_ctrl(ctrl.value);
 
-    return INT_HANDLE_TYPE_KERNEL;
+    return INT_HANDLE_CALL_KERNEL;
 }
 
 
@@ -74,7 +79,6 @@ static void start(struct driver_param *param)
     write_generic_timer_phys_ctrl(ctrl.value);
 
     ctrl.enabled = 1;
-
     write_generic_timer_phys_interval(record->timer_step);
     write_generic_timer_phys_ctrl(ctrl.value);
 
@@ -89,11 +93,8 @@ static void setup(struct driver_param *param)
     read_generic_timer_freq(freq);
     panic_if(!freq, "Timer doesn't report a valid frequency!\n");
 
-    // 10 times per second
-    record->timer_step = freq / 10;
-
-    // Register the handler
-    //set_int_vector(INT_VECTOR_LOCAL_TIMER, int_handler_local_timer);
+    // Set up the actual freq
+    record->timer_step = freq / INT_FREQ_DIV;
 
     kprintf("Timer freq @ %uHz, step set @ %u, record @ %p\n", freq, record->timer_step, record);
 }

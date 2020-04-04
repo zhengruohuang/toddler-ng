@@ -200,72 +200,68 @@ static void disable_all(struct bcm2835_record *record)
 /*
  * Interrupt handler
  */
-static int handle_irq(struct int_context *ictxt, struct kernel_dispatch_info *kdi,
-                      struct bcm2835_record *record, int *handle_type,
-                      int bank, u32 mask, int irq_count,
-                      volatile u32 *enable, volatile u32 *disable)
+static int invoke(struct bcm2835_record *record, int bank,
+                  int irq, struct driver_param *int_dev,
+                  struct int_context *ictxt, struct kernel_dispatch_info *kdi)
 {
-    int num_irqs = popcount32(mask);
+    if (irq == -1) {
+        return INT_HANDLE_SIMPLE;
+    }
 
-    // Only one
-    if (num_irqs == 1) {
-        int irq = ctz32(mask);
-        int dev = irq_to_dev(bank, irq);
-        struct driver_param *int_dev = record->int_devs[dev];
+    disable_irq(record, bank, irq);
 
-        if (int_dev && int_dev->int_seq) {
-            *handle_type = invoke_int_handler(int_dev->int_seq, ictxt, kdi);
-            return 1;
+    int handle_type = INT_HANDLE_SIMPLE;
+    if (int_dev && int_dev->int_seq) {
+        ictxt->param = int_dev->record;
+        handle_type = invoke_int_handler(int_dev->int_seq, ictxt, kdi);
+
+        if (INT_HANDLE_KEEP_MASKED & ~handle_type) {
+            enable_irq(record, bank, irq);
         }
     }
 
-    // More than one
-    else if (num_irqs > 1) {
-        for (int i = 0; i < irq_count; i++) {
-            u32 irq = 0x1 << i;
-            int dev = irq_to_dev(bank, irq);
-            struct driver_param *int_dev = record->int_devs[dev];
+    return handle_type & INT_HANDLE_CALL_KERNEL ?
+            INT_HANDLE_CALL_KERNEL : INT_HANDLE_SIMPLE;
+}
 
-            if (mask & irq && int_dev && int_dev->int_seq) {
-                *handle_type = invoke_int_handler(int_dev->int_seq, ictxt, kdi);
-                return 1;
-            }
-        }
+static int handle(struct int_context *ictxt, struct kernel_dispatch_info *kdi,
+                  struct bcm2835_record *record, int bank, u32 irq_mask)
+{
+    int num_irqs = popcount32(irq_mask);
+    int handle_type = INT_HANDLE_SIMPLE;
+
+    while (num_irqs) {
+        int irq = ctz32(irq_mask);
+        struct driver_param *int_dev = record->int_devs[irq];
+
+        handle_type |= invoke(record, bank, irq, int_dev, ictxt, kdi);
+
+        irq_mask &= ~(0x1 << irq);
+        num_irqs = popcount32(irq_mask);
     }
 
-    return 0;
+    return handle_type;
 }
 
 static int handler(struct int_context *ictxt, struct kernel_dispatch_info *kdi)
 {
     struct bcm2835_record *record = ictxt->param;
-    int cpu = ictxt->mp_seq;
 
     struct bcm2835_irqs_basic_pending basic_pending;
     basic_pending.value = record->mmio->pending_basic.value;
 
-    int handled = 0;
-    int handle_type = INT_HANDLE_TYPE_HAL;
+    int handle_type = INT_HANDLE_SIMPLE;
 
     if (basic_pending.arm_periphs) {
-        handled = handle_irq(ictxt, kdi, record, &handle_type,
-                             0, basic_pending.arm_periphs, 8,
-                             &record->mmio->enable_basic,
-                             &record->mmio->disable_basic);
+        handle_type |= handle(ictxt, kdi, record, 0, basic_pending.arm_periphs);
     }
 
-    if (!handled && basic_pending.more1) {
-        handled = handle_irq(ictxt, kdi, record, &handle_type,
-                             1, record->mmio->pending1, 32,
-                             &record->mmio->enable1,
-                             &record->mmio->disable1);
+    if (basic_pending.more1) {
+        handle_type |= handle(ictxt, kdi, record, 1, record->mmio->pending1);
     }
 
-    if (!handled && basic_pending.more2) {
-        handled = handle_irq(ictxt, kdi, record, &handle_type,
-                             1, record->mmio->pending2, 32,
-                             &record->mmio->enable2,
-                             &record->mmio->disable2);
+    if (basic_pending.more2) {
+        handle_type |= handle(ictxt, kdi, record, 2, record->mmio->pending2);
     }
 
     return handle_type;
@@ -277,8 +273,6 @@ static int handler(struct int_context *ictxt, struct kernel_dispatch_info *kdi)
  */
 static void start(struct driver_param *param)
 {
-    //struct bcm2835_record *record = param;
-    //enable_wired(record, 57);
 }
 
 static void setup_int(struct driver_param *param, struct driver_int_encode *encode, struct driver_param *dev)
@@ -324,6 +318,9 @@ static int probe(struct fw_dev_info *fw_info, struct driver_param *param)
         memzero(record, sizeof(struct bcm2835_record));
         param->record = record;
         param->int_seq = alloc_int_seq(handler);
+
+        int num_int_cells = devtree_get_num_int_cells(fw_info->devtree_node);
+        panic_if(num_int_cells != 2, "#int-cells must be 2\n");
 
         u64 reg = 0, size = 0;
         int next = devtree_get_translated_reg(fw_info->devtree_node, 0, &reg, &size);

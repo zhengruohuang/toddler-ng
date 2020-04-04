@@ -39,6 +39,7 @@ extern int devtree_get_compatible(struct devtree_node *node, int idx,
 extern int devtree_get_phandle(struct devtree_node *node);
 
 extern int devtree_is_intc(struct devtree_node *node);
+extern int devtree_get_num_int_cells(struct devtree_node *node);
 extern int devtree_get_int_parent(struct devtree_node *node, int idx);
 extern int *devtree_get_int_encode(struct devtree_node *node, int *count);
 

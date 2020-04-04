@@ -20,7 +20,7 @@ struct armv7_cpu {
 static int num_cpus = 0;
 static struct armv7_cpu *cpus = NULL;
 
-static void detect_topology(void *param)
+static void detect_topology(struct driver_param *param)
 {
     setup_mp_id_trans(num_cpus, 3,
                       16, 8,    /* Aff2 */
@@ -39,9 +39,9 @@ static void detect_topology(void *param)
 /*
  * Driver interface
  */
-static void setup(void *param)
+static void setup(struct driver_param *param)
 {
-    struct armv7_cpu *record = param;
+    struct armv7_cpu *record = param->record;
 
     struct mp_affinity_reg mpr;
     read_cpu_id(mpr.value);
@@ -51,7 +51,7 @@ static void setup(void *param)
     }
 }
 
-static int probe(struct fw_dev_info *fw_info, void **param)
+static int probe(struct fw_dev_info *fw_info, struct driver_param *param)
 {
     static const char *devtree_names[] = {
         "arm,cortex-a7",
@@ -63,9 +63,7 @@ static int probe(struct fw_dev_info *fw_info, void **param)
     ) {
         struct armv7_cpu *record = mempool_alloc(sizeof(struct armv7_cpu));
         memzero(record, sizeof(struct armv7_cpu));
-        if (param) {
-            *param = record;
-        }
+        param->record = record;
 
         struct devtree_prop *prop = devtree_find_prop(fw_info->devtree_node, "reg");
         panic_if(!prop, "Bad ARMv7 CPU devtree node!\n");

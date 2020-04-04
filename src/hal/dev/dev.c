@@ -243,7 +243,7 @@ static void build_int_hierarchy()
 int handle_dev_int(struct int_context *ictxt, struct kernel_dispatch_info *kdi)
 {
     int seq = int_hierarchy->dev->driver_param.int_seq;
-    ictxt->param = &int_hierarchy->dev->driver_param;
+    ictxt->param = int_hierarchy->dev->driver_param.record;
     return invoke_int_handler(seq, ictxt, kdi);
 }
 

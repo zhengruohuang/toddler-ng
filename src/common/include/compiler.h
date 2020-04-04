@@ -18,8 +18,16 @@
 #define packed8_struct      __attribute__((packed, aligned(8)))
 #endif
 
+#ifndef natural_struct
+#define natural_struct      __attribute__((packed, aligned(sizeof(void *))))
+#endif
+
 #ifndef aligned_struct
 #define aligned_struct(a)   __attribute__((packed, aligned(a)))
+#endif
+
+#ifndef aligned_var
+#define aligned_var(a)      __attribute__((aligned(a)))
 #endif
 
 #ifndef no_inline
@@ -44,10 +52,6 @@
 
 #ifndef entry_func
 #define entry_func          __attribute__((section("entry")))
-#endif
-
-#ifndef aligned_var
-#define aligned_var(a)      __attribute__((aligned(a)))
 #endif
 
 

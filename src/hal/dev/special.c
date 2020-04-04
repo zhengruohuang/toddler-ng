@@ -11,7 +11,7 @@ static struct special_drv_funcs funcs = { };
  * Register
  */
 static void reg_unique(const char *name, struct special_drv_func_record *record,
-                       void *param, void *func)
+                       struct driver_param *param, void *func)
 {
     panic_if(record->func, "Function already registered: %s\n", name);
     record->param = param;
@@ -19,7 +19,7 @@ static void reg_unique(const char *name, struct special_drv_func_record *record,
 }
 
 static void reg_multi(const char *name, struct special_drv_func_list **list,
-                      void *param, void *func)
+                      struct driver_param *param, void *func)
 {
     struct special_drv_func_list *node =
             mempool_alloc(sizeof(struct special_drv_func_list));

@@ -50,12 +50,12 @@ static void init_arch_mp()
 
 static void init_int()
 {
-    init_int_handler();
+    init_int_entry();
 }
 
 static void init_int_mp()
 {
-    init_int_handler_mp();
+    init_int_entry_mp();
 }
 
 static void init_mm()
@@ -124,6 +124,12 @@ static void set_syscall_return(struct reg_context *regs, int success, ulong retu
     regs->r1 = return0;
     regs->r2 = return1;
 }
+
+static void halt_cur_cpu(int count, va_list args)
+{
+    while (1);
+}
+
 
 static void invalidate_tlb_line(ulong asid, ulong vaddr)
 {

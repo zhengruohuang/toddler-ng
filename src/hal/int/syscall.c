@@ -43,7 +43,7 @@ static int int_handler_syscall(struct int_context *ictxt, struct kernel_dispatch
         arch_set_syscall_return(ictxt->regs, succeed, return0, return1);
     }
 
-    return call_kernel ? INT_HANDLE_TYPE_KERNEL : INT_HANDLE_TYPE_HAL;
+    return call_kernel ? INT_HANDLE_CALL_KERNEL : INT_HANDLE_SIMPLE;
 }
 
 

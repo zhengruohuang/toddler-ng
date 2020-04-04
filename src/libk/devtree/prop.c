@@ -273,6 +273,17 @@ int devtree_is_intc(struct devtree_node *node)
     return prop ? 1 : 0;
 }
 
+int devtree_get_num_int_cells(struct devtree_node *node)
+{
+    struct devtree_prop *prop = devtree_find_prop(node, "#interrupt-cells");
+    if (prop) {
+        u32 data = devtree_get_prop_data_u32(prop);
+        return (int)data;
+    }
+
+    return -1;
+}
+
 int devtree_get_int_parent(struct devtree_node *node, int idx)
 {
     for ( ; node; node = devtree_get_parent_node(node)) {

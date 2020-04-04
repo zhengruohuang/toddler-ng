@@ -15,108 +15,67 @@
  */
 static void *kernel_page_table;
 
-void int_handler_entry(int except, struct reg_context *context)
+void int_handler_entry(int except, struct reg_context *regs)
 {
-    kprintf("Interrupt!\n");
-    while (1);
-
-    // Switch to kernel's page table
-    write_trans_tab_base0(kernel_page_table);
-    inv_tlb_all();
-    // FIXME: atomic_membar();
-
     // Mark local interrupts as disabled
     disable_local_int();
+
+    //kprintf("Interrupt!\n");
+    //while (1);
 
 //     kprintf("General exception!\n");
 //     kprintf("Interrupt, Except: %d, PC: %x, SP: %x, CPSR: %x\n",
 //             except, context->pc, context->sp, context->cpsr);
 
     // Figure out the real vector number
-    int vector = 0;
+    int seq = 0;
 
     switch (except) {
     // System call
     case INT_VECTOR_SVC:
-        vector = INT_VECTOR_SYSCALL;
+        seq = INT_SEQ_SYSCALL;
         break;
 
     // Page fault
     case INT_VECTOR_FETCH:
     case INT_VECTOR_DATA:
+        seq = INT_SEQ_PANIC;
         break;
 
     // Interrupt
     case INT_VECTOR_IRQ:
-        vector = 0; // TODO: periph_get_irq_vector();
+        seq = INT_SEQ_DEV;
         break;
 
     // Local timer
     case INT_VECTOR_FIQ:
-        vector = 0; // TODO: periph_get_fiq_vector();
+        seq = INT_SEQ_PANIC;
         break;
 
     // Illegal
     case INT_VECTOR_RESET:
     case INT_VECTOR_RESERVED:
-        vector = INT_VECTOR_DUMMY;
+        seq = INT_SEQ_PANIC;
         break;
 
     // Not implement yet
     case INT_VECTOR_UNDEFINED:
-        vector = INT_VECTOR_DUMMY;
+        seq = INT_SEQ_PANIC;
         break;
 
     // Unknown
     default:
-        vector = INT_VECTOR_DUMMY;
+        seq = INT_SEQ_PANIC;
         break;
     }
 
-    // Get the actual interrupt handler
-    int_handler_t handler = get_int_handler(vector);
-
-    // Call the real handler, the return value indicates if we need to call kernel
+    // Go to the generic handler!
     struct int_context intc;
-    intc.vector = vector;
+    intc.vector = seq;
     intc.error_code = except;
-    intc.regs = context;
+    intc.regs = regs;
 
-    struct kernel_dispatch_info kdispatch;
-    kdispatch.regs = context;
-    kdispatch.dispatch_type = KERNEL_DISPATCH_UNKNOWN;
-    kdispatch.syscall.num = 0;
-
-    // Call the handler
-    int handle_type = handler(&intc, &kdispatch);
-
-    if (except == INT_VECTOR_FIQ) {
-        // FIQ handler must have TAKE_OVER or HAL type
-        if (handle_type != INT_HANDLE_TYPE_HAL && handle_type != INT_HANDLE_TYPE_TAKEOVER) {
-            panic("FIQ handler must have TAKE_OVER or HAL type!\n");
-        }
-
-        // Switch to kernel if FIQ did not preempt any normal interrupts
-        struct proc_status_reg status;
-        status.value = context->cpsr;
-
-        if (status.mode == 0x10 || status.mode == 0x1f) {
-            handle_type = INT_HANDLE_TYPE_KERNEL;
-        }
-    }
-
-    // Note that if kernel is invoked,
-    // kernel will call sched and never go back to this int handler
-    if (handle_type == INT_HANDLE_TYPE_KERNEL) {
-        // Tell HAL we are in kernel
-        *get_per_cpu(int, cur_in_user_mode) = 0;
-
-        // Go to kernel!
-        //kernel_dispatch(&kdispatch);
-    }
-
-    while (1);
-//     panic("Need to implement lazy scheduling!");
+    int_handler(seq, &intc);
 }
 
 
@@ -130,7 +89,7 @@ extern void int_entry_wrapper_end();
 
 decl_per_cpu(ulong, cur_int_stack_top);
 
-void init_int_handler_mp()
+void init_int_entry_mp()
 {
     // Enable high addr vector
     struct sys_ctrl_reg sys_ctrl;
@@ -189,7 +148,7 @@ void init_int_handler_mp()
     );
 }
 
-void init_int_handler()
+void init_int_entry()
 {
     struct loader_args *largs = get_loader_args();
     kernel_page_table = largs->page_table;
@@ -207,5 +166,5 @@ void init_int_handler()
     memcpy(vec_target, int_entry_wrapper_begin,
            (ulong)int_entry_wrapper_end - (ulong)int_entry_wrapper_begin);
 
-    init_int_handler_mp();
+    init_int_entry_mp();
 }
