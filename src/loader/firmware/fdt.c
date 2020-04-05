@@ -223,7 +223,7 @@ int copy_fdt(void *buf, void *src, size_t size)
 void init_supplied_fdt(void *supplied_fdt)
 {
     struct fdt_header *hdr = supplied_fdt;
-    panic_not(is_fdt_header(hdr), "Supplied FDT is invalid!\n");
+    panic_if(!is_fdt_header(hdr), "Supplied FDT is invalid!\n");
 
     fdt = hdr;
     init_fdt();
@@ -245,7 +245,7 @@ void init_appended_fdt()
     }
 
     struct fdt_header *hdr = search_appended_fdt();
-    panic_not(is_fdt_header(hdr), "Unable to find appended FDT!\n");
+    panic_if(!is_fdt_header(hdr), "Unable to find appended FDT!\n");
 
     fdt = hdr;
     init_fdt();

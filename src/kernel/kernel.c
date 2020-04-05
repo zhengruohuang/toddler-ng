@@ -45,10 +45,31 @@ static void init_kexp(struct hal_exports *hal_exp)
 
 
 /*
+ * kprintf
+ */
+static spinlock_t kprintf_lock;
+
+int kprintf(const char *fmt, ...)
+{
+    int ret = 0;
+
+    va_list va;
+    va_start(va, fmt);
+
+    spinlock_lock_int(&kprintf_lock);
+    ret = __vkprintf(fmt, va);
+    spinlock_unlock_int(&kprintf_lock);
+
+    va_end(va);
+
+    return ret;
+}
+
+
+/*
  * HAL exports
  */
 static struct hal_exports *hal;
-spinlock_t kprintf_lock;
 
 struct hal_exports *get_hal_exports()
 {

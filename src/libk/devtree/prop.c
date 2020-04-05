@@ -77,8 +77,8 @@ static inline u64 parse_cell_num(void *data, int num_cells)
     case 1: return swap_big_endian32(*(u32 *)data);
     case 2:
     default:
-        panic_not(num_cells == 2,
-            "Unable to handle cells > 2, num_cells: %d\n", num_cells);
+        panic_if(num_cells != 2,
+                 "Unable to handle cells > 2, num_cells: %d\n", num_cells);
         return swap_big_endian64(*(u64 *)(data + num_cells - 2));
     }
 

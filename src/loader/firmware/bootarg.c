@@ -74,7 +74,7 @@ u64 bootargs_parse_u64(const char *key, const char *subkey, const int base,
 
     for (ch = *s; !is_term_char(subkey, ch); ch = *++s) {
         if (base == 10) {
-            panic_not(ch >= '0' && ch <= '9',
+            panic_if(ch < '0' || ch > '9',
                 "Unable to parse dec: %c\n", ch);
             val *= 10;
             val += ch - '0';
@@ -87,8 +87,10 @@ u64 bootargs_parse_u64(const char *key, const char *subkey, const int base,
                 continue;
             }
 
-            panic_not((ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'F') ||
-                (ch >= 'a' && ch <= 'f'), "Unable to parse hex: %c\n", ch);
+            panic_if(!(ch >= '0' && ch <= '9') ||
+                      (ch >= 'A' && ch <= 'F') ||
+                      (ch >= 'a' && ch <= 'f'),
+                     "Unable to parse hex: %c\n", ch);
             val *= 16;
             val += ch >= 'a' ? 10 + ch - 'a' :
                 (ch >= 'A' ? 10 + ch - 'A' : ch - '0');
@@ -130,7 +132,7 @@ int bootargs_parse_int(const char *key, const char *subkey, int def)
     }
 
     for (ch = *s; !is_term_char(subkey, ch); ch = *++s) {
-        panic_not(ch >= '0' && ch <= '9',
+        panic_if(ch < '0' || ch > '9',
             "Unable to parse dec: %c\n", ch);
         val *= 10;
         val += ch - '0';

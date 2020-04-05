@@ -5,9 +5,4 @@
 #include "libk/include/kprintf.h"
 
 
-#define kprintf     __kprintf
-#define vkprintf    __vkprintf
-#define lputchar    __kputchar
-
-
 #endif
