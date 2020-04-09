@@ -86,7 +86,7 @@ enum dev_pfn_cache_query_type {
     DEV_PFN_ANY_CACHED  = 2,
 };
 
-extern ulong get_dev_access_window(ulong paddr, ulong size, int cached);
+extern ulong get_dev_access_window(paddr_t paddr, ulong size, int cached);
 
 
 #endif

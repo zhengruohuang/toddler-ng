@@ -27,10 +27,10 @@ extern void switch_to(ulong sched_id, struct reg_context *context,
  * Map
  */
 extern ulong translate(void *page_table, ulong vaddr);
-extern int map_range(void *page_table, ulong vaddr, ulong paddr, ulong size,
+extern int map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
                      int cache, int exec, int write, int kernel, int override,
                      palloc_t palloc);
-extern int unumap_range(void *page_table, ulong vaddr, ulong paddr, ulong size);
+extern int unumap_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size);
 
 
 #endif

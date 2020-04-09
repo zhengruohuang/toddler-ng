@@ -19,7 +19,7 @@ struct dev_pfn_record {
     };
 
     ulong vpfn;
-    ulong ppfn;
+    ppfn_t ppfn;
 };
 
 
@@ -27,7 +27,7 @@ static int cur_dev_pfn_record_count = 0;
 static struct dev_pfn_record dev_ppfn_to_vpfn[DEV_PHYS_TO_VIRT_MAPPING_SIZE];
 
 
-static void record_dev_ppfn_to_vpfn(ulong ppfn, ulong vpfn, int cached)
+static void record_dev_ppfn_to_vpfn(ppfn_t ppfn, ulong vpfn, int cached)
 {
     panic_if(cur_dev_pfn_record_count >= DEV_PHYS_TO_VIRT_MAPPING_SIZE,
              "Run out of dev PPFN to VPFN map entries!");
@@ -40,7 +40,7 @@ static void record_dev_ppfn_to_vpfn(ulong ppfn, ulong vpfn, int cached)
     record->vpfn = vpfn;
 }
 
-static ulong query_dev_vpfn(ulong ppfn, int cached)
+static ulong query_dev_vpfn(ppfn_t ppfn, int cached)
 {
     for (int i = 0; i < cur_dev_pfn_record_count; i++) {
         struct dev_pfn_record *record = &dev_ppfn_to_vpfn[i];
@@ -55,10 +55,10 @@ static ulong query_dev_vpfn(ulong ppfn, int cached)
     return 0;
 }
 
-ulong get_dev_access_window(ulong paddr, ulong size, int cached)
+ulong get_dev_access_window(paddr_t paddr, ulong size, int cached)
 {
-    ulong ppfn = ADDR_TO_PFN(paddr);
-    panic_if(ppfn != ADDR_TO_PFN(paddr + size - 1),
+    ppfn_t ppfn = paddr_to_ppfn(paddr);
+    panic_if(ppfn != paddr_to_ppfn(paddr + size - 1),
              "Device access window can't go across page boundary!");
 
     ulong vpfn = query_dev_vpfn(ppfn, 0);
@@ -67,12 +67,12 @@ ulong get_dev_access_window(ulong paddr, ulong size, int cached)
                          DEV_PFN_CACHED : cached;
         map_cached = 1;
 
-        ulong page_paddr = PFN_TO_ADDR(ppfn);
+        paddr_t page_paddr = ppfn_to_paddr(ppfn);
         ulong page_vaddr = pre_valloc(1, page_paddr, map_cached);
-        vpfn = ADDR_TO_PFN(page_vaddr);
+        vpfn = vaddr_to_vpfn(page_vaddr);
         record_dev_ppfn_to_vpfn(ppfn, vpfn, map_cached);
     }
 
-    ulong vaddr = PFN_TO_ADDR(vpfn) | (paddr & (PAGE_SIZE - 1));
+    ulong vaddr = vpfn_to_vaddr(vpfn) | get_ppage_offset(paddr);
     return vaddr;
 }

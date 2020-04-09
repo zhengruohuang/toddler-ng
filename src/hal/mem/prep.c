@@ -6,17 +6,26 @@
 #include "hal/include/mem.h"
 
 
-ulong pre_palloc(int count)
+ppfn_t pre_palloc(int count)
 {
-    ulong paddr = (ulong)find_free_memmap_region(count * PAGE_SIZE, PAGE_SIZE);
-    ulong pfn = ADDR_TO_PFN(paddr);
+    ulong size = count * PAGE_SIZE;
+    ulong align = PAGE_SIZE;
 
-    kprintf("pre_palloc @ %lx\n", paddr);
+    u64 paddr = find_free_memmap_region_for_palloc(size, align);
+    ppfn_t ppfn = (ulong)paddr_to_ppfn(paddr);
 
-    return pfn;
+    kprintf("pre_palloc @ %llx\n", paddr);
+    return ppfn;
+
+    //ulong paddr = (ulong)find_free_memmap_region(count * PAGE_SIZE, PAGE_SIZE);
+    //ulong pfn = ADDR_TO_PFN(paddr);
+
+    //kprintf("pre_palloc @ %lx\n", paddr);
+
+    //return pfn;
 }
 
-ulong pre_valloc(int count, ulong paddr, int cache)
+ulong pre_valloc(int count, paddr_t paddr, int cache)
 {
     struct loader_args *largs = get_loader_args();
     struct hal_arch_funcs *arch_funcs = get_hal_arch_funcs();

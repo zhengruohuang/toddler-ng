@@ -5,6 +5,7 @@
 #include "hal/include/setup.h"
 #include "hal/include/lib.h"
 #include "hal/include/int.h"
+#include "hal/include/mem.h"
 #include "hal/include/mp.h"
 
 
@@ -16,7 +17,9 @@ void switch_to(ulong sched_id, struct reg_context *context,
 {
     // Switch page dir
     struct l1table **pl1tab = get_per_cpu(struct l1table *, cur_page_dir);
-    struct l1table *page_dir = (struct l1table *)PFN_TO_ADDR(page_dir_pfn);
+
+    paddr_t page_dir_paddr = ppfn_to_paddr(page_dir_pfn);
+    struct l1table *page_dir = cast_paddr_to_ptr(page_dir_paddr);
     *pl1tab = page_dir;
 
 //     kprintf("To switch page dir PFN @ %lx\n", page_dir_pfn);

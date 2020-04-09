@@ -5,13 +5,14 @@
 #include "common/include/compiler.h"
 #include "common/include/inttypes.h"
 #include "common/include/stdarg.h"
+#include "common/include/mem.h"
 #include "loader/include/export.h"
 #include "hal/include/export.h"
 #include "hal/include/dispatch.h"
 
 
-typedef ulong (*palloc_t)(int count);
-typedef int (*generic_map_range_t)(void *page_table, ulong vaddr, ulong paddr, ulong size,
+typedef ppfn_t (*palloc_t)(int count);
+typedef int (*generic_map_range_t)(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
                      int cache, int exec, int write, int kernel, int override,
                      palloc_t palloc);
 
@@ -31,7 +32,7 @@ struct hal_arch_funcs {
 
     // Indicates if direct physical address access is possible
     int has_direct_access;
-    ulong (*hal_direct_access)(ulong paddr, int count, int cache);
+    ulong (*hal_direct_access)(paddr_t paddr, int count, int cache);
 
     // Map and unmap
     generic_map_range_t map_range;
@@ -74,7 +75,7 @@ struct hal_arch_funcs {
 extern struct loader_args *get_loader_args();
 extern struct hal_arch_funcs *get_hal_arch_funcs();
 
-extern ulong arch_hal_direct_access(ulong paddr, int count, int cache);
+extern ulong arch_hal_direct_access(paddr_t paddr, int count, int cache);
 extern ulong arch_get_cur_mp_id();
 extern void arch_start_cpu(int mp_seq, ulong mp_id, ulong entry);
 extern void arch_register_drivers();

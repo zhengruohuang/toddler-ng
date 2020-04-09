@@ -12,12 +12,12 @@
 #include "libk/include/memmap.h"
 
 
-static ulong paddr_start = 0;
-static ulong paddr_end = 0;
+static paddr_t paddr_start = 0;
+static paddr_t paddr_end = 0;
 
-static ulong pfndb_entries = 0;
-static ulong pfndb_offset = 0;  // First PFN
-static ulong pfndb_limit = 0;   // Last PFN + 1
+static ppfn_t pfndb_entries = 0;
+static ppfn_t pfndb_offset = 0;  // First PFN
+static ppfn_t pfndb_limit = 0;   // Last PFN + 1
 
 static struct pfndb_entry *pfndb;
 
@@ -25,7 +25,7 @@ static struct pfndb_entry *pfndb;
 /*
  * Obtain PFNDB entry
  */
-struct pfndb_entry *get_pfn_entry_by_pfn(ulong pfn)
+struct pfndb_entry *get_pfn_entry_by_pfn(ppfn_t pfn)
 {
     panic_if(pfn < pfndb_offset || pfn >= pfndb_limit,
              "PFN (%lx) out of range: (%lx to %lx)\n", pfn, pfndb_offset, pfndb_limit);
@@ -33,9 +33,9 @@ struct pfndb_entry *get_pfn_entry_by_pfn(ulong pfn)
     return &pfndb[pfn - pfndb_offset];
 }
 
-struct pfndb_entry *get_pfn_entry_by_paddr(ulong paddr)
+struct pfndb_entry *get_pfn_entry_by_paddr(paddr_t paddr)
 {
-    ulong pfn = ADDR_TO_PFN(paddr);
+    ppfn_t pfn = paddr_to_ppfn(paddr);
     return get_pfn_entry_by_pfn(pfn);
 }
 
@@ -44,7 +44,7 @@ struct pfndb_entry *get_pfn_entry_by_paddr(ulong paddr)
  * Physical memory range
  */
 // Returns mem size, start = paddr start
-ulong get_mem_range(ulong *start)
+psize_t get_mem_range(paddr_t *start)
 {
     if (start) {
         *start = paddr_start;
@@ -54,7 +54,7 @@ ulong get_mem_range(ulong *start)
 }
 
 // Returns pfn entry count, start = pfndb offset
-ulong get_pfn_range(ulong *start)
+ppfn_t get_pfn_range(ppfn_t *start)
 {
     if (start) {
         *start = pfndb_offset;
@@ -67,13 +67,13 @@ ulong get_pfn_range(ulong *start)
 /*
  * Reserve blocks of memory, only used before palloc is initialized
  */
-static void reserve_pfndb_range(ulong start_pfn, ulong count)
+static void reserve_pfndb_range(ppfn_t start_pfn, ppfn_t count)
 {
     kprintf("\tReserving pages @ %lx to %lx ...",
             start_pfn, start_pfn + count);
 
-    for (ulong i = 0; i < count; i++) {
-        ulong pfn = start_pfn + i;
+    for (ppfn_t i = 0; i < count; i++) {
+        ppfn_t pfn = start_pfn + i;
         struct pfndb_entry *entry = get_pfn_entry_by_pfn(pfn);
 
         entry->inuse = 1;
@@ -89,15 +89,15 @@ static void reserve_pfndb_range(ulong start_pfn, ulong count)
 }
 
 // Returns PFN
-ulong reserve_free_pages(ulong count)
+ppfn_t reserve_free_pages(ppfn_t count)
 {
-    for (ulong pfn = pfndb_offset; pfn < pfndb_limit - count; pfn++) {
+    for (ppfn_t pfn = pfndb_offset; pfn < pfndb_limit - count; pfn++) {
         struct pfndb_entry *entry = get_pfn_entry_by_pfn(pfn);
 
         if (entry->usable && !entry->inuse) {
             int found = 1;
 
-            for (ulong i = 1; i < count; i++) {
+            for (ppfn_t i = 1; i < count; i++) {
                 entry = get_pfn_entry_by_pfn(pfn + i);
                 if (!entry->usable || entry->inuse) {
                     found = 0;
@@ -118,30 +118,35 @@ ulong reserve_free_pages(ulong count)
 }
 
 // Returns Paddr
-ulong reserve_free_mem(ulong size)
+paddr_t reserve_free_mem(psize_t size)
 {
-    return PFN_TO_ADDR(reserve_free_pages(ALIGN_UP(size, PAGE_SIZE) / PAGE_SIZE));
+    ppfn_t page_count = get_ppage_count(size);
+    ppfn_t ppfn = reserve_free_pages(page_count);
+    return ppfn_to_paddr(ppfn);
 }
 
 
 /*
  * Init
  */
-static ulong find_paddr_range(ulong *start, ulong *end)
+static psize_t find_paddr_range(paddr_t *start, paddr_t *end)
 {
     struct hal_exports *hal = get_hal_exports();
 
-    ulong small = (ulong)ALIGN_DOWN(hal->memmap[0].start, (u64)PAGE_SIZE);
-    ulong big = (ulong)ALIGN_UP(hal->memmap[hal->memmap_count - 1].start +
-                    hal->memmap[hal->memmap_count - 1].size, (u64)PAGE_SIZE);
+    u64 start64 = hal->memmap[0].start;
+    u64 end64 = hal->memmap[hal->memmap_count - 1].start +
+                    hal->memmap[hal->memmap_count - 1].size;
 
-    if (start) *start = small;
-    if (end) *end = big;
+    paddr_t lower = align_down_paddr(cast_u64_to_paddr(start64), PAGE_SIZE);
+    paddr_t upper = align_up_paddr(cast_u64_to_paddr(end64), PAGE_SIZE);
 
-    return big - small;
+    if (start) *start = lower;
+    if (end) *end = upper;
+
+    return upper - lower;
 }
 
-static ulong find_pfndb_storage(ulong pfndb_size)
+static paddr_t find_pfndb_storage(psize_t pfndb_size)
 {
     struct hal_exports *hal = get_hal_exports();
 
@@ -150,11 +155,15 @@ static ulong find_pfndb_storage(ulong pfndb_size)
         struct loader_memmap_entry *cur = &hal->memmap[e];
 
         if (cur->flags == MEMMAP_USABLE && cur->size >= pfndb_size) {
-            ulong aligned_start = ALIGN_UP(cur->start ? cur->start : PAGE_SIZE, PAGE_SIZE);
-            ulong aligned_end = ALIGN_DOWN(cur->start + cur->size, PAGE_SIZE);
-            ulong aligned_len = aligned_end - aligned_start;
+            paddr_t start = cast_u64_to_paddr(cur->start ? cur->start : PAGE_SIZE);
+            paddr_t end = cast_u64_to_paddr(cur->start + cur->size);
 
-            if (aligned_len >= pfndb_size) {
+            paddr_t aligned_start = align_up_paddr(start, PAGE_SIZE);
+            paddr_t aligned_end = align_down_paddr(end, PAGE_SIZE);
+
+            if (aligned_end > aligned_start &&
+                aligned_end - aligned_start >= pfndb_size
+            ) {
                 return aligned_start;
             }
         }
@@ -270,7 +279,7 @@ void init_pfndb()
     // Calculate the size of PFN DB
     pfndb_offset = paddr_start / PAGE_SIZE;
     pfndb_entries = ALIGN_UP(paddr_len, PAGE_SIZE) / PAGE_SIZE;
-    pfndb_limit = ADDR_TO_PFN(paddr_end);
+    pfndb_limit = paddr_to_ppfn(paddr_end);
 
     ulong pfndb_size = pfndb_entries * sizeof(struct pfndb_entry);
     ulong pfndb_pages = ALIGN_UP(pfndb_size, PAGE_SIZE) / PAGE_SIZE;
@@ -278,7 +287,8 @@ void init_pfndb()
             pfndb_offset, pfndb_size / 1024, pfndb_pages);
 
     // Find a contineous region to store the PFNDB
-    pfndb = (void *)find_pfndb_storage(pfndb_size);
+    paddr_t pfndb_paddr = find_pfndb_storage(pfndb_size);
+    pfndb = cast_paddr_to_ptr(pfndb_paddr);
     panic_if(!pfndb, "Unable to find a region to store PFNDB!\n");
 
     // Construct the PFN DB
@@ -295,5 +305,5 @@ void init_pfndb()
     }
 
     // Mark PFN database memory as inuse
-    reserve_pfndb_range(ADDR_TO_PFN((ulong)pfndb), pfndb_pages);
+    reserve_pfndb_range(paddr_to_ppfn(pfndb_paddr), pfndb_pages);
 }

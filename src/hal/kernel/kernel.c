@@ -15,19 +15,19 @@
  */
 static struct kernel_exports *kexp;
 
-ulong kernel_palloc_tag(int count, int tag)
+ppfn_t kernel_palloc_tag(int count, int tag)
 {
     return kexp->palloc_tag(count, tag);
 }
 
-ulong kernel_palloc(int count)
+ppfn_t kernel_palloc(int count)
 {
     return kexp->palloc(count);
 }
 
-int kernel_pfree(ulong pfn)
+int kernel_pfree(ppfn_t ppfn)
 {
-    return kexp->pfree(pfn);
+    return kexp->pfree(ppfn);
 }
 
 void kernel_dispatch(ulong sched_id, struct kernel_dispatch_info *kdi)

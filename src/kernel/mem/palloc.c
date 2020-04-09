@@ -56,8 +56,8 @@ struct palloc_region {
 /*
  * Node manipulation
  */
-static ulong pfn_start = 0;
-static ulong pfn_limit = 0;
+static ppfn_t pfn_start = 0;
+static ppfn_t pfn_limit = 0;
 
 static struct palloc_node *nodes;
 static struct palloc_region regions[PALLOC_REGION_COUNT];
@@ -67,7 +67,7 @@ static struct palloc_region regions[PALLOC_REGION_COUNT];
 //     return &nodes[ADDR_TO_PFN(paddr)];
 // }
 
-static struct palloc_node *get_node_by_pfn(ulong pfn)
+static struct palloc_node *get_node_by_pfn(ppfn_t pfn)
 {
     panic_if(pfn < pfn_start || pfn >= pfn_limit,
              "PFN %lx out of range: %lx to %lx\n", pfn, pfn_start, pfn_limit);
@@ -75,7 +75,7 @@ static struct palloc_node *get_node_by_pfn(ulong pfn)
     return &nodes[pfn - pfn_start];
 }
 
-static void insert_node(ulong pfn, int tag, int order)
+static void insert_node(ppfn_t pfn, int tag, int order)
 {
     struct palloc_node *node = get_node_by_pfn(pfn);
 
@@ -86,9 +86,9 @@ static void insert_node(ulong pfn, int tag, int order)
     regions[tag].buddies[order].next = pfn;
 }
 
-static void remove_node(ulong pfn, int tag, int order)
+static void remove_node(ppfn_t pfn, int tag, int order)
 {
-    ulong cur_pfn = regions[tag].buddies[order].next;
+    ppfn_t cur_pfn = regions[tag].buddies[order].next;
     struct palloc_node *cur = get_node_by_pfn(cur_pfn);
     struct palloc_node *prev = NULL;
 
@@ -122,15 +122,15 @@ static void remove_node(ulong pfn, int tag, int order)
         }
     } while (cur->has_next);
 
-    panic("Unable to remove node from list, PFN: %p, tag: %d, order: %d\n",
-          pfn, tag, order);
+    panic("Unable to remove node from list, PFN: %llx, tag: %d, order: %d\n",
+          (u64)pfn, tag, order);
 }
 
 
 /*
  * Helper functions
  */
-static ulong pfn_mod_order_page_count(ulong pfn, ulong order_page_count)
+static ppfn_t pfn_mod_order_page_count(ppfn_t pfn, paddr_t order_page_count)
 {
     return pfn & (order_page_count - 1);
 }
@@ -214,7 +214,7 @@ static int buddy_split(int order, int tag)
     }
 
     // First obtain the palloc node
-    ulong pfn = regions[tag].buddies[order].next;
+    ppfn_t pfn = regions[tag].buddies[order].next;
     struct palloc_node *node = get_node_by_pfn(pfn);
 
     // Remove the node from the list
@@ -222,7 +222,7 @@ static int buddy_split(int order, int tag)
     regions[tag].buddies[order].has_next = node->has_next;
 
     // Obtain the other node
-    ulong pfn2 = pfn + ((ulong)0x1 << (order - 1));
+    ppfn_t pfn2 = pfn + ((ppfn_t)0x1 << (order - 1));
     struct palloc_node *node2 = get_node_by_pfn(pfn2);
 
     // Set up the two nodes
@@ -247,7 +247,7 @@ static int buddy_split(int order, int tag)
     return 0;
 }
 
-static void buddy_combine(ulong pfn)
+static void buddy_combine(ppfn_t pfn)
 {
     // Obtain the node
     struct palloc_node *node = get_node_by_pfn(pfn);
@@ -263,9 +263,9 @@ static void buddy_combine(ulong pfn)
     // Get some info of the higher order
     int higher = order + 1;
     ulong higher_order_count = 0x1ul << higher;
-    ulong higher_pfn = 0;
-    ulong other_pfn = 0;
-    ulong cur_addr = PFN_TO_ADDR(pfn);
+    ppfn_t higher_pfn = 0;
+    ppfn_t other_pfn = 0;
+    paddr_t cur_addr = ppfn_to_paddr(pfn);
 
     // Check the other node to see if they can form a buddy
     if (0 == pfn_mod_order_page_count(cur_addr, higher_order_count)) {
@@ -313,7 +313,7 @@ static void buddy_combine(ulong pfn)
 /*
  * Alloc and free
  */
-ulong palloc_tag(int count, int tag)
+ppfn_t palloc_tag(int count, int tag)
 {
     assert(tag < PALLOC_REGION_COUNT && tag != PALLOC_DUMMY_REGION);
     int order = calc_palloc_order(count);
@@ -343,7 +343,7 @@ ulong palloc_tag(int count, int tag)
     }
 
     // Now we are safe to allocate, first obtain the palloc node
-    ulong pfn = regions[tag].buddies[order].next;
+    ppfn_t pfn = regions[tag].buddies[order].next;
     struct palloc_node *node = get_node_by_pfn(pfn);
 
     // Remove the node from the list
@@ -362,9 +362,9 @@ ulong palloc_tag(int count, int tag)
     return pfn;
 }
 
-ulong palloc(int count)
+ppfn_t palloc(int count)
 {
-    ulong result = palloc_tag(count, PALLOC_DEFAULT_REGION);
+    ppfn_t result = palloc_tag(count, PALLOC_DEFAULT_REGION);
     if (result) {
         return result;
     }
@@ -382,7 +382,7 @@ ulong palloc(int count)
     return 0;
 }
 
-int pfree(ulong pfn)
+int pfree(ppfn_t pfn)
 {
     // Obtain the node
     struct palloc_node *node = get_node_by_pfn(pfn);
@@ -425,10 +425,10 @@ int pfree(ulong pfn)
 /*
  * Initialization
  */
-static void init_region(ulong start_pfn, ulong count, int tag)
+static void init_region(ppfn_t start_pfn, ulong count, int tag)
 {
-    kprintf("\tInitializing region, start PFN: %lx, len: %lx, tag: %d\n",
-            start_pfn, count, tag);
+    kprintf("\tInitializing region, start PFN: %llx, len: %lx, tag: %d\n",
+            (u64)start_pfn, count, tag);
 
     assert(tag < PALLOC_REGION_COUNT && tag != PALLOC_DUMMY_REGION);
 
@@ -439,8 +439,8 @@ static void init_region(ulong start_pfn, ulong count, int tag)
     // Setup the buddy system
     int order;
 
-    ulong cur_pfn = start_pfn;
-    ulong limit = start_pfn + count;
+    ppfn_t cur_pfn = start_pfn;
+    ppfn_t limit = start_pfn + count;
 
     while (cur_pfn < limit) {
         for (order = PALLOC_MAX_ORDER; order >= PALLOC_MIN_ORDER; order--) {
@@ -462,8 +462,8 @@ static void init_region(ulong start_pfn, ulong count, int tag)
 
                 // Insert the chunk into the buddy list
                 insert_node(cur_pfn, tag, order);
-                kprintf("\t\tBuddy inserted, PFN: %lx, #pages: %lx, order: %d\n",
-                        cur_pfn, order_page_count, order);
+                kprintf("\t\tBuddy inserted, PFN: %llx, #pages: %lx, order: %d\n",
+                        (u64)cur_pfn, order_page_count, order);
 
                 cur_pfn += order_page_count;
                 break;
@@ -491,7 +491,7 @@ void init_palloc()
     }
 
     // Calculate total number of nodes - 1 page needs 1 node
-    ulong pfn_entry_count = get_pfn_range(&pfn_start);
+    ppfn_t pfn_entry_count = get_pfn_range(&pfn_start);
     pfn_limit = pfn_start + pfn_entry_count;
 
     ulong node_size = pfn_entry_count * sizeof(struct palloc_node);

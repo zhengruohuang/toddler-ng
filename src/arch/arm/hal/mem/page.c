@@ -1,14 +1,15 @@
 #include "common/include/inttypes.h"
-#include "common/include/mem.h"
+#include "common/include/page.h"
 #include "hal/include/lib.h"
 #include "hal/include/kernel.h"
 #include "hal/include/hal.h"
+#include "hal/include/mem.h"
 
 
 /*
  * Get physical address of a user virtual address
  */
-ulong translate(void *page_table, ulong vaddr)
+paddr_t translate(void *page_table, ulong vaddr)
 {
     // L1 table
     struct l1table *l1tab = page_table;
@@ -22,14 +23,18 @@ ulong translate(void *page_table, ulong vaddr)
 
     // 1MB section
     if (l1entry->block.present) {
-        ulong paddr = BFN_TO_ADDR((ulong)l1entry->block.bfn);
-        paddr |= vaddr & (L1BLOCK_SIZE - 1);
+        ppfn_t bfn = l1entry->block.bfn;
+        paddr_t paddr = pbfn_to_paddr(bfn);
+        paddr |= (paddr_t)get_vblock_offset(vaddr);
         return paddr;
     }
 
     // L2 table
     assert(l1entry->pte.present);
-    struct l2table *l2tab = (void *)(PFN_TO_ADDR((ulong)l1entry->pte.pfn));
+    ppfn_t pfn = l1entry->pte.pfn;
+    paddr_t paddr = ppfn_to_paddr(pfn);
+    struct l2table *l2tab = cast_paddr_to_ptr(paddr);
+
     index = GET_L2PTE_INDEX(vaddr);
     struct l2page_table_entry *l2entry = &l2tab->entries[index];
 
@@ -39,8 +44,9 @@ ulong translate(void *page_table, ulong vaddr)
     }
 
     // Paddr
-    ulong paddr = PFN_TO_ADDR((ulong)l2entry->pfn);
-    paddr |= vaddr & (PAGE_SIZE - 1);
+    pfn = l2entry->pfn;
+    paddr = ppfn_to_paddr(pfn);
+    paddr |= (paddr_t)get_vpage_offset(vaddr);
 
     return paddr;
 }
@@ -51,11 +57,13 @@ ulong translate(void *page_table, ulong vaddr)
  */
 static struct l2table *alloc_l2table(palloc_t palloc)
 {
-    void *paddr = (void *)PFN_TO_ADDR(palloc(1));
-    return paddr;
+    ppfn_t ppfn = palloc(1);
+    paddr_t paddr = ppfn_to_paddr(ppfn);
+    void *ptr = cast_paddr_to_ptr(paddr);
+    return ptr;
 }
 
-static void map_page(void *page_table, ulong vaddr, ulong paddr, int block,
+static void map_page(void *page_table, ulong vaddr, paddr_t paddr, int block,
     int cache, int exec, int write, int kernel, int override, palloc_t palloc)
 {
     struct l1table *l1table = page_table;
@@ -65,17 +73,17 @@ static void map_page(void *page_table, ulong vaddr, ulong paddr, int block,
     // 1-level block mapping
     if (block) {
         if (l1entry->block.present && !override) {
-            panic_if((ulong)l1entry->block.bfn != ADDR_TO_BFN((ulong)paddr) ||
+            panic_if((ulong)l1entry->block.bfn != (u32)paddr_to_pbfn(paddr) ||
                 l1entry->block.no_exec != !exec ||
                 l1entry->block.read_only != !write ||
                 l1entry->block.cacheable != cache,
-                "Trying to change an existing mapping from BFN %lx to %lx!",
-                (ulong)l1entry->block.bfn, ADDR_TO_BFN((ulong)paddr));
+                "Trying to change an existing mapping from BFN %x to %x!",
+                l1entry->block.bfn, (u32)paddr_to_pbfn(paddr));
         }
 
         else {
             l1entry->block.present = 1;
-            l1entry->block.bfn = ADDR_TO_BFN((ulong)paddr);
+            l1entry->block.bfn = (u32)paddr_to_pbfn(paddr);
             l1entry->block.no_exec = !exec;
             l1entry->block.read_only = !write;
             l1entry->block.user_access = 0;   // Kernel page
@@ -94,19 +102,21 @@ static void map_page(void *page_table, ulong vaddr, ulong paddr, int block,
             l2table = alloc_l2table(palloc);
             memzero(l2table, L2PAGE_TABLE_SIZE);
 
+            paddr_t l2_paddr = cast_ptr_to_paddr(l2table);
             l1entry->pte.present = 1;
-            l1entry->pte.pfn = ADDR_TO_PFN((ulong)l2table);
+            l1entry->pte.pfn = paddr_to_ppfn(l2_paddr);
         } else {
-            l2table = (void *)PFN_TO_ADDR((ulong)l1entry->pte.pfn);
+            paddr_t l2_paddr = ppfn_to_paddr(l1entry->pte.pfn);
+            l2table = cast_paddr_to_ptr(l2_paddr);
         }
 
-        int l2idx = GET_L2PTE_INDEX((ulong)vaddr);
+        int l2idx = GET_L2PTE_INDEX(vaddr);
         struct l2page_table_entry *l2entry = &l2table->entries[l2idx];
 
         if (l2entry->present && !override) {
-            panic_if((ulong)l2entry->pfn != ADDR_TO_PFN((ulong)paddr),
-                "Trying to change an existing mapping from PFN %lx to %lx!",
-                (ulong)l2entry->pfn, ADDR_TO_PFN((ulong)paddr));
+            panic_if((ulong)l2entry->pfn != (u32)paddr_to_ppfn(paddr),
+                "Trying to change an existing mapping from PFN %x to %x!",
+                l2entry->pfn, (u32)paddr_to_ppfn(paddr));
 
             panic_if((int)l2entry->cacheable != cache,
                 "Trying to change cacheable attribute!");
@@ -117,7 +127,7 @@ static void map_page(void *page_table, ulong vaddr, ulong paddr, int block,
 
         else {
             l2entry->present = 1;
-            l2entry->pfn = ADDR_TO_PFN((ulong)paddr);
+            l2entry->pfn = (u32)paddr_to_ppfn(paddr);
             l2entry->no_exec = !exec;
             l2entry->read_only = !write;
             l2entry->user_access = 0;   // Kernel page
@@ -134,7 +144,7 @@ static void map_page(void *page_table, ulong vaddr, ulong paddr, int block,
     }
 }
 
-int map_range(void *page_table, ulong vaddr, ulong paddr, ulong size,
+int map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
               int cache, int exec, int write, int kernel, int override,
               palloc_t palloc)
 {
@@ -143,15 +153,14 @@ int map_range(void *page_table, ulong vaddr, ulong paddr, ulong size,
     //        page_dir_pfn, vaddr, paddr, size, cache, exec, write, kernel, override
     //);
 
-    ulong vaddr_start = ALIGN_DOWN(vaddr, PAGE_SIZE);
-    ulong paddr_start = ALIGN_DOWN(paddr, PAGE_SIZE);
-    ulong vaddr_end = ALIGN_UP(vaddr + size, PAGE_SIZE);
+    ulong vaddr_start = align_down_vaddr(vaddr, PAGE_SIZE);
+    paddr_t paddr_start = align_down_paddr(paddr, PAGE_SIZE);
+    ulong vaddr_end = align_up_vaddr(vaddr + size, PAGE_SIZE);
 
     int mapped_pages = 0;
 
-    for (ulong cur_vaddr = vaddr_start, cur_paddr = paddr_start;
-        cur_vaddr < vaddr_end;
-    ) {
+    paddr_t cur_paddr = paddr_start;
+    for (ulong cur_vaddr = vaddr_start; cur_vaddr < vaddr_end; ) {
         // 1MB block
         if (ALIGNED(cur_vaddr, L1BLOCK_SIZE) &&
             ALIGNED(cur_paddr, L1BLOCK_SIZE) &&
@@ -183,7 +192,7 @@ int map_range(void *page_table, ulong vaddr, ulong paddr, ulong size,
 /*
  * Unmap
  */
-static void unmap_page(void *page_table, ulong vaddr, ulong paddr, int block)
+static void unmap_page(void *page_table, ulong vaddr, paddr_t paddr, int block)
 {
     // L1 table
     struct l1table *l1tab = page_table;
@@ -195,17 +204,21 @@ static void unmap_page(void *page_table, ulong vaddr, ulong paddr, int block)
         assert(l1entry->block.present);
 
         // Unmap L1 entry
-        assert(l1entry->block.bfn == ADDR_TO_BFN(paddr));
+        assert(l1entry->block.bfn == (u32)paddr_to_pbfn(paddr));
         l1entry->value = 0;
     } else {
         assert(l1entry->pte.present);
-        struct l2table *l2tab = (void *)(PFN_TO_ADDR((ulong)l1entry->pte.pfn));
+
+        ppfn_t pfn = l1entry->pte.pfn;
+        paddr_t l2_paddr = ppfn_to_paddr(pfn);
+        struct l2table *l2tab = cast_paddr_to_ptr(l2_paddr);
+
         int l2index = GET_L2PTE_INDEX(vaddr);
         struct l2page_table_entry *l2entry = &l2tab->entries[l2index];
         assert(l2entry->present);
 
         // Unmap L2 entry
-        assert(l2entry->pfn == ADDR_TO_PFN(paddr));
+        assert(l2entry->pfn == (u32)paddr_to_pbfn(paddr));
         l2entry->value = 0;
 
         // Free L2 page if needed
@@ -218,7 +231,8 @@ static void unmap_page(void *page_table, ulong vaddr, ulong paddr, int block)
         }
 
         if (free_l2) {
-            int num_free_pages = kernel_pfree(ADDR_TO_PFN((ulong)l2tab));
+            paddr_t l2_paddr = cast_ptr_to_paddr(l2tab);
+            int num_free_pages = kernel_pfree(paddr_to_ppfn(l2_paddr));
             panic_if(num_free_pages != L2PAGE_TABLE_SIZE_IN_PAGES,
                 "Inconsistent num of freed pages");
 
@@ -236,29 +250,29 @@ static void unmap_page(void *page_table, ulong vaddr, ulong paddr, int block)
     }
 
     if (free_l1) {
-        int num_free_pages = kernel_pfree(ADDR_TO_PFN((ulong)l1tab));
+        paddr_t l1_paddr = cast_ptr_to_paddr(l1tab);
+        int num_free_pages = kernel_pfree(paddr_to_pbfn(l1_paddr));
         panic_if(num_free_pages != L1PAGE_TABLE_SIZE_IN_PAGES,
             "Inconsistent num of freed pages");
     }
 }
 
-int unumap_range(void *page_table, ulong vaddr, ulong paddr, ulong size)
+int unumap_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size)
 {
     //kprintf("To unmap, pfn: %u, vaddr: %u, paddr: %u, size: %u\n",
     //        page_dir_pfn, vaddr, paddr, length);
 
-    ulong vaddr_start = ALIGN_DOWN(vaddr, PAGE_SIZE);
-    ulong paddr_start = ALIGN_DOWN(paddr, PAGE_SIZE);
-    ulong vaddr_end = ALIGN_UP(vaddr + size, PAGE_SIZE);
+    ulong vaddr_start = align_down_vaddr(vaddr, PAGE_SIZE);
+    paddr_t paddr_start = align_down_paddr(paddr, PAGE_SIZE);
+    ulong vaddr_end = align_up_vaddr(vaddr + size, PAGE_SIZE);
 
     int unmapped_pages = 0;
 
-    for (ulong cur_vaddr = vaddr_start, cur_paddr = paddr_start;
-        cur_vaddr < vaddr_end;
-    ) {
+    paddr_t cur_paddr = paddr_start;
+    for (ulong cur_vaddr = vaddr_start; cur_vaddr < vaddr_end;) {
         // 1MB block
-        if (ALIGNED(cur_vaddr, L1BLOCK_SIZE) &&
-            ALIGNED(cur_paddr, L1BLOCK_SIZE) &&
+        if (is_vaddr_aligned(cur_vaddr, L1BLOCK_SIZE) &&
+            is_paddr_aligned(cur_paddr, L1BLOCK_SIZE) &&
             vaddr_end - cur_vaddr >= L1BLOCK_SIZE
         ) {
             unmap_page(page_table, cur_vaddr, cur_paddr, 1);

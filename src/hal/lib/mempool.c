@@ -21,8 +21,8 @@ void mempool_free(void *ptr)
 void *mempool_alloc(size_t size)
 {
     if (!mempool || mempool_start + size > mempool_limit) {
-        ulong pfn = pre_palloc(MEMPOOL_CHUNK_PAGE_COUNT);
-        ulong paddr = PFN_TO_ADDR(pfn);
+        ppfn_t ppfn = pre_palloc(MEMPOOL_CHUNK_PAGE_COUNT);
+        paddr_t paddr = ppfn_to_paddr(ppfn);
         ulong vaddr = pre_valloc(MEMPOOL_CHUNK_PAGE_COUNT, paddr, 1);
 
         mempool = (void *)vaddr;

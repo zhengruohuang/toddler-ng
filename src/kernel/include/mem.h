@@ -4,6 +4,8 @@
 
 #include "common/include/compiler.h"
 #include "common/include/inttypes.h"
+#include "common/include/mem.h"
+#include "libk/include/mem.h"
 
 
 /*
@@ -25,14 +27,14 @@ struct pfndb_entry {
     };
 } packed2_struct;
 
-extern struct pfndb_entry *get_pfn_entry_by_pfn(ulong pfn);
-extern struct pfndb_entry *get_pfn_entry_by_paddr(ulong paddr);
+extern struct pfndb_entry *get_pfn_entry_by_pfn(ppfn_t pfn);
+extern struct pfndb_entry *get_pfn_entry_by_paddr(paddr_t paddr);
 
-extern ulong get_mem_range(ulong *start);
-extern ulong get_pfn_range(ulong *start);
+extern psize_t get_mem_range(paddr_t *start);
+extern ppfn_t get_pfn_range(ppfn_t *start);
 
-extern ulong reserve_free_pages(ulong count);
-extern ulong reserve_free_mem(ulong size);
+extern ppfn_t reserve_free_pages(ppfn_t count);
+extern paddr_t reserve_free_mem(psize_t size);
 
 extern void init_pfndb();
 
@@ -40,9 +42,9 @@ extern void init_pfndb();
 /*
  * Page frame allocator
  */
-extern ulong palloc_tag(int count, int tag);
-extern ulong palloc(int count);
-extern int pfree(ulong pfn);
+extern ppfn_t palloc_tag(int count, int tag);
+extern ppfn_t palloc(int count);
+extern int pfree(ppfn_t pfn);
 
 extern void init_palloc();
 

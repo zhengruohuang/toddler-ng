@@ -154,8 +154,8 @@ void init_int_entry()
     kernel_page_table = largs->page_table;
 
     // Map the fixed EVT @ 0xffff0000ul
-    ulong ppfn = pre_palloc(1);
-    ulong paddr = PFN_TO_ADDR(ppfn);
+    ppfn_t ppfn = pre_palloc(1);
+    paddr_t paddr = ppfn_to_paddr(ppfn);
     hal_map_range(FIXED_EVT_VADDR, paddr, PAGE_SIZE, 1);
 
     // Copy the vectors to the target address

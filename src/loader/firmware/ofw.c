@@ -2,7 +2,9 @@
 #include "common/include/inttypes.h"
 #include "common/include/stdarg.h"
 #include "loader/include/lib.h"
+#include "loader/include/mem.h"
 #include "loader/include/devtree.h"
+#include "loader/include/firmware.h"
 
 
 /*
@@ -220,7 +222,7 @@ void ofw_add_initrd(void *initrd_start, ulong initrd_size)
     }
 
     // Initrd
-    u64 initrd_start64 = (u64)initrd_start;
+    u64 initrd_start64 = (u64)(ulong)initrd_start;
     u64 initrd_size64 = (u64)initrd_size;
     u64 initrd_end64 = initrd_start64 + initrd_size64;
 
@@ -234,7 +236,7 @@ void ofw_add_initrd(void *initrd_start, ulong initrd_size)
 /*
  * Memory allocation and mapping
  */
-void *ofw_translate_virt_to_phys(void *vaddr)
+paddr_t ofw_translate_virt_to_phys(ulong vaddr)
 {
     ofw_arg_t trans[4];
     ofw_arg_t ret = ofw_call("call-method", 4, 5, trans, "translate", ofw_mmu,
@@ -246,18 +248,20 @@ void *ofw_translate_virt_to_phys(void *vaddr)
         return vaddr;
     }
 
-    ulong paddr = 0;
+    paddr_t paddr = 0;
 
     // FIXME: also need to handle endianess
 #if (ARCH_WIDTH == 32)
-    paddr = (ulong)trans[2];
+    u32 paddr32 = (u32)trans[2];
+    paddr = cast_u32_to_paddr(paddr32);
 #elif (ARCH_WIDTH == 64)
-    paddr = (((ulong)trans[2] << 32) | (ulong)trans[3]);
+    u64 paddr64 = (((u64)trans[2] << 32) | (u64)trans[3]);
+    paddr = cast_u64_to_paddr(paddr64);
 #else
 #error Unsupported architecture width
 #endif
 
-    return (void *)paddr;
+    return paddr;
 }
 
 static void *alloc_virt(ulong size, ulong align)
@@ -276,7 +280,7 @@ static void *alloc_virt(ulong size, ulong align)
     return (void *)addr;
 }
 
-static void map_virt_to_phys(void *vaddr, void *paddr, ulong size)
+static void map_virt_to_phys(void *vaddr, paddr_t paddr, ulong size)
 {
     ofw_arg_t phys_hi;
     ofw_arg_t phys_lo;
@@ -284,12 +288,14 @@ static void map_virt_to_phys(void *vaddr, void *paddr, ulong size)
     // FIXME: also need to handle endianess
 
 #if (ARCH_WIDTH == 32)
-    phys_hi = (ofw_arg_t)paddr;
+    u32 paddr32 = cast_paddr_to_u32(paddr);
+    phys_hi = (ofw_arg_t)paddr32;
     phys_lo = 0;
 
 #elif (ARCH_WIDTH == 64)
-    phys_hi = (ofw_arg_t)((ulong)paddr >> 32);
-    phys_lo = (ofw_arg_t)((ulong)paddr & 0xfffffffful);
+    u64 paddr64 = cast_paddr_to_u64(paddr);
+    phys_hi = (ofw_arg_t)(paddr64 >> 32);
+    phys_lo = (ofw_arg_t)(paddr64 & 0xfffffffful);
 
 #else
     #error Unsupported architecture width
@@ -299,10 +305,10 @@ static void map_virt_to_phys(void *vaddr, void *paddr, ulong size)
     ofw_arg_t ret = ofw_call("call-method", 7, 1, NULL, "map", ofw_mmu,
         (ofw_arg_t)-1, size, vaddr, phys_hi, phys_lo);
 
-    panic_if(ret, "OFW unable to map: %p -> %p (%lx)\n", vaddr, paddr, size);
+    panic_if(ret, "OFW unable to map: %p -> %llx (%lx)\n", vaddr, (u64)paddr, size);
 }
 
-void *ofw_alloc_and_map_acc_win(void *paddr, ulong size, ulong align)
+void *ofw_alloc_and_map_acc_win(paddr_t paddr, ulong size, ulong align)
 {
     void *vaddr = alloc_virt(size, align);
     map_virt_to_phys(vaddr, paddr, size);

@@ -4,6 +4,7 @@
 
 #include "common/include/inttypes.h"
 #include "common/include/memmap.h"
+#include "common/include/mem.h"
 #include "hal/include/dispatch.h"
 // #include "common/include/proc.h"
 
@@ -12,9 +13,9 @@
  * Kernel exported variables and functions
  */
 struct kernel_exports {
-    ulong (*palloc_tag)(int count, int tag);
-    ulong (*palloc)(int count);
-    int (*pfree)(ulong pfn);
+    ppfn_t (*palloc_tag)(int count, int tag);
+    ppfn_t (*palloc)(int count);
+    int (*pfree)(ppfn_t ppfn);
     void (*dispatch)(ulong sched_id, struct kernel_dispatch_info *kdi);
 };
 
@@ -35,10 +36,10 @@ typedef int (*disable_local_int_t)();
 typedef void (*enable_local_int_t)();
 
 // Mapping
-typedef int (*map_range_t)(void *page_table, ulong vaddr, ulong paddr,
+typedef int (*map_range_t)(void *page_table, ulong vaddr, paddr_t paddr,
                            size_t length, int cacheable, int exec, int write,
                            int kernel, int override);
-typedef int (*unmap_range_t)(void *page_table, ulong vaddr, ulong paddr,
+typedef int (*unmap_range_t)(void *page_table, ulong vaddr, paddr_t paddr,
                              size_t length);
 typedef ulong (*page_translate_t)(void *page_table, ulong vaddr);
 

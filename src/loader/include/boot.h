@@ -11,7 +11,7 @@
  * Memory map
  */
 extern u64 get_memmap_range(u64 *start);
-extern void *memmap_alloc_phys(ulong size, ulong align);
+extern u64 memmap_alloc_phys(ulong size, ulong align);
 extern void init_memmap();
 
 
@@ -27,7 +27,7 @@ extern void *coreimg_find_file(const char *name);
  * Paging
  */
 extern void init_page();
-extern int page_map_virt_to_phys(void *vaddr, void *paddr, ulong size,
+extern int page_map_virt_to_phys(ulong vaddr, paddr_t paddr, ulong size,
     int cache, int exec, int write);
 
 

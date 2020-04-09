@@ -17,19 +17,19 @@ static void dispatch(ulong sched_id, struct kernel_dispatch_info *kdi)
 /*
  * Kernel exports
  */
-static ulong wrap_palloc_tag(int count, int tag)
+static ppfn_t wrap_palloc_tag(int count, int tag)
 {
     return 0;
 //     return palloc_tag(count, tag);
 }
 
-static ulong wrap_palloc(int count)
+static ppfn_t wrap_palloc(int count)
 {
     return 0;
 //     return palloc(count);
 }
 
-static int wrap_pfree(ulong pfn)
+static int wrap_pfree(ppfn_t ppfn)
 {
     return 0;
 //     return pfree(pfn);

@@ -39,7 +39,6 @@ extern int kprintf(const char *fmt, ...);
         kprintf("File: %s, line %d\n", __FILE__, __LINE__);     \
         kprintf(__VA_ARGS__);                                   \
         kprintf("\n");                                          \
-        __stop();                                               \
     } while (0)
 
 #define warn_if(cond, ...)                                      \
@@ -50,7 +49,6 @@ extern int kprintf(const char *fmt, ...);
             kprintf("File: %s, line %d\n", __FILE__, __LINE__); \
             kprintf(__VA_ARGS__);                               \
             kprintf("\n");                                      \
-            __stop();                                           \
         }                                                       \
     } while (0)
 

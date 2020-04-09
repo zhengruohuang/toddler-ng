@@ -431,8 +431,8 @@ static int probe(struct fw_dev_info *fw_info, struct driver_param *param)
         int next = devtree_get_translated_reg(fw_info->devtree_node, 0, &reg, &size);
         panic_if(next, "brcm,bcm2836-l1-intc only supports one reg field!");
 
-        ulong mmio_paddr = (ulong)reg;
-        ulong mmio_size = (ulong)size;
+        paddr_t mmio_paddr = cast_u64_to_paddr(reg);
+        ulong mmio_size = cast_paddr_to_vaddr(size);
         ulong mmio_vaddr = get_dev_access_window(mmio_paddr, mmio_size, DEV_PFN_UNCACHED);
 
         record->mmio = (void *)mmio_vaddr;

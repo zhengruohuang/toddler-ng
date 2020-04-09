@@ -1,6 +1,7 @@
 #include "common/include/inttypes.h"
 #include "loader/include/loader.h"
 #include "loader/include/lib.h"
+#include "loader/include/mem.h"
 #include "loader/include/devtree.h"
 #include "loader/include/firmware.h"
 
@@ -48,7 +49,7 @@ void init_firmware()
     largs->devtree = devtree_get_head();
 }
 
-void *firmware_translate_virt_to_phys(void *vaddr)
+paddr_t firmware_translate_virt_to_phys(ulong vaddr)
 {
     struct firmware_args *fw_args = get_fw_args();
 
@@ -60,13 +61,13 @@ void *firmware_translate_virt_to_phys(void *vaddr)
 
     struct loader_arch_funcs *arch_funcs = get_loader_arch_funcs();
     if (arch_funcs->access_win_to_phys) {
-        return arch_funcs->access_win_to_phys(vaddr);
+        return arch_funcs->access_win_to_phys((void *)vaddr);
     }
 
-    return vaddr;
+    return cast_vaddr_to_paddr(vaddr);
 }
 
-void *firmware_alloc_and_map_acc_win(void *paddr, ulong size, ulong align)
+void *firmware_alloc_and_map_acc_win(paddr_t paddr, ulong size, ulong align)
 {
     /*
      * This function allocates vaddr, and maps it to the given paddr
@@ -97,5 +98,5 @@ void *firmware_alloc_and_map_acc_win(void *paddr, ulong size, ulong align)
      * and thus vaddr allocation or translation is not needed
      */
 
-    return paddr;
+    return cast_paddr_to_ptr(paddr);
 }

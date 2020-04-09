@@ -1,6 +1,7 @@
 #include "common/include/inttypes.h"
 #include "loader/include/loader.h"
 #include "loader/include/lib.h"
+#include "loader/include/mem.h"
 #include "loader/include/boot.h"
 
 
@@ -9,11 +10,15 @@ static void *page_table = NULL;
 
 static void map_memmap_1to1()
 {
+    // FIXME: need to figure out 1-to-1 mapping area
     u64 memstart = 0;
     u64 memsize = get_memmap_range(&memstart);
 
-    // FIXME: u64 for paddr
-    page_map_virt_to_phys((void *)memstart, (void *)memstart, memsize, 1, 1, 1);
+    paddr_t pmemstart = cast_u64_to_paddr(memstart);
+    ulong vmemstart = cast_paddr_to_vaddr(pmemstart);
+    ulong vmemsize = (ulong)memsize;    // FIXME: need a safe way
+
+    page_map_virt_to_phys(vmemstart, pmemstart, vmemsize, 1, 1, 1);
 }
 
 void init_page()
@@ -28,7 +33,7 @@ void init_page()
     largs->page_table = page_table;
 }
 
-int page_map_virt_to_phys(void *vaddr, void *paddr, ulong size,
+int page_map_virt_to_phys(ulong vaddr, paddr_t paddr, ulong size,
     int cache, int exec, int write)
 {
     //kprintf("To map %p -> %p, size: %lx\n", vaddr, paddr, size);

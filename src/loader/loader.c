@@ -62,6 +62,13 @@ static void init_arch()
     }
 }
 
+static void final_memmap()
+{
+    if (arch_funcs && arch_funcs->final_memmap) {
+        arch_funcs->final_memmap();
+    }
+}
+
 static void final_arch()
 {
     if (arch_funcs && arch_funcs->final_arch) {
@@ -116,6 +123,7 @@ void loader(struct firmware_args *args, struct loader_arch_funcs *funcs)
 
     // Memory map
     init_memmap();
+    final_memmap();
 
     // Paging
     init_page();

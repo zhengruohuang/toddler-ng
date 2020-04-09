@@ -2,9 +2,11 @@
 #include "common/include/inttypes.h"
 #include "common/include/stdarg.h"
 #include "loader/include/lib.h"
+#include "loader/include/mem.h"
 #include "loader/include/obp.h"
 #include "loader/include/devtree.h"
 #include "loader/include/kprintf.h"
+#include "loader/include/firmware.h"
 
 
 #define MAX_OBP_BUF_LEN     512
@@ -219,10 +221,10 @@ void init_obp(void *entry)
 /*
  * Memory allocation and mapping
  */
-void *obp_translate_virt_to_phys(void *vaddr)
+paddr_t obp_translate_virt_to_phys(ulong vaddr)
 {
     // FIXME
-    return vaddr;
+    return cast_vaddr_to_paddr(vaddr);
 
 //     ofw_arg_t trans[4];
 //     ofw_arg_t ret = ofw_call("call-method", 4, 5, trans, "translate", ofw_mmu,
@@ -290,10 +292,10 @@ void *obp_translate_virt_to_phys(void *vaddr)
 //     panic_if(ret, "OFW unable to map: %p -> %p (%lx)\n", vaddr, paddr, size);
 // }
 
-void *obp_alloc_and_map_acc_win(void *paddr, ulong size, ulong align)
+void *obp_alloc_and_map_acc_win(paddr_t paddr, ulong size, ulong align)
 {
     // FIXME
-    return paddr;
+    return cast_paddr_to_ptr(paddr);
 
 //     void *vaddr = alloc_virt(size, align);
 //     map_virt_to_phys(vaddr, paddr, size);

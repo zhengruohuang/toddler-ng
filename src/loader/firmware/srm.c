@@ -307,7 +307,7 @@ void srm_add_initrd(void *initrd_start, ulong initrd_size)
     }
 
     // Initrd
-    u64 initrd_start64 = (u64)initrd_start;
+    u64 initrd_start64 = (u64)(ulong)initrd_start;
     u64 initrd_size64 = (u64)initrd_size;
     u64 initrd_end64 = initrd_start64 + initrd_size64;
 

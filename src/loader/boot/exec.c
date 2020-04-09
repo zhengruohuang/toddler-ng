@@ -3,6 +3,7 @@
 #include "common/include/elf.h"
 #include "loader/include/kprintf.h"
 #include "loader/include/lib.h"
+#include "loader/include/mem.h"
 #include "loader/include/firmware.h"
 #include "loader/include/boot.h"
 
@@ -156,9 +157,6 @@ static ulong load_elf(const char *name, ulong *range_start, ulong *range_end)
         return 0;
     }
 
-    // Get arch funcs
-    struct loader_arch_funcs *arch_funcs = get_loader_arch_funcs();
-
     // Get range
     ulong vaddr_start = 0, vaddr_end = 0;
     get_vmem_range(elf, &vaddr_start, &vaddr_end);
@@ -166,18 +164,18 @@ static ulong load_elf(const char *name, ulong *range_start, ulong *range_end)
     kprintf("ELF range @ %lx - %lx\n", vaddr_start, vaddr_end);
 
     // Align
-    vaddr_start = ALIGN_DOWN(vaddr_start, arch_funcs->page_size);
-    vaddr_end = ALIGN_UP(vaddr_end, arch_funcs->page_size);
+    vaddr_start = align_down_vaddr(vaddr_start, PAGE_SIZE);
+    vaddr_end = align_up_vaddr(vaddr_end, PAGE_SIZE);
     ulong vaddr_size = vaddr_end - vaddr_start;
 
     // Alloc phys and map phys mem
-    void *paddr = memmap_alloc_phys(vaddr_size, arch_funcs->page_size);
-    kprintf("Paddr @ %p\n", paddr);
+    paddr_t paddr = memmap_alloc_phys(vaddr_size, PAGE_SIZE);
+    kprintf("Paddr @ %llx\n", (u64)paddr);
 
-    int pages = page_map_virt_to_phys((void *)vaddr_start, paddr, vaddr_size, 1, 1, 1);
+    int pages = page_map_virt_to_phys(vaddr_start, paddr, vaddr_size, 1, 1, 1);
 
     // Alloc and map loader virt mem
-    void *win = firmware_alloc_and_map_acc_win(paddr, vaddr_size, arch_funcs->page_size);
+    void *win = firmware_alloc_and_map_acc_win(paddr, vaddr_size, PAGE_SIZE);
     kprintf("Win @ %p\n", win);
 
     // Load ELF

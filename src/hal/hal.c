@@ -109,7 +109,7 @@ static void arch_init_mm_mp()
 /*
  * Per-arch wrappers
  */
-ulong arch_hal_direct_access(ulong paddr, int count, int cache)
+ulong arch_hal_direct_access(paddr_t paddr, int count, int cache)
 {
     if (arch_funcs->hal_direct_access) {
         return arch_funcs->hal_direct_access(paddr, count, cache);

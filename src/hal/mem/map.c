@@ -9,13 +9,13 @@ static generic_map_range_t generic_map_range;
 static page_translate_t generic_translate;
 
 
-int hal_map_range(ulong vaddr, ulong paddr, ulong size, int cache)
+int hal_map_range(ulong vaddr, paddr_t paddr, ulong size, int cache)
 {
     return generic_map_range(hal_page_table, vaddr, paddr, size,
                              cache, 1, 1, 1, 0, pre_palloc);
 }
 
-int kernel_map_range(void *page_table, ulong vaddr, ulong paddr, size_t length,
+int kernel_map_range(void *page_table, ulong vaddr, paddr_t paddr, size_t length,
                      int cacheable, int exec, int write, int kernel,
                      int override)
 {

@@ -4,6 +4,7 @@
 
 #include "common/include/compiler.h"
 #include "common/include/inttypes.h"
+#include "common/include/mem.h"
 #include "loader/include/export.h"
 
 
@@ -98,19 +99,20 @@ struct loader_arch_funcs {
     // General
     void (*init_libk)();
     void (*init_arch)();
+    void (*final_memmap)();
     void (*final_arch)();
     void (*jump_to_hal)();
 
     // Paging
     // Map range returns pages mapped
     void *(*setup_page)();
-    int (*map_range)(void *page_table, void *vaddr, void *paddr, ulong size,
+    int (*map_range)(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
         int cache, int exec, int write);
 
     // Access window <--> physical addr
     // Probably only needed by MIPS
-    void *(*access_win_to_phys)(void *vaddr);
-    void *(*phys_to_access_win)(void *paddr);
+    paddr_t (*access_win_to_phys)(void *ptr);
+    void *(*phys_to_access_win)(paddr_t paddr);
 };
 
 

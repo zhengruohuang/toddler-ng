@@ -3,6 +3,7 @@
 
 
 #include "common/include/inttypes.h"
+#include "common/include/mem.h"
 #include "loader/include/loader.h"
 
 
@@ -10,8 +11,8 @@
  * General
  */
 extern void init_firmware();
-extern void *firmware_translate_virt_to_phys(void *vaddr);
-extern void *firmware_alloc_and_map_acc_win(void *paddr, ulong size, ulong align);
+extern paddr_t firmware_translate_virt_to_phys(ulong vaddr);
+extern void *firmware_alloc_and_map_acc_win(paddr_t paddr, ulong size, ulong align);
 
 
 /*
@@ -55,16 +56,16 @@ extern void init_appended_fdt();
  */
 extern void init_ofw(void *entry);
 extern void ofw_add_initrd(void *initrd_start, ulong initrd_size);
-extern void *ofw_translate_virt_to_phys(void *vaddr);
-extern void *ofw_alloc_and_map_acc_win(void *paddr, ulong size, ulong align);
+extern paddr_t ofw_translate_virt_to_phys(ulong vaddr);
+extern void *ofw_alloc_and_map_acc_win(paddr_t paddr, ulong size, ulong align);
 
 
 /*
  * OBP
  */
 extern void init_obp(void *entry);
-extern void *obp_translate_virt_to_phys(void *vaddr);
-extern void *obp_alloc_and_map_acc_win(void *paddr, ulong size, ulong align);
+extern paddr_t obp_translate_virt_to_phys(ulong vaddr);
+extern void *obp_alloc_and_map_acc_win(paddr_t paddr, ulong size, ulong align);
 
 
 /*

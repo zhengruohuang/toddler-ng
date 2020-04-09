@@ -30,10 +30,13 @@ u64 get_memmap_range(u64 *start)
 /*
  * Allocation
  */
-void *memmap_alloc_phys(ulong size, ulong align)
+u64 memmap_alloc_phys(ulong size, ulong align)
 {
+    u64 paddr = find_free_memmap_region_for_palloc(size, align);
+    return paddr;
+
     // FIXME: u64 to void*
-    return (void *)find_free_memmap_region(size, align);
+    //return (void *)find_free_memmap_region(size, align);
 }
 
 
@@ -46,7 +49,7 @@ static void claim_coreimg()
     ulong vaddr = (ulong)find_supplied_coreimg(&coreimg_size);
 
     if (coreimg_size && vaddr) {
-        ulong paddr = (ulong)firmware_translate_virt_to_phys((void *)vaddr);
+        paddr_t paddr = firmware_translate_virt_to_phys(vaddr);
         claim_memmap_region((u64)paddr, (u64)coreimg_size, MEMMAP_USED);
     }
 }
@@ -73,7 +76,7 @@ static void claim_loader()
     ulong size = (ulong)&__end - vaddr;
     //ulong size = vaddr_end - vaddr;
 
-    ulong paddr = (ulong)firmware_translate_virt_to_phys((void *)vaddr);
+    paddr_t paddr = firmware_translate_virt_to_phys(vaddr);
     claim_memmap_region((u64)paddr, (u64)size, MEMMAP_USED);
 }
 
@@ -191,6 +194,7 @@ static void create_all_from_memory_node(struct devtree_node *chosen,
 
         // Claim the region
         claim_memmap_region(addr, size, MEMMAP_USABLE);
+        tag_memmap_region(addr, size, MEMMAP_TAG_NORMAL);
 
         size_up_to_now += size;
     } while (reg_idx > 0 && (!memsize || size_up_to_now < memsize));
@@ -226,6 +230,7 @@ static void create_all_from_chosen_node(struct devtree_node *chosen)
     }
 
     claim_memmap_region(memstart, memsize, MEMMAP_USABLE);
+    tag_memmap_region(memstart, memsize, MEMMAP_TAG_NORMAL);
 }
 
 static void create_all()
