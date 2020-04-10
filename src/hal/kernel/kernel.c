@@ -70,7 +70,7 @@ static void fill_hal_exports()
     hexp->get_cur_mp_seq = get_cur_mp_seq;
 
     // Physical memory map
-    hexp->memmap = get_memmap(&hexp->memmap_count, NULL);
+    hexp->memmap = get_memmap();
 
     // Interrupt
     hexp->disable_local_int = disable_local_int;

@@ -6,10 +6,11 @@
 #include "libk/include/memmap.h"
 
 
-static int entry_count = 0;
-static int entry_limit = 0;
+//static int memmap->num_entries = 0;
+//static int memmap->num_slots = 0;
 
-static struct loader_memmap_entry *memmap;
+//static struct loader_memmap_entry *memmap;
+static struct loader_memmap *memmap;
 
 
 /*
@@ -17,41 +18,43 @@ static struct loader_memmap_entry *memmap;
  */
 static struct loader_memmap_entry *insert_entry(int idx)
 {
-    panic_if(entry_count >= entry_limit, "Memmap overflow\n");
-    panic_if(idx > entry_count, "Unable to insert!\n");
+    panic_if(memmap->num_entries >= memmap->num_slots, "Memmap overflow\n");
+    panic_if(idx > memmap->num_entries, "Unable to insert!\n");
 
-    for (int i = entry_count - 1; i >= idx; i--) {
-        memcpy(&memmap[i + 1], &memmap[i], sizeof(struct loader_memmap_entry));
+    for (int i = memmap->num_entries - 1; i >= idx; i--) {
+        memcpy(&memmap->entries[i + 1], &memmap->entries[i],
+               sizeof(struct loader_memmap_entry));
     }
 
-    entry_count++;
+    memmap->num_entries++;
 
-    return &memmap[idx];
+    return &memmap->entries[idx];
 }
 
 static struct loader_memmap_entry *append_entry()
 {
-    return insert_entry(entry_count);
+    return insert_entry(memmap->num_entries);
 }
 
 static void remove_entry(int idx)
 {
-    if (idx > entry_count) {
+    if (idx > memmap->num_entries) {
         return;
     }
 
     int i = 0;
-    for (i = idx; i < entry_count - 1; i++) {
-        memcpy(&memmap[i], &memmap[i + 1], sizeof(struct loader_memmap_entry));
+    for (i = idx; i < memmap->num_entries - 1; i++) {
+        memcpy(&memmap->entries[i], &memmap->entries[i + 1],
+               sizeof(struct loader_memmap_entry));
     }
-    memzero(&memmap[i], sizeof(struct loader_memmap_entry));
+    memzero(&memmap->entries[i], sizeof(struct loader_memmap_entry));
 
-    entry_count--;
+    memmap->num_entries--;
 }
 
 static struct loader_memmap_entry *split_entry(int idx, u64 offset)
 {
-    struct loader_memmap_entry *entry = &memmap[idx];
+    struct loader_memmap_entry *entry = &memmap->entries[idx];
     panic_if(offset >= entry->size, "Unable to split the entry!\n");
 
     struct loader_memmap_entry *next_entry = insert_entry(idx + 1);
@@ -67,7 +70,7 @@ static struct loader_memmap_entry *split_entry(int idx, u64 offset)
 
 static struct loader_memmap_entry *split_entry2(int idx, u64 offset1, u64 offset2)
 {
-    struct loader_memmap_entry *entry = &memmap[idx];
+    struct loader_memmap_entry *entry = &memmap->entries[idx];
     panic_if(offset1 >= entry->size ||
              offset2 >= entry->size ||
              offset1 >= offset2, "Unable to split the entry!\n");
@@ -89,9 +92,9 @@ static struct loader_memmap_entry *split_entry2(int idx, u64 offset1, u64 offset
 
 static void merge_consecutive_regions()
 {
-    for (int i = 0; i < entry_count - 1; ) {
-        struct loader_memmap_entry *entry = &memmap[i];
-        struct loader_memmap_entry *next = &memmap[i + 1];
+    for (int i = 0; i < memmap->num_entries - 1; ) {
+        struct loader_memmap_entry *entry = &memmap->entries[i];
+        struct loader_memmap_entry *next = &memmap->entries[i + 1];
 
         if (entry->start + entry->size == next->start &&
             entry->flags == next->flags
@@ -110,8 +113,8 @@ void claim_memmap_region(u64 start, u64 size, int type)
 
     u64 end = start + size;
 
-    for (int i = 0; i < entry_count && size; i++) {
-        struct loader_memmap_entry *entry = &memmap[i];
+    for (int i = 0; i < memmap->num_entries && size; i++) {
+        struct loader_memmap_entry *entry = &memmap->entries[i];
         u64 entry_end = entry->start + entry->size;
 
         // Insert an entry before the current one
@@ -203,8 +206,8 @@ static void do_tag_memmap_region(u64 start, u64 size, u32 mask, int tag)
 {
     u64 end = start + size;
 
-    for (int i = 0; i < entry_count && size; i++) {
-        struct loader_memmap_entry *entry = &memmap[i];
+    for (int i = 0; i < memmap->num_entries && size; i++) {
+        struct loader_memmap_entry *entry = &memmap->entries[i];
         u64 entry_end = entry->start + entry->size;
 
         // Split the entry and tag the second half
@@ -257,8 +260,8 @@ u64 find_free_memmap_region(u64 size, u64 align, u32 mask, int match)
 {
     panic_if(popcount64(align) > 1, "Must align to power of 2!");
 
-    for (int i = 0; i < entry_count; i++) {
-        struct loader_memmap_entry *entry = &memmap[i];
+    for (int i = 0; i < memmap->num_entries; i++) {
+        struct loader_memmap_entry *entry = &memmap->entries[i];
         if (entry->flags == MEMMAP_USABLE && entry->size >= size) {
             u64 aligned_start = entry->start;
             if (align) {
@@ -327,38 +330,47 @@ u64 find_free_memmap_region_for_palloc(u64 size, u64 align)
     return paddr;
 }
 
+u64 find_free_memmap_direct_mapped_region(u64 size, u64 align)
+{
+    static int tags[] = {
+        MEMMAP_ALLOC_MATCH_EXACT,   MEMMAP_TAG_NORMAL | MEMMAP_TAG_DIRECT_MAPPED | MEMMAP_TAG_DIRECT_ACCESS,
+        MEMMAP_ALLOC_MATCH_SET_ALL, MEMMAP_TAG_NORMAL | MEMMAP_TAG_DIRECT_MAPPED | MEMMAP_TAG_DIRECT_ACCESS,
+        MEMMAP_ALLOC_MATCH_EXACT,   MEMMAP_TAG_NORMAL | MEMMAP_TAG_DIRECT_MAPPED,
+        MEMMAP_ALLOC_MATCH_SET_ALL, MEMMAP_TAG_NORMAL | MEMMAP_TAG_DIRECT_MAPPED,
+    };
+
+    u64 paddr = 0;
+    for (int t = 0; t < sizeof(tags) / sizeof(int) && !paddr; t += 2) {
+        paddr = find_free_memmap_region(size, align, tags[t + 1], tags[t]);
+    }
+
+    panic_if(!paddr, "Unable to allocate phys mem!\n");
+    return paddr;
+}
+
+
 
 /*
  * Misc
  */
 void print_memmap()
 {
-    for (int i = 0; i < entry_count; i++) {
-        struct loader_memmap_entry *entry = &memmap[i];
-        __kprintf("Memory region #%d @ %llx - %llx, "
-                  "size: %llx, flag: %d, tags: %b\n", i,
-                  entry->start, entry->start + entry->size,
-                  entry->size, entry->flags, entry->tags
+    for (int i = 0; i < memmap->num_entries; i++) {
+        struct loader_memmap_entry *entry = &memmap->entries[i];
+        kprintf("Memory region #%d @ %llx - %llx, "
+                "size: %llx, flag: %d, tags: %b\n", i,
+                entry->start, entry->start + entry->size,
+                entry->size, entry->flags, entry->tags
         );
     }
 }
 
-struct loader_memmap_entry *get_memmap(int *num_entries, int *limit)
+struct loader_memmap *get_memmap()
 {
-    if (num_entries) {
-        *num_entries = entry_count;
-    }
-
-    if (entry_limit) {
-        *limit = entry_limit;
-    }
-
     return memmap;
 }
 
-void init_libk_memmap(struct loader_memmap_entry *mmap, int num_entries, int limit)
+void init_libk_memmap(struct loader_memmap *mmap)
 {
     memmap = mmap;
-    entry_count = num_entries;
-    entry_limit = limit;
 }

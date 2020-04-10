@@ -29,5 +29,10 @@ struct loader_memmap_entry {
     u32 tags;
 };
 
+struct loader_memmap {
+    int num_slots, num_entries;
+    struct loader_memmap_entry *entries;
+};
+
 
 #endif

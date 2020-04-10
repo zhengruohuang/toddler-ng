@@ -10,7 +10,6 @@ struct loader_args {
     void *arch_args;
 
     // Important data structures
-    int num_memmap_entries, num_memmap_limit;
     void *memmap;
     void *devtree;
     void *page_table;

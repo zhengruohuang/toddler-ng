@@ -56,6 +56,7 @@ struct palloc_region {
 /*
  * Node manipulation
  */
+static ppfn_t pfn_entry_count = 0;
 static ppfn_t pfn_start = 0;
 static ppfn_t pfn_limit = 0;
 
@@ -265,10 +266,9 @@ static void buddy_combine(ppfn_t pfn)
     ulong higher_order_count = 0x1ul << higher;
     ppfn_t higher_pfn = 0;
     ppfn_t other_pfn = 0;
-    paddr_t cur_addr = ppfn_to_paddr(pfn);
 
     // Check the other node to see if they can form a buddy
-    if (0 == pfn_mod_order_page_count(cur_addr, higher_order_count)) {
+    if (0 == pfn_mod_order_page_count(pfn, higher_order_count)) {
         higher_pfn = pfn;
         other_pfn = pfn + order_page_count;
     } else {
@@ -425,6 +425,29 @@ int pfree(ppfn_t pfn)
 /*
  * Initialization
  */
+void reserve_palloc()
+{
+    // Calculate total number of nodes - 1 page needs 1 node
+    pfn_entry_count = get_pfn_range(&pfn_start, &pfn_limit);
+
+    ulong node_bytes = pfn_entry_count * sizeof(struct palloc_node);
+    ulong aligned_node_bytes = align_up_vsize(node_bytes, PAGE_SIZE);
+
+    kprintf("\tPalloc node size: %ld KB, num pages: %ld\n",
+            aligned_node_bytes / 1024, aligned_node_bytes / PAGE_SIZE);
+
+    // Allocate and reserve memory
+    u64 nodes_u64 = find_free_memmap_direct_mapped_region(aligned_node_bytes, PAGE_SIZE);
+    paddr_t nodes_paddr = cast_u64_to_paddr(nodes_u64);
+    nodes = cast_paddr_to_ptr(nodes_paddr);
+
+    // Initialize all nodes
+    for (ulong i = 0; i < pfn_entry_count; i++) {
+        nodes[i].avail = 0;
+        nodes[i].tag = PALLOC_DUMMY_REGION;
+    }
+}
+
 static void init_region(ppfn_t start_pfn, ulong count, int tag)
 {
     kprintf("\tInitializing region, start PFN: %llx, len: %lx, tag: %d\n",
@@ -488,23 +511,6 @@ void init_palloc()
         }
 
         spinlock_init(&regions[j].lock);
-    }
-
-    // Calculate total number of nodes - 1 page needs 1 node
-    ppfn_t pfn_entry_count = get_pfn_range(&pfn_start);
-    pfn_limit = pfn_start + pfn_entry_count;
-
-    ulong node_size = pfn_entry_count * sizeof(struct palloc_node);
-    kprintf("\tPalloc node size: %d KB, pages: %d\n",
-            node_size / 1024, node_size / PAGE_SIZE);
-
-    // Allocate and reserve memory
-    nodes = (void *)reserve_free_mem(node_size);
-
-    // Initialize all nodes
-    for (ulong i = 0; i < pfn_entry_count; i++) {
-        nodes[i].avail = 0;
-        nodes[i].tag = PALLOC_DUMMY_REGION;
     }
 
     // Go through PFN database to construct tags array

@@ -110,9 +110,13 @@ void kernel_entry(struct hal_exports *hal_exp)
 
     spinlock_init(&kprintf_lock);
     init_libk_putchar(hal_exp->putchar);
+    init_libk_memmap(hal_exp->memmap);
     init_libk_stop(hal_stop);
 
     kprintf("In kernel!\n");
+
+    reserve_pfndb();
+    reserve_palloc();
 
     init_pfndb();
     init_palloc();

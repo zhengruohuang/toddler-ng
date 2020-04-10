@@ -5,6 +5,7 @@
 #include "common/include/compiler.h"
 #include "common/include/inttypes.h"
 #include "common/include/mem.h"
+#include "libk/include/memmap.h"
 #include "libk/include/mem.h"
 
 
@@ -30,12 +31,10 @@ struct pfndb_entry {
 extern struct pfndb_entry *get_pfn_entry_by_pfn(ppfn_t pfn);
 extern struct pfndb_entry *get_pfn_entry_by_paddr(paddr_t paddr);
 
-extern psize_t get_mem_range(paddr_t *start);
-extern ppfn_t get_pfn_range(ppfn_t *start);
+extern psize_t get_mem_range(paddr_t *start, paddr_t *end);
+extern ppfn_t get_pfn_range(ppfn_t *start, ppfn_t *end);
 
-extern ppfn_t reserve_free_pages(ppfn_t count);
-extern paddr_t reserve_free_mem(psize_t size);
-
+extern void reserve_pfndb();
 extern void init_pfndb();
 
 
@@ -46,6 +45,7 @@ extern ppfn_t palloc_tag(int count, int tag);
 extern ppfn_t palloc(int count);
 extern int pfree(ppfn_t pfn);
 
+extern void reserve_palloc();
 extern void init_palloc();
 
 extern void buddy_print();

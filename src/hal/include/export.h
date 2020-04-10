@@ -83,7 +83,7 @@ struct hal_exports {
 
     // Physical memory info
     int memmap_count;
-    struct loader_memmap_entry *memmap;
+    struct loader_memmap *memmap;
 
     // Interrupts
     disable_local_int_t disable_local_int;

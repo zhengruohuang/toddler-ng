@@ -172,7 +172,7 @@ static inline void *vpfn_to_ptr(ulong vpfn)
 /*
  * Page count
  */
-static inline ppfn_t get_ppage_count(psize_t psize)
+static inline psize_t get_ppage_count(psize_t psize)
 {
     return align_up_psize(psize, PAGE_SIZE) >> PAGE_BITS;
 }
@@ -180,6 +180,13 @@ static inline ppfn_t get_ppage_count(psize_t psize)
 static inline ulong get_vpage_count(ulong vsize)
 {
     return align_up_vsize(vsize, PAGE_SIZE) >> PAGE_BITS;
+}
+
+static inline ulong cast_ppage_count_to_vpage_count(psize_t ppage_count)
+{
+    int bits = 64 - clz64((u64)ppage_count);
+    panic_if(bits >= sizeof(ulong) * 8, "Unable to cast paddr to ulong!\n");
+    return (ulong)ppage_count;
 }
 
 

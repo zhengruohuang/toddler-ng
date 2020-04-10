@@ -22,10 +22,11 @@ extern void untag_memmap_region(u64 start, u64 size, u32 mask);
 
 extern u64 find_free_memmap_region(u64 size, u64 align, u32 mask, int match);
 extern u64 find_free_memmap_region_for_palloc(u64 size, u64 align);
+extern u64 find_free_memmap_direct_mapped_region(u64 size, u64 align);
 
 extern void print_memmap();
-extern struct loader_memmap_entry *get_memmap(int *num_entries, int *limit);
-extern void init_libk_memmap(struct loader_memmap_entry *mmap, int num_entries, int limit);
+extern struct loader_memmap *get_memmap();
+extern void init_libk_memmap(struct loader_memmap *mmap);
 
 
 #endif

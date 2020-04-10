@@ -79,8 +79,7 @@ static void final_arch()
     loader_args.mp_entry = arch_funcs ? arch_funcs->mp_entry : 0;
 
     // Save memory map
-    loader_args.memmap = get_memmap(&loader_args.num_memmap_entries,
-                                    &loader_args.num_memmap_limit);
+    loader_args.memmap = get_memmap();
     print_memmap();
 }
 

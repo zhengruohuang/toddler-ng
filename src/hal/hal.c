@@ -57,8 +57,7 @@ static void init_libk()
         arch_funcs->init_libk();
     }
 
-    init_libk_memmap(loader_args->memmap, loader_args->num_memmap_entries,
-                     loader_args->num_memmap_limit);
+    init_libk_memmap(loader_args->memmap);
 
     kprintf("In HAL!\n");
 }
@@ -242,7 +241,7 @@ void hal(struct loader_args *largs, struct hal_arch_funcs *funcs)
     arch_init_int();
 
     // Init kernel
-    //init_kernel();
+    init_kernel();
 
     // Bring up secondary processors
     bringup_all_secondary_cpus();

@@ -11,7 +11,13 @@
 #define MAX_MEMMAP_SIZE 64
 
 
-static struct loader_memmap_entry memmap[MAX_MEMMAP_SIZE];
+static struct loader_memmap_entry memmap_entries[MAX_MEMMAP_SIZE];
+static struct loader_memmap memmap = {
+    .num_slots = MAX_MEMMAP_SIZE,
+    .num_entries = 0,
+    .entries = memmap_entries
+};
+
 static u64 memstart = 0, memsize = 0;
 
 
@@ -34,9 +40,6 @@ u64 memmap_alloc_phys(ulong size, ulong align)
 {
     u64 paddr = find_free_memmap_region_for_palloc(size, align);
     return paddr;
-
-    // FIXME: u64 to void*
-    //return (void *)find_free_memmap_region(size, align);
 }
 
 
@@ -248,8 +251,8 @@ static void create_all()
 
 void init_memmap()
 {
-    memzero(memmap, sizeof(memmap));
-    init_libk_memmap(memmap, 0, MAX_MEMMAP_SIZE);
+    memzero(memmap_entries, sizeof(memmap_entries));
+    init_libk_memmap(&memmap);
 
     // Create all memory map
     create_all();
