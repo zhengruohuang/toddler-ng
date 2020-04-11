@@ -4,6 +4,7 @@
 #include "kernel/include/atomic.h"
 #include "kernel/include/lib.h"
 #include "kernel/include/mem.h"
+#include "kernel/include/test.h"
 
 
 /*
@@ -41,6 +42,7 @@ static void init_kexp(struct hal_exports *hal_exp)
     hal_exp->kernel->palloc_tag = wrap_palloc_tag;
     hal_exp->kernel->palloc = wrap_palloc;
     hal_exp->kernel->pfree = wrap_pfree;
+    hal_exp->kernel->test_phase1 = test_mem;
 }
 
 
@@ -74,6 +76,20 @@ static struct hal_exports *hal;
 struct hal_exports *get_hal_exports()
 {
     return hal;
+}
+
+int hal_get_num_cpus()
+{
+    return hal ? hal->num_cpus : 1;
+}
+
+ulong hal_get_cur_mp_seq()
+{
+    if (hal && hal->get_cur_mp_seq) {
+        return hal->get_cur_mp_seq();
+    }
+
+    return 0;
 }
 
 void hal_stop()
@@ -121,5 +137,6 @@ void kernel_entry(struct hal_exports *hal_exp)
     init_pfndb();
     init_palloc();
 
+    init_test();
     init_kexp(hal_exp);
 }

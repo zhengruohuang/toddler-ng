@@ -247,7 +247,10 @@ void hal(struct loader_args *largs, struct hal_arch_funcs *funcs)
     bringup_all_secondary_cpus();
 
     // Unlock all secondary CPUs
-    //release_secondary_cpu_lock();
+    release_secondary_cpu_lock();
+
+    // Test kernel phase1
+    kernel_test_phase1();
 
     // Start all devices
     start_all_devices();
@@ -277,10 +280,13 @@ void hal_mp()
     // Init done, wait for the global signal to start working
     secondary_cpu_init_done();
 
+    // Test kernel phase1
+    kernel_test_phase1();
+
     // Start all devices
 
     // And finally, enable local interrupts
-    enable_local_int();
+    //enable_local_int();
 
     while (1);
 }

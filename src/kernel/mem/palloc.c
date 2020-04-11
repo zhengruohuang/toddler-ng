@@ -138,19 +138,22 @@ static ppfn_t pfn_mod_order_page_count(ppfn_t pfn, paddr_t order_page_count)
 
 static int calc_palloc_order(int count)
 {
-    int order = 0;
-
-    switch (popcount(count)) {
-    case 0:
-        order = 0;
-        break;
-    case 1:
-        order = count;
-        break;
-    default:
-        order = 1 << (32 - clz32(count));
-        break;
+    int order = 32 - clz32(count);
+    if (popcount32(count) > 1) {
+        order++;
     }
+
+//     switch (popcount(count)) {
+//     case 0:
+//         order = 0;
+//         break;
+//     case 1:
+//         order = count;
+//         break;
+//     default:
+//         order = 1 << (32 - clz32(count));
+//         break;
+//     }
 
     if (order < PALLOC_MIN_ORDER) {
         order = PALLOC_MIN_ORDER;
@@ -392,11 +395,11 @@ int pfree(ppfn_t pfn)
     int order = node->order;
     int order_count = 0x1 << order;
 
-    // Setup the node
-    node->alloc = 0;
-
     // Lock the region
     spinlock_lock_int(&regions[tag].lock);
+
+    // Setup the node
+    node->alloc = 0;
 
     // Insert the node back to the list
     if (regions[tag].buddies[order].value) {

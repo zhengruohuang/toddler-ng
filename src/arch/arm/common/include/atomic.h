@@ -3,6 +3,15 @@
 
 
 /*
+ * Pause
+ */
+static inline void atomic_pause()
+{
+    __asm__ __volatile__ ( "" : : : "memory" );
+}
+
+
+/*
  * Memory barrier
  */
 static inline void atomic_dmb()
@@ -56,7 +65,7 @@ static inline unsigned long atomic_read(volatile void *addr)
     return value;
 }
 
-static inline void atomic_write(volatile void *addr, unsigned long value)
+static inline void atomic_write(volatile ulong *addr, unsigned long value)
 {
     atomic_mb();
     *(volatile unsigned long *)addr = value;
@@ -67,7 +76,7 @@ static inline void atomic_write(volatile void *addr, unsigned long value)
 /*
  * Compare and swap
  */
-static inline int atomic_cas(volatile void *addr,
+static inline int atomic_cas(volatile ulong *addr,
     unsigned long old_val, unsigned long new_val)
 {
     unsigned long failed, read;
@@ -88,12 +97,37 @@ static inline int atomic_cas(volatile void *addr,
     return read == old_val;
 }
 
+static inline ulong atomic_cas_val(volatile ulong *addr,
+    unsigned long old_val, unsigned long new_val)
+{
+//     return __sync_val_compare_and_swap(addr, old_val, new_val);
+
+    unsigned long failed, read;
+
+    __asm__ __volatile__ (
+        "1: ldrex %[read], [%[ptr], #0];"
+        "   cmp %[read], %[val_old];"
+        "   bne 2f;"
+        "   strex %[failed], %[val_new], [%[ptr], #0];"
+        "   cmp %[failed], #1;"
+        "   beq 1b;"
+        "2:;"
+        : [failed] "=&r" (failed), [read] "=&r" (read)
+        : [ptr] "r" (addr), [val_old] "r" (old_val), [val_new] "r" (new_val)
+        : "cc", "memory"
+    );
+
+    return read;
+}
+
 
 /*
  * Fetch and add
  */
 static inline void atomic_inc(volatile unsigned long *addr)
 {
+//     __sync_fetch_and_add(addr, 1);
+
     unsigned long tmp, failed;
 
     __asm__ __volatile__ (
@@ -110,6 +144,8 @@ static inline void atomic_inc(volatile unsigned long *addr)
 
 static inline void atomic_dec(volatile unsigned long *addr)
 {
+//     __sync_fetch_and_sub(addr, 1);
+
     unsigned long tmp, failed;
 
     __asm__ __volatile__ (

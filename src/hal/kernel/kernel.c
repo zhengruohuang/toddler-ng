@@ -36,6 +36,13 @@ void kernel_dispatch(ulong sched_id, struct kernel_dispatch_info *kdi)
     return kexp->dispatch(sched_id, kdi);
 }
 
+void kernel_test_phase1()
+{
+    if (kexp->test_phase1) {
+        kexp->test_phase1();
+    }
+}
+
 
 /*
  * HAL exports and kernel init

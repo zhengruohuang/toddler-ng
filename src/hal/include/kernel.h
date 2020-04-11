@@ -10,10 +10,11 @@
 /*
  * Kernel exports
  */
-ppfn_t kernel_palloc_tag(int count, int tag);
-ppfn_t kernel_palloc(int count);
-int kernel_pfree(ppfn_t ppfn);
-void kernel_dispatch(ulong sched_id, struct kernel_dispatch_info *kdi);
+extern ppfn_t kernel_palloc_tag(int count, int tag);
+extern ppfn_t kernel_palloc(int count);
+extern int kernel_pfree(ppfn_t ppfn);
+extern void kernel_dispatch(ulong sched_id, struct kernel_dispatch_info *kdi);
+extern void kernel_test_phase1();
 
 
 /*

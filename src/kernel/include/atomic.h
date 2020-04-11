@@ -64,4 +64,24 @@ extern void rwlock_write_lock_int(rwlock_t *lock);
 extern void rwlock_write_unlock_int(rwlock_t *lock);
 
 
+/*
+ * Local-copy based barrier
+ */
+typedef struct {
+    volatile ulong count;
+    volatile ulong release;
+} local_barrier_t;
+
+typedef struct {
+    volatile local_barrier_t *local;
+    ulong total;
+} barrier_t;
+
+extern void barrier_init(barrier_t *barrier, ulong total);
+void barrier_destroy(barrier_t *barrier);
+
+void barrier_wait(barrier_t *barrier);
+void barrier_wait_int(barrier_t *barrier);
+
+
 #endif
