@@ -107,7 +107,7 @@ static void construct_pfndb()
 
             entry->usable = 0;
             entry->mapped = 0;
-            entry->tag = -1;
+            entry->tags = 0;
             entry->inuse = 1;
             entry->zeroed = 0;
             entry->kernel = 1;
@@ -128,7 +128,7 @@ static void construct_pfndb()
             if (cur->flags == MEMMAP_USABLE) {
                 entry->usable = 1;
                 entry->mapped = 1;
-                entry->tag = 0;
+                entry->tags = cur->tags;
                 entry->inuse = 0;
                 entry->zeroed = 0;
                 entry->kernel = 0;
@@ -136,7 +136,7 @@ static void construct_pfndb()
             } else {
                 entry->usable = 1;
                 entry->mapped = 1;
-                entry->tag = -1;
+                entry->tags = 0;
                 entry->inuse = 1;
                 entry->zeroed = 0;
                 entry->kernel = 1;
@@ -159,7 +159,7 @@ static void construct_pfndb()
 
         entry->usable = 0;
         entry->mapped = 0;
-        entry->tag = -1;
+        entry->tags = 0;
         entry->inuse = 1;
         entry->zeroed = 0;
         entry->kernel = 1;

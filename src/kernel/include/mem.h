@@ -19,7 +19,7 @@ struct pfndb_entry {
         struct {
             u16 usable      : 1;
             u16 mapped      : 1;
-            u16 tag         : 4;
+            u16 tags        : 10;
             u16 inuse       : 1;
             u16 zeroed      : 1;
             u16 kernel      : 1;
@@ -41,7 +41,7 @@ extern void init_pfndb();
 /*
  * Page frame allocator
  */
-extern ppfn_t palloc_tag(int count, int tag);
+//extern ppfn_t palloc_tag(int count, int tag);
 extern ppfn_t palloc(int count);
 extern int pfree(ppfn_t pfn);
 

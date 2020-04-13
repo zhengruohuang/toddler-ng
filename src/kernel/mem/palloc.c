@@ -13,36 +13,36 @@
 #include "kernel/include/mem.h"
 
 
+// Up to 2^15 = 32768 pages, 128MB assuming 4KB pages
 #define PALLOC_ORDER_BITS       4
-#define PALLOC_MAX_ORDER        ((1 << PALLOC_ORDER_BITS) - 1)
+#define PALLOC_ORDER_COUNT      (1 << PALLOC_ORDER_BITS)
 #define PALLOC_MIN_ORDER        0
-#define PALLOC_ORDER_COUNT      (PALLOC_MAX_ORDER - PALLOC_MIN_ORDER + 1)
+#define PALLOC_MAX_ORDER        (PALLOC_ORDER_COUNT - 1)
 
-#define PALLOC_REGION_BITS      4
-#define PALLOC_REGION_COUNT     (1 << PALLOC_REGION_BITS)
-#define PALLOC_DEFAULT_REGION   0
-#define PALLOC_DUMMY_REGION     (PALLOC_REGION_COUNT - 1)
-
-#define PFN_BITS                (sizeof(ulong) * 8 - PAGE_BITS)
+// Up to 32 regions
+#define PALLOC_REGION_BITS      5
+#define MAX_PALLOC_REGION_COUNT (1 << PALLOC_REGION_BITS)
 
 
+// Every physical page has a node
 struct palloc_node {
     union {
         ulong value;
 
         struct {
             ulong order     : PALLOC_ORDER_BITS;
-            ulong tag       : PALLOC_REGION_BITS;
+            ulong region    : PALLOC_REGION_BITS;
             ulong alloc     : 1;
             ulong has_next  : 1;
             ulong avail     : 1;
-            ulong next      : PFN_BITS;
+            ulong next      : sizeof(ulong) * 8 - PAGE_BITS;
         };
     };
 };
 
+// An allocation region, with particular tags
 struct palloc_region {
-    int region_tag;
+    u32 tags;
 
     ulong total_pages;
     ulong avail_pages;
@@ -60,13 +60,9 @@ static ppfn_t pfn_entry_count = 0;
 static ppfn_t pfn_start = 0;
 static ppfn_t pfn_limit = 0;
 
+static int region_count = 0;
+static struct palloc_region regions[MAX_PALLOC_REGION_COUNT];
 static struct palloc_node *nodes;
-static struct palloc_region regions[PALLOC_REGION_COUNT];
-
-// static struct palloc_node *get_node_by_paddr(ulong paddr)
-// {
-//     return &nodes[ADDR_TO_PFN(paddr)];
-// }
 
 static struct palloc_node *get_node_by_pfn(ppfn_t pfn)
 {
@@ -76,27 +72,27 @@ static struct palloc_node *get_node_by_pfn(ppfn_t pfn)
     return &nodes[pfn - pfn_start];
 }
 
-static void insert_node(ppfn_t pfn, int tag, int order)
+static void insert_node(ppfn_t pfn, int region, int order)
 {
     struct palloc_node *node = get_node_by_pfn(pfn);
 
-    node->next = regions[tag].buddies[order].next;
-    node->has_next = regions[tag].buddies[order].has_next;
+    node->next = regions[region].buddies[order].next;
+    node->has_next = regions[region].buddies[order].has_next;
 
-    regions[tag].buddies[order].has_next = 1;
-    regions[tag].buddies[order].next = pfn;
+    regions[region].buddies[order].has_next = 1;
+    regions[region].buddies[order].next = pfn;
 }
 
-static void remove_node(ppfn_t pfn, int tag, int order)
+static void remove_node(ppfn_t pfn, int region, int order)
 {
-    ppfn_t cur_pfn = regions[tag].buddies[order].next;
+    ppfn_t cur_pfn = regions[region].buddies[order].next;
     struct palloc_node *cur = get_node_by_pfn(cur_pfn);
     struct palloc_node *prev = NULL;
 
     // If the node is the first one
     if (cur_pfn == pfn) {
-        regions[tag].buddies[order].has_next = cur->has_next;
-        regions[tag].buddies[order].next = cur->next;
+        regions[region].buddies[order].has_next = cur->has_next;
+        regions[region].buddies[order].next = cur->next;
 
         cur->has_next = 0;
         cur->next = 0;
@@ -123,8 +119,8 @@ static void remove_node(ppfn_t pfn, int tag, int order)
         }
     } while (cur->has_next);
 
-    panic("Unable to remove node from list, PFN: %llx, tag: %d, order: %d\n",
-          (u64)pfn, tag, order);
+    panic("Unable to remove node from list, PFN: %llx, region: %d, order: %d\n",
+          (u64)pfn, region, order);
 }
 
 
@@ -143,18 +139,6 @@ static int calc_palloc_order(int count)
         order++;
     }
 
-//     switch (popcount(count)) {
-//     case 0:
-//         order = 0;
-//         break;
-//     case 1:
-//         order = count;
-//         break;
-//     default:
-//         order = 1 << (32 - clz32(count));
-//         break;
-//     }
-
     if (order < PALLOC_MIN_ORDER) {
         order = PALLOC_MIN_ORDER;
     } else if (order > PALLOC_MAX_ORDER) {
@@ -167,21 +151,15 @@ static int calc_palloc_order(int count)
 
 void buddy_print()
 {
-    for (int tag = 0; tag < PALLOC_REGION_COUNT; tag++) {
-        if (
-            tag == PALLOC_DUMMY_REGION ||
-            0 == regions[tag].avail_pages
-        ) {
-            continue;
-        }
-
-        kprintf("\tBuddy in Bucket #%d\n", tag);
+    for (int r = 0; r < region_count; r++) {
+        struct palloc_region *region = &regions[r];
+        kprintf("\tBuddies in region #%d with tag %x\n", r, region->tags);
 
         for (int order = PALLOC_MIN_ORDER; order <= PALLOC_MAX_ORDER; order++) {
             int count = 0;
 
-            int has_next = regions[tag].buddies[order].has_next;
-            struct palloc_node *cur = get_node_by_pfn(regions[tag].buddies[order].next);
+            int has_next = region->buddies[order].has_next;
+            struct palloc_node *cur = get_node_by_pfn(region->buddies[order].next);
 
             while (has_next) {
                 count++;
@@ -199,31 +177,31 @@ void buddy_print()
 /*
  * Buddy
  */
-static int buddy_split(int order, int tag)
+static int buddy_split(int order, int region)
 {
-    assert(tag < PALLOC_REGION_COUNT && tag != PALLOC_DUMMY_REGION);
-    assert(order <= PALLOC_MAX_ORDER && order > PALLOC_MIN_ORDER);
+    panic_if(order > PALLOC_MAX_ORDER || order < PALLOC_MIN_ORDER,
+             "Invalid order!\n");
 
     // Split higher order buddies if necessary
-    if (!regions[tag].buddies[order].has_next) {
+    if (!regions[region].buddies[order].has_next) {
         // If this is the highest order, then fail
         if (order == PALLOC_MAX_ORDER) {
             kprintf("Unable to split buddy\n");
             return -1;
         }
 
-        if (-1 == buddy_split(order + 1, tag)) {
+        if (-1 == buddy_split(order + 1, region)) {
             return -1;
         }
     }
 
     // First obtain the palloc node
-    ppfn_t pfn = regions[tag].buddies[order].next;
+    ppfn_t pfn = regions[region].buddies[order].next;
     struct palloc_node *node = get_node_by_pfn(pfn);
 
     // Remove the node from the list
-    regions[tag].buddies[order].next = node->next;
-    regions[tag].buddies[order].has_next = node->has_next;
+    regions[region].buddies[order].next = node->next;
+    regions[region].buddies[order].has_next = node->has_next;
 
     // Obtain the other node
     ppfn_t pfn2 = pfn + ((ppfn_t)0x1 << (order - 1));
@@ -232,21 +210,21 @@ static int buddy_split(int order, int tag)
     // Set up the two nodes
     node->alloc = 0;
     node->order = order - 1;
-    node->tag = tag;
+    node->region = region;
     node->avail = 1;
     node->has_next = 0;
     node->next = 0;
 
     node2->alloc = 0;
     node2->order = order - 1;
-    node2->tag = tag;
+    node2->region = region;
     node2->avail = 1;
     node2->has_next = 0;
     node2->next = 0;
 
     // Insert the nodes into the lower order list
-    insert_node(pfn, tag, order - 1);
-    insert_node(pfn2, tag, order - 1);
+    insert_node(pfn, region, order - 1);
+    insert_node(pfn2, region, order - 1);
 
     return 0;
 }
@@ -255,7 +233,7 @@ static void buddy_combine(ppfn_t pfn)
 {
     // Obtain the node
     struct palloc_node *node = get_node_by_pfn(pfn);
-    int tag = node->tag;
+    int region = node->region;
     int order = node->order;
     ulong order_page_count = 0x1ul << order;
 
@@ -281,32 +259,34 @@ static void buddy_combine(ppfn_t pfn)
     struct palloc_node *other_node = get_node_by_pfn(other_pfn);
 
     // If the other node doesn't belong to the same region as current node,
-    // or the other node is in use, then we are done, there's no way to combine
+    // or the other node is in use, then we are done,
+    // as there's no need to combine further
     if (
-        !other_node || !other_node->avail || other_node->tag != tag ||
+        !other_node || !other_node->avail || other_node->region != region ||
         other_node->alloc || order != other_node->order
     ) {
         return;
     }
 
     // Remove both nodes from the list
-    remove_node(pfn, tag, order);
-    remove_node(other_pfn, tag, order);
+    remove_node(pfn, region, order);
+    remove_node(other_pfn, region, order);
 
     // Setup the two nodes
     node->has_next = 0;
     node->next = 0;
     node->order = higher;
-    node->tag = tag;
+    node->region = region;
     node->avail = 1;
+
     other_node->has_next = 0;
     other_node->next = 0;
     other_node->order = higher;
-    other_node->tag = tag;
+    other_node->region = region;
     other_node->avail = 1;
 
     // Insert them into the higher order list
-    insert_node(higher_pfn, tag, higher);
+    insert_node(higher_pfn, region, higher);
 
     // Combine the higiher order
     buddy_combine(higher_pfn);
@@ -316,14 +296,13 @@ static void buddy_combine(ppfn_t pfn)
 /*
  * Alloc and free
  */
-ppfn_t palloc_tag(int count, int tag)
+ppfn_t palloc_region(int count, int region)
 {
-    assert(tag < PALLOC_REGION_COUNT && tag != PALLOC_DUMMY_REGION);
     int order = calc_palloc_order(count);
     int order_count = 0x1 << order;
 
     // See if this region has enough pages to allocate
-    if (regions[tag].avail_pages < order_count) {
+    if (regions[region].avail_pages < order_count) {
         return -1;
     }
 
@@ -333,51 +312,71 @@ ppfn_t palloc_tag(int count, int tag)
     }
 
     // Lock the region
-    spinlock_lock_int(&regions[tag].lock);
+    spinlock_lock_int(&regions[region].lock);
 
     // Split higher order buddies if necessary
-    if (!regions[tag].buddies[order].has_next) {
-        if (-1 == buddy_split(order + 1, tag)) {
+    if (!regions[region].buddies[order].has_next) {
+        if (-1 == buddy_split(order + 1, region)) {
             kprintf("Unable to split buddy");
 
-            spinlock_unlock_int(&regions[tag].lock);
+            spinlock_unlock_int(&regions[region].lock);
             return -1;
         }
     }
 
     // Now we are safe to allocate, first obtain the palloc node
-    ppfn_t pfn = regions[tag].buddies[order].next;
+    ppfn_t pfn = regions[region].buddies[order].next;
     struct palloc_node *node = get_node_by_pfn(pfn);
 
     // Remove the node from the list
-    regions[tag].buddies[order].next = node->next;
-    regions[tag].buddies[order].has_next = node->has_next;
+    regions[region].buddies[order].next = node->next;
+    regions[region].buddies[order].has_next = node->has_next;
 
     // Mark the node as allocated
     node->alloc = 1;
     node->has_next = 0;
     node->next = 0;
-    regions[tag].avail_pages -= order_count;
+    regions[region].avail_pages -= order_count;
 
     // Unlock the region
-    spinlock_unlock_int(&regions[tag].lock);
+    spinlock_unlock_int(&regions[region].lock);
 
     return pfn;
 }
 
-ppfn_t palloc(int count)
+ppfn_t palloc_tag(int count, u32 mask, int match)
 {
-    ppfn_t result = palloc_tag(count, PALLOC_DEFAULT_REGION);
-    if (result) {
-        return result;
-    }
+    for (int r = 0; r < region_count; r++) {
+        struct palloc_region *region = &regions[r];
 
-    int i;
-    for (i = 0; i < PALLOC_REGION_COUNT; i++) {
-        if (i != PALLOC_DEFAULT_REGION && i != PALLOC_DUMMY_REGION) {
-            result = palloc_tag(count, PALLOC_DEFAULT_REGION);
-            if (result) {
-                return result;
+        int matched = 0;
+        switch (match) {
+        case MEMMAP_ALLOC_MATCH_IGNORE:
+            matched = 1;
+            break;
+        case MEMMAP_ALLOC_MATCH_EXACT:
+            matched = region->tags == mask ? 1 : 0;
+            break;
+        case MEMMAP_ALLOC_MATCH_SET_ALL:
+            matched = (region->tags & mask) == mask ? 1 : 0;
+            break;
+        case MEMMAP_ALLOC_MATCH_SET_ANY:
+            matched = region->tags & mask ? 1 : 0;
+            break;
+        case MEMMAP_ALLOC_MATCH_UNSET_ALL:
+            matched = (~region->tags & mask) == mask ? 1 : 0;
+            break;
+        case MEMMAP_ALLOC_MATCH_UNSET_ANY:
+            matched = ~region->tags & mask ? 1 : 0;
+            break;
+        default:
+            break;
+        }
+
+        if (matched) {
+            ppfn_t pfn = palloc_region(count, r);
+            if (pfn) {
+                return pfn;
             }
         }
     }
@@ -385,41 +384,63 @@ ppfn_t palloc(int count)
     return 0;
 }
 
+ppfn_t palloc(int count)
+{
+    static int tags[] = {
+        MEMMAP_ALLOC_MATCH_EXACT,   MEMMAP_TAG_NORMAL | MEMMAP_TAG_DIRECT_MAPPED | MEMMAP_TAG_DIRECT_ACCESS,
+        MEMMAP_ALLOC_MATCH_SET_ALL, MEMMAP_TAG_NORMAL | MEMMAP_TAG_DIRECT_MAPPED | MEMMAP_TAG_DIRECT_ACCESS,
+        MEMMAP_ALLOC_MATCH_EXACT,   MEMMAP_TAG_NORMAL | MEMMAP_TAG_DIRECT_MAPPED,
+        MEMMAP_ALLOC_MATCH_SET_ALL, MEMMAP_TAG_NORMAL | MEMMAP_TAG_DIRECT_MAPPED,
+        MEMMAP_ALLOC_MATCH_EXACT,   MEMMAP_TAG_NORMAL,
+        MEMMAP_ALLOC_MATCH_SET_ALL, MEMMAP_TAG_NORMAL,
+        MEMMAP_ALLOC_MATCH_IGNORE,  0,
+    };
+
+    ppfn_t pfn = 0;
+    for (int t = 0; t < sizeof(tags) / sizeof(int) && !pfn; t += 2) {
+        warn_if(tags[t] == MEMMAP_ALLOC_MATCH_IGNORE,
+                "Unable to find memory region with the proper tags set!\n");
+        pfn = palloc_tag(count, tags[t + 1], tags[t]);
+    }
+
+    return pfn;
+}
+
 int pfree(ppfn_t pfn)
 {
     // Obtain the node
     struct palloc_node *node = get_node_by_pfn(pfn);
 
-    // Get tag and order
-    int tag = node->tag;
+    // Get region and order
+    int region = node->region;
     int order = node->order;
     int order_count = 0x1 << order;
 
     // Lock the region
-    spinlock_lock_int(&regions[tag].lock);
+    spinlock_lock_int(&regions[region].lock);
 
     // Setup the node
     node->alloc = 0;
 
     // Insert the node back to the list
-    if (regions[tag].buddies[order].value) {
-        node->next = regions[tag].buddies[order].next;
+    if (regions[region].buddies[order].value) {
+        node->next = regions[region].buddies[order].next;
         node->has_next = 1;
     } else {
         node->next = 0;
         node->has_next = 0;
     }
-    regions[tag].buddies[order].has_next = 1;
-    regions[tag].buddies[order].next = pfn;
+    regions[region].buddies[order].has_next = 1;
+    regions[region].buddies[order].next = pfn;
 
     // Setup the region
-    regions[tag].avail_pages += order_count;
+    regions[region].avail_pages += order_count;
 
     // Combine the buddy system
     buddy_combine(pfn);
 
     // Unlock the region
-    spinlock_unlock_int(&regions[tag].lock);
+    spinlock_unlock_int(&regions[region].lock);
 
     return order_count;
 }
@@ -445,22 +466,18 @@ void reserve_palloc()
     nodes = cast_paddr_to_ptr(nodes_paddr);
 
     // Initialize all nodes
-    for (ulong i = 0; i < pfn_entry_count; i++) {
-        nodes[i].avail = 0;
-        nodes[i].tag = PALLOC_DUMMY_REGION;
-    }
+    memzero(nodes, aligned_node_bytes);
 }
 
-static void init_region(ppfn_t start_pfn, ulong count, int tag)
+static void init_region(ppfn_t start_pfn, ulong count, int region, u32 tags)
 {
-    kprintf("\tInitializing region, start PFN: %llx, len: %lx, tag: %d\n",
-            (u64)start_pfn, count, tag);
-
-    assert(tag < PALLOC_REGION_COUNT && tag != PALLOC_DUMMY_REGION);
+    kprintf("\tInitializing region, start PFN: %llx, len: %lx, region: %d\n",
+            (u64)start_pfn, count, region);
 
     // Update page count
-    regions[tag].total_pages += count;
-    regions[tag].avail_pages += count;
+    regions[region].tags = tags;
+    regions[region].total_pages += count;
+    regions[region].avail_pages += count;
 
     // Setup the buddy system
     int order;
@@ -481,13 +498,13 @@ static void init_region(ppfn_t start_pfn, ulong count, int tag)
                 struct palloc_node *node = get_node_by_pfn(cur_pfn);
                 node->order = order;
                 node->alloc = 0;
-                node->tag = tag;
+                node->region = region;
                 node->avail = 1;
                 node->next = 0;
                 node->has_next = 0;
 
                 // Insert the chunk into the buddy list
-                insert_node(cur_pfn, tag, order);
+                insert_node(cur_pfn, region, order);
                 kprintf("\t\tBuddy inserted, PFN: %llx, #pages: %lx, order: %d\n",
                         (u64)cur_pfn, order_page_count, order);
 
@@ -504,8 +521,8 @@ void init_palloc()
 
     // Initialize region list
     int j, k;
-    for (j = 0; j < PALLOC_REGION_COUNT; j++) {
-        regions[j].region_tag = j;
+    for (j = 0; j < MAX_PALLOC_REGION_COUNT; j++) {
+        regions[j].tags = 0;
         regions[j].total_pages = 0;
         regions[j].avail_pages = 0;
 
@@ -516,8 +533,8 @@ void init_palloc()
         spinlock_init(&regions[j].lock);
     }
 
-    // Go through PFN database to construct tags array
-    int cur_tag = -1;
+    // Go through PFN database to construct regions
+    u32 cur_tag = 0;
     int recording = 0;
     ulong cur_region_start = 0;
 
@@ -525,22 +542,22 @@ void init_palloc()
         struct pfndb_entry *entry = get_pfn_entry_by_pfn(i);
 
         // End of a region
-        if (
-            recording &&
-            (!entry->usable || entry->inuse || cur_tag != entry->tag)
+        if (recording &&
+            (!entry->usable || entry->inuse || cur_tag != entry->tags)
         ) {
             kprintf("cur region start: %x, i: %x\n", cur_region_start, i);
-            init_region(cur_region_start, i - cur_region_start, cur_tag);
             recording = 0;
+
+            init_region(cur_region_start, i - cur_region_start, region_count, cur_tag);
+            region_count++;
         }
 
         // Start of a region
-        else if (
-            !recording &&
-            (entry->usable && !entry->inuse && entry->tag != PALLOC_DUMMY_REGION)
+        else if (!recording &&
+            (entry->usable && !entry->inuse)
         ) {
             cur_region_start = i;
-            cur_tag = entry->tag;
+            cur_tag = entry->tags;
             recording = 1;
         }
     }
@@ -548,7 +565,8 @@ void init_palloc()
     // Take care of the last region
     if (recording) {
         kprintf("last region start: %x, i: %x\n", cur_region_start, pfn_limit);
-        init_region(cur_region_start, pfn_limit - cur_region_start, cur_tag);
+        init_region(cur_region_start, pfn_limit - cur_region_start, region_count, cur_tag);
+        region_count++;
     }
 
     // Print the buddy

@@ -27,12 +27,15 @@ void rwlock_read_lock(rwlock_t *lock)
 
     do {
         do {
+            atomic_pause();
         } while (lock->locked);
 
         old_val.value = lock->value;
         new_val.locked = 0;
         new_val.counter = old_val.counter + 1;
     } while(!atomic_cas(&lock->value, old_val.value, new_val.value));
+
+    atomic_notify();
 }
 
 void rwlock_read_unlock(rwlock_t *lock)
@@ -41,12 +44,15 @@ void rwlock_read_unlock(rwlock_t *lock)
 
     do {
         do {
+            atomic_pause();
         } while (lock->locked);
 
         old_val.value = lock->value;
         new_val.locked = 0;
         new_val.counter = old_val.counter - 1;
     } while(!atomic_cas(&lock->value, old_val.value, new_val.value));
+
+    atomic_notify();
 }
 
 void rwlock_write_lock(rwlock_t *lock)
@@ -55,16 +61,20 @@ void rwlock_write_lock(rwlock_t *lock)
 
     do {
         do {
+            atomic_pause();
         } while (lock->value);
 
         new_val.locked = 1;
         new_val.counter = 0;
     } while(!atomic_cas(&lock->value, 0, new_val.value));
+
+    atomic_notify();
 }
 
 void rwlock_write_unlock(rwlock_t *lock)
 {
     lock->value = 0;
+    atomic_notify();
 }
 
 

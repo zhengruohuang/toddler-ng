@@ -7,7 +7,14 @@
  */
 static inline void atomic_pause()
 {
-    __asm__ __volatile__ ( "" : : : "memory" );
+    // Wait for event
+    __asm__ __volatile__ ( "wfe" : : : "memory" );
+}
+
+static inline void atomic_notify()
+{
+    // Send event
+    __asm__ __volatile__ ( "sev" : : : "memory" );
 }
 
 

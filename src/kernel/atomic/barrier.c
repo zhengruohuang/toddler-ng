@@ -57,6 +57,7 @@ void barrier_wait(barrier_t *barrier)
         while (my_local->count != barrier->total) {
             atomic_pause();
         }
+        atomic_notify();
 
         barrier->local = NULL;
         atomic_mb();
@@ -65,10 +66,12 @@ void barrier_wait(barrier_t *barrier)
         while (my_local->count != 1) {
             atomic_pause();
         }
+        atomic_notify();
     } else {
         while (!my_local->release) {
             atomic_pause();
         }
+        atomic_notify();
 
         atomic_dec(&my_local->count);
     }

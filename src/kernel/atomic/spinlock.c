@@ -19,7 +19,7 @@ void spinlock_lock(spinlock_t *lock)
 {
     do {
         do {
-            atomic_mb();
+            atomic_pause();
         } while (lock->value);
         atomic_mb();
     } while (!atomic_cas(&lock->value, 0, 1));
@@ -31,9 +31,13 @@ void spinlock_lock(spinlock_t *lock)
 
 void spinlock_unlock(spinlock_t *lock)
 {
+    atomic_mb();
+
     assert(lock->locked);
     lock->value = 0;
+
     atomic_mb();
+    atomic_notify();
 
     //kprintf("Unlocked: %p\n", lock);
 }
