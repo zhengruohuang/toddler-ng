@@ -284,10 +284,10 @@ static int get_env(int index, char *val, int size)
     return len;
 }
 
-static void add_bootarg()
+static void add_bootarg(char *cmdline)
 {
-    struct firmware_args *fw_args = get_fw_args();
-    char *cmdline = fw_args->srm.cmdline;
+    //struct firmware_args *fw_args = get_fw_args();
+    //char *cmdline = fw_args->srm.cmdline;
     if (cmdline && *cmdline) {
         kprintf("bootarg: %s\n", cmdline);
     }
@@ -298,7 +298,7 @@ static void add_memmap()
 }
 
 
-void srm_add_initrd(void *initrd_start, ulong initrd_size)
+static void srm_add_initrd(void *initrd_start, ulong initrd_size)
 {
     // Get chosen node
     struct devtree_node *chosen = devtree_walk("/chosen");
@@ -317,9 +317,18 @@ void srm_add_initrd(void *initrd_start, ulong initrd_size)
     }
 }
 
-void init_srm(void *hwrpb_base)
+static void init_srm(void *params)
 {
-    hwrpb = hwrpb_base;
-    add_bootarg();
+    struct firmware_params_srm *srm = params;
+    hwrpb = srm->hwrpb_base;
+
+    add_bootarg(srm->cmdline);
     add_memmap();
+    srm_add_initrd(srm->initrd_start, srm->initrd_size);
 }
+
+
+DECLARE_FIRMWARE_DRIVER(srm) = {
+    .name = "srm",
+    .init = init_srm,
+};

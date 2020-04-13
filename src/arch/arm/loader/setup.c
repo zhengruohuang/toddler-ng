@@ -35,18 +35,18 @@ static int raspi2_putchar(int ch)
 }
 
 
-/*
- * Access window <--> physical addr
- */
-static paddr_t access_win_to_phys(void *ptr)
-{
-    return cast_ptr_to_paddr(ptr);
-}
-
-static void *phys_to_access_win(paddr_t paddr)
-{
-    return cast_paddr_to_ptr(paddr);
-}
+// /*
+//  * Access window <--> physical addr
+//  */
+// static paddr_t access_win_to_phys(void *ptr)
+// {
+//     return cast_ptr_to_paddr(ptr);
+// }
+//
+// static void *phys_to_access_win(paddr_t paddr)
+// {
+//     return cast_paddr_to_ptr(paddr);
+// }
 
 
 /*
@@ -355,13 +355,13 @@ void loader_entry(ulong zero, ulong mach_id, void *mach_cfg)
 
     // Prepare arg
     if (!mach_cfg) {
-        fw_args.type = FW_NONE;
+        fw_args.fw_name = "none";
     } else if (is_fdt_header(mach_cfg)) {
-        fw_args.type = FW_FDT;
-        fw_args.fdt.fdt = mach_cfg;
+        fw_args.fw_name = "fdt";
+        fw_args.fw_params = mach_cfg;
     } else {
-        fw_args.type = FW_ATAGS;
-        fw_args.atags.atags = mach_cfg;
+        fw_args.fw_name = "atags";
+        fw_args.fw_params = mach_cfg;
     }
 
     // Prepare arch info
@@ -378,8 +378,8 @@ void loader_entry(ulong zero, ulong mach_id, void *mach_cfg)
     funcs.init_arch = init_arch;
     funcs.setup_page = setup_page;
     funcs.map_range = map_range;
-    funcs.access_win_to_phys = access_win_to_phys;
-    funcs.phys_to_access_win = phys_to_access_win;
+    //funcs.access_win_to_phys = access_win_to_phys;
+    //funcs.phys_to_access_win = phys_to_access_win;
     funcs.final_memmap = final_memmap;
     funcs.final_arch = final_arch;
     funcs.jump_to_hal = jump_to_hal;

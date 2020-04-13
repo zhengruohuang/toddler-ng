@@ -6,6 +6,7 @@
 #include "loader/include/lib.h"
 #include "loader/include/boot.h"
 #include "loader/include/loader.h"
+#include "loader/include/firmware.h"
 
 
 /*
@@ -210,15 +211,27 @@ void loader_entry(int kargc, char **kargv, char **env, ulong mem_size)
     memzero(&fw_args, sizeof(struct firmware_args));
 
     // Prepare arg
+    struct firmware_params_karg karg_params;
+
     if (kargc == -2) {
-        fw_args.type = FW_FDT;
-        fw_args.fdt.fdt = (void *)kargv;
+        //fw_args.type = FW_FDT;
+        //fw_args.fdt.fdt = (void *)kargv;
+        fw_args.fw_name = "fdt";
+        fw_args.fw_params = (void *)kargv;
     } else {
-        fw_args.type = FW_KARG;
-        fw_args.karg.kargc = kargc;
-        fw_args.karg.kargv = kargv;
-        fw_args.karg.env = env;
-        fw_args.karg.mem_size = mem_size;
+        //fw_args.type = FW_KARG;
+        //fw_args.karg.kargc = kargc;
+        //fw_args.karg.kargv = kargv;
+        //fw_args.karg.env = env;
+        //fw_args.karg.mem_size = mem_size;
+
+        karg_params.kargc = kargc;
+        karg_params.kargv = kargv;
+        karg_params.env = env;
+        karg_params.mem_size = mem_size;
+
+        fw_args.fw_name = "karg";
+        fw_args.fw_params = &karg_params;
     }
 
     // Prepare arch info

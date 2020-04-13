@@ -6,6 +6,7 @@
 #include "loader/include/lib.h"
 #include "loader/include/loader.h"
 #include "loader/include/boot.h"
+#include "loader/include/firmware.h"
 
 
 /*
@@ -249,11 +250,20 @@ void loader_entry(void *arg1, void *arg2, void *arg3, void *arg4, void *arg5)
     kprintf("initrd_start @ %lx, initrd_size: %lx\n", *initrd_start, *initrd_size);
 
     // Prepare arg
-    fw_args.type = FW_SRM;
-    fw_args.srm.cmdline = (void *)(0xfffffc0001010000ull + PARAM_OFFSET);
-    fw_args.srm.initrd_start = (void *)*initrd_start;
-    fw_args.srm.initrd_size = *initrd_size;
-    fw_args.srm.hwrpb_base = (void *)HWRPB_BASE;
+//     fw_args.type = FW_SRM;
+//     fw_args.srm.cmdline = (void *)(0xfffffc0001010000ull + PARAM_OFFSET);
+//     fw_args.srm.initrd_start = (void *)*initrd_start;
+//     fw_args.srm.initrd_size = *initrd_size;
+//     fw_args.srm.hwrpb_base = (void *)HWRPB_BASE;
+
+    struct firmware_params_srm fw_params;
+    fw_params.hwrpb_base = (void *)HWRPB_BASE;
+    fw_params.cmdline = (void *)(0xfffffc0001010000ull + PARAM_OFFSET);
+    fw_params.initrd_start = (void *)*initrd_start;
+    fw_params.initrd_size = *initrd_size;
+
+    fw_args.fw_name = "srm";
+    fw_args.fw_params = &fw_params;
 
 //     // Prepare arch info
 //     // Note here we don't explicit reserve stack because it is directly

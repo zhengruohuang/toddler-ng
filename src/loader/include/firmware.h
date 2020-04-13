@@ -8,6 +8,29 @@
 
 
 /*
+ * Firmware driver
+ */
+struct firmware_driver {
+    const char *name;
+    struct firmware_driver *next;
+
+    int need_fdt;
+
+    void (*init)(void *param);
+    void (*add_initrd)(void *initrd_start, ulong initrd_size);
+    paddr_t (*translate_vaddr_to_paddr)(ulong vaddr);
+    void *(*alloc_and_map_acc_win)(paddr_t paddr, ulong size, ulong align);
+};
+
+#define DECLARE_FIRMWARE_DRIVER(name)                       \
+    struct firmware_driver __##name##_fw_driver
+
+#define REGISTER_FIRMWARE_DRIVER(name)                      \
+    extern struct firmware_driver __##name##_fw_driver;     \
+    register_firmware_driver(&__##name##_fw_driver)
+
+
+/*
  * General
  */
 extern void init_firmware();
@@ -31,15 +54,19 @@ extern void init_bootargs();
 
 
 /*
- * Karg
+ * MIPS Karg
  */
-extern void init_karg(int fw_kargc, char **fw_kargv, char **fw_env);
+struct firmware_params_karg {
+    int kargc;
+    char **kargv;
+    char **env;
+    u64 mem_size;
+};
 
 
 /*
- * ATAGS
+ * ARM ATAGS
  */
-extern void init_atags(void *atags);
 
 
 /*
@@ -52,33 +79,54 @@ extern void init_appended_fdt();
 
 
 /*
- * OFW
+ * PPC/SPARC OFW
  */
-extern void init_ofw(void *entry);
-extern void ofw_add_initrd(void *initrd_start, ulong initrd_size);
-extern paddr_t ofw_translate_virt_to_phys(ulong vaddr);
-extern void *ofw_alloc_and_map_acc_win(paddr_t paddr, ulong size, ulong align);
+struct firmware_params_ofw {
+    void *entry;
+    void *initrd_start;
+    ulong initrd_size;
+};
 
 
 /*
- * OBP
+ * SPARC OBP
  */
-extern void init_obp(void *entry);
-extern paddr_t obp_translate_virt_to_phys(ulong vaddr);
-extern void *obp_alloc_and_map_acc_win(paddr_t paddr, ulong size, ulong align);
 
 
 /*
- * SRM
+ * PPC FDT
  */
-extern void init_srm(void *hwrpb_base);
-extern void srm_add_initrd(void *initrd_start, ulong initrd_size);
+struct firmware_params_ppc_fdt {
+    void *fdt;
+    u32 epapr_magic;
+    u32 mapsize;
+};
 
 
 /*
- * Multiboot
+ * PPC/m68k board info
  */
-extern void init_multiboot(void *multiboot);
+struct firmware_params_board_info {
+    void *board_info;
+    void *initrd_start, *initrd_end;
+    void *cmd_start, *cmd_end;
+};
+
+
+/*
+ * Alpha SRM
+ */
+struct firmware_params_srm {
+    void *hwrpb_base;
+    void *cmdline;
+    void *initrd_start;
+    ulong initrd_size;
+};
+
+
+/*
+ * x86 Multiboot
+ */
 
 
 #endif

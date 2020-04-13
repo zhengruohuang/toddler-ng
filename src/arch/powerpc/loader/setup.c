@@ -5,6 +5,7 @@
 #include "loader/include/firmware.h"
 #include "loader/include/boot.h"
 #include "loader/include/arch.h"
+#include "loader/include/firmware.h"
 
 
 /*
@@ -443,12 +444,23 @@ void loader_entry(void *initrd_addr, ulong initrd_size, void *ofw_entry)
     memzero(&fw_args, sizeof(struct firmware_args));
 
     // Prepare arg
+    struct firmware_params_ofw ofw_params;
+
     if (initrd_addr && is_fdt_header(initrd_addr)) {
+        fw_args.fw_name = "fdt";
+        fw_args.fw_params = (void *)initrd_addr;
     } else {
-        fw_args.type = FW_OFW;
-        fw_args.ofw.ofw = ofw_entry;
-        fw_args.ofw.initrd_start = initrd_addr;
-        fw_args.ofw.initrd_size = initrd_size;
+        //fw_args.type = FW_OFW;
+        //fw_args.ofw.ofw = ofw_entry;
+        //fw_args.ofw.initrd_start = initrd_addr;
+        //fw_args.ofw.initrd_size = initrd_size;
+
+        ofw_params.entry = ofw_entry;
+        ofw_params.initrd_start = initrd_addr;
+        ofw_params.initrd_size = initrd_size;
+
+        fw_args.fw_name = "ofw";
+        fw_args.fw_params = &ofw_params;
     }
 
     // Prepare arch info

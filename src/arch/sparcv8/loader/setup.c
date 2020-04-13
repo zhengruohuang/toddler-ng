@@ -308,10 +308,13 @@ void loader_entry(void *obp_entry)
 
     // Prepare arg
     if (obp_entry) {
-        fw_args.type = FW_OBP;
-        fw_args.obp.obp = obp_entry;
+        //fw_args.type = FW_OBP;
+        //fw_args.obp.obp = obp_entry;
+        fw_args.fw_name = "obp";
+        fw_args.fw_params = obp_entry;
     } else {
-        fw_args.type = FW_NONE;
+        //fw_args.type = FW_NONE;
+        fw_args.fw_name = "none";
     }
 
     // Prepare arch info

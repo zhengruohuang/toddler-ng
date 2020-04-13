@@ -2,6 +2,7 @@
 #include "loader/include/fdt.h"
 #include "loader/include/devtree.h"
 #include "loader/include/lib.h"
+#include "loader/include/firmware.h"
 
 
 /*
@@ -250,3 +251,8 @@ void init_appended_fdt()
     fdt = hdr;
     init_fdt();
 }
+
+DECLARE_FIRMWARE_DRIVER(fdt) = {
+    .name = "fdt",
+    .init = init_supplied_fdt,
+};

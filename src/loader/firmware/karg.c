@@ -157,11 +157,19 @@ static void build_chosen_node()
     }
 }
 
-void init_karg(int fw_kargc, char **fw_kargv, char **fw_env)
+static void init_karg(void *params)
 {
-    kargc = fw_kargc;
-    kargv = fw_kargv;
-    env = fw_env;
+    struct firmware_params_karg *karg = params;
+
+    kargc = karg->kargc;
+    kargv = karg->kargv;
+    env = karg->env;
 
     build_chosen_node();
 }
+
+DECLARE_FIRMWARE_DRIVER(karg) = {
+    .name = "karg",
+    .need_fdt = 1,
+    .init = init_karg,
+};

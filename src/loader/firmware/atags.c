@@ -2,6 +2,7 @@
 #include "loader/include/atags.h"
 #include "loader/include/devtree.h"
 #include "loader/include/lib.h"
+#include "loader/include/firmware.h"
 
 
 static struct atag *atags = NULL;
@@ -71,8 +72,14 @@ static void build_chosen_node()
     }
 }
 
-void init_atags(void *fw_atags)
+static void init_atags(void *fw_atags)
 {
     atags = fw_atags;
     build_chosen_node();
 }
+
+DECLARE_FIRMWARE_DRIVER(atags) = {
+    .name = "atags",
+    .need_fdt = 1,
+    .init = init_atags,
+};

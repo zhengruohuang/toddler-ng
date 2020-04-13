@@ -188,7 +188,7 @@ static void parse_framebuffer()
     );
 }
 
-void init_multiboot(void *multiboot)
+static void init_multiboot(void *multiboot)
 {
    mbi = multiboot;
 
@@ -199,3 +199,8 @@ void init_multiboot(void *multiboot)
    build_reserve_node();
    parse_framebuffer();
 }
+
+DECLARE_FIRMWARE_DRIVER(multiboot) = {
+    .name = "multiboot",
+    .init = init_multiboot,
+};

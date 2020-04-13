@@ -250,10 +250,13 @@ void loader_entry(ulong magic, void *mbi)
 
     // Prepare arg
     if (magic == MULTIBOOT_BOOTLOADER_MAGIC) {
-        fw_args.type = FW_MULTIBOOT;
-        fw_args.multiboot.multiboot = mbi;
+        //fw_args.type = FW_MULTIBOOT;
+        //fw_args.multiboot.multiboot = mbi;
+        fw_args.fw_name = "multiboot";
+        fw_args.fw_params = mbi;
     } else {
-        fw_args.type = FW_NONE;
+        //fw_args.type = FW_NONE;
+        fw_args.fw_name = "none";
     }
 
     // Prepare arch info

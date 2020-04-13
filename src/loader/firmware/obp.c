@@ -210,7 +210,7 @@ static void init_obp_nodes()
 //     panic_if(ret <= 0, "OFW unable to find MMU");
 }
 
-void init_obp(void *entry)
+static void init_obp(void *entry)
 {
     obp = entry;
     init_obp_nodes();
@@ -221,7 +221,7 @@ void init_obp(void *entry)
 /*
  * Memory allocation and mapping
  */
-paddr_t obp_translate_virt_to_phys(ulong vaddr)
+static paddr_t obp_translate_virt_to_phys(ulong vaddr)
 {
     // FIXME
     return cast_vaddr_to_paddr(vaddr);
@@ -292,7 +292,7 @@ paddr_t obp_translate_virt_to_phys(ulong vaddr)
 //     panic_if(ret, "OFW unable to map: %p -> %p (%lx)\n", vaddr, paddr, size);
 // }
 
-void *obp_alloc_and_map_acc_win(paddr_t paddr, ulong size, ulong align)
+static void *obp_alloc_and_map_acc_win(paddr_t paddr, ulong size, ulong align)
 {
     // FIXME
     return cast_paddr_to_ptr(paddr);
@@ -302,3 +302,10 @@ void *obp_alloc_and_map_acc_win(paddr_t paddr, ulong size, ulong align)
 //
 //     return vaddr;
 }
+
+DECLARE_FIRMWARE_DRIVER(obp) = {
+    .name = "obp",
+    .init = init_obp,
+    .translate_vaddr_to_paddr = obp_translate_virt_to_phys,
+    .alloc_and_map_acc_win = obp_alloc_and_map_acc_win,
+};

@@ -206,14 +206,7 @@ static void init_ofw_nodes()
     panic_if(ret <= 0, "OFW unable to find MMU");
 }
 
-void init_ofw(void *entry)
-{
-    client_interface = entry;
-    init_ofw_nodes();
-    copy_devtree();
-}
-
-void ofw_add_initrd(void *initrd_start, ulong initrd_size)
+static void ofw_add_initrd(void *initrd_start, ulong initrd_size)
 {
     // Get chosen node
     struct devtree_node *chosen = devtree_walk("/chosen");
@@ -230,6 +223,16 @@ void ofw_add_initrd(void *initrd_start, ulong initrd_size)
         devtree_alloc_prop_u64(chosen, "initrd-start", initrd_start64);
         devtree_alloc_prop_u64(chosen, "initrd-end", initrd_end64);
     }
+}
+
+static void init_ofw(void *params)
+{
+    struct firmware_params_ofw *ofw_params = params;
+
+    client_interface = ofw_params->entry;
+    init_ofw_nodes();
+    copy_devtree();
+    ofw_add_initrd(ofw_params->initrd_start, ofw_params->initrd_size);
 }
 
 
@@ -315,3 +318,10 @@ void *ofw_alloc_and_map_acc_win(paddr_t paddr, ulong size, ulong align)
 
     return vaddr;
 }
+
+DECLARE_FIRMWARE_DRIVER(ofw) = {
+    .name = "ofw",
+    .init = init_ofw,
+    .translate_vaddr_to_paddr = ofw_translate_virt_to_phys,
+    .alloc_and_map_acc_win = ofw_alloc_and_map_acc_win,
+};

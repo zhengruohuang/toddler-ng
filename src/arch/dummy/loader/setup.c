@@ -150,7 +150,7 @@ void loader_entry()
     memzero(&fw_args, sizeof(struct firmware_args));
 
     // Prepare arg
-    fw_args.type = FW_NONE;
+    fw_args.fw_name = "none";
 
     // Prepare arch info
 //     funcs.reserved_stack_size = 0x8000;
