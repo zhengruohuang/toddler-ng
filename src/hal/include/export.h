@@ -112,4 +112,10 @@ struct hal_exports {
 };
 
 
+/*
+ * Kernel entry
+ */
+typedef void (*kernel_entry_t)(struct hal_exports *exp);
+
+
 #endif

@@ -1,5 +1,5 @@
 #include "common/include/inttypes.h"
-#include "loader/include/lib.h"
+#include "libk/include/string.h"
 
 
 /*

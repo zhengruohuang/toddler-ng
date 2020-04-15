@@ -17,14 +17,17 @@ struct loader_args {
     // MP
     ulong mp_entry;
 
-    // HAL virtual layout, hal_grow: >=0 = grow up, <0 = grow down
+    // HAL virtual layout
     void *hal_entry;
     ulong hal_start, hal_end;
-    int hal_grow;
 
     // Kernel virtual layout
     void *kernel_entry;
     ulong kernel_start, kernel_end;
+
+    // Sys area, which consists of HAL and Kernel
+    ulong sysarea_lower, sysarea_upper;
+    int sysarea_grows_up;
 };
 
 

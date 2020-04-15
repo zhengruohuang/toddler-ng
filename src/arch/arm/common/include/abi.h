@@ -4,5 +4,9 @@
 
 #define ELF_GOT_NUM_RESERVED_ENTRIES 0
 
+#define STACK_GROWS_UP  0
+
+#define DATA_ALIGNMENT  8
+
 
 #endif

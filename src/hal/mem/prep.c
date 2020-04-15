@@ -6,6 +6,19 @@
 #include "hal/include/mem.h"
 
 
+static int sysarea_grows_up = 0;
+static ulong sysarea_lower = 0;
+static ulong sysarea_upper = 0;
+
+
+ulong get_sysarea_range(ulong *lower, ulong *upper)
+{
+    if (lower) *lower = sysarea_lower;
+    if (upper) *upper = sysarea_upper;
+
+    return sysarea_upper - sysarea_lower;
+}
+
 ppfn_t pre_palloc(int count)
 {
     ulong size = count * PAGE_SIZE;
@@ -27,7 +40,6 @@ ppfn_t pre_palloc(int count)
 
 ulong pre_valloc(int count, paddr_t paddr, int cache)
 {
-    struct loader_args *largs = get_loader_args();
     struct hal_arch_funcs *arch_funcs = get_hal_arch_funcs();
 
     if (arch_funcs->has_direct_access) {
@@ -36,12 +48,12 @@ ulong pre_valloc(int count, paddr_t paddr, int cache)
         ulong vaddr = 0;
         ulong size = PAGE_SIZE * count;
 
-        if (largs->hal_grow > 0) {
-            vaddr = largs->hal_end;
-            largs->hal_end += size;
+        if (sysarea_grows_up) {
+            vaddr = sysarea_upper;
+            sysarea_upper += size;
         } else {
-            largs->hal_start -= size;
-            vaddr = largs->hal_start;
+            sysarea_lower -= size;
+            vaddr = sysarea_lower;
         }
 
         //kprintf("pre_valloc @ %lx -> %lx\n", vaddr, paddr);
@@ -59,6 +71,7 @@ void init_pre_palloc()
 {
     struct loader_args *largs = get_loader_args();
 
-    largs->hal_start = ALIGN_DOWN(largs->hal_start, PAGE_SIZE);
-    largs->hal_end = ALIGN_UP(largs->hal_end, PAGE_SIZE);
+    sysarea_grows_up = largs->sysarea_grows_up;
+    sysarea_lower = align_down_vaddr(largs->sysarea_lower, PAGE_SIZE);
+    sysarea_upper = align_up_vaddr(largs->sysarea_upper, PAGE_SIZE);
 }

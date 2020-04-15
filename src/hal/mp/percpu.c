@@ -1,5 +1,6 @@
 #include "common/include/inttypes.h"
 #include "common/include/mem.h"
+#include "common/include/abi.h"
 #include "hal/include/kprintf.h"
 #include "hal/include/lib.h"
 #include "hal/include/mp.h"
@@ -10,7 +11,12 @@
 #define PER_CPU_AREA_PAGE_COUNT     1
 #define PER_CPU_AREA_SIZE           (PAGE_SIZE * PER_CPU_AREA_PAGE_COUNT)
 #define PER_CPU_DATA_START_OFFSET   ((PER_CPU_AREA_SIZE / 2) + 16)
-#define PER_CPU_STACK_TOP_OFFSET    ((PER_CPU_AREA_SIZE / 2) - 16)
+
+#if (defined(STACK_GROWS_UP) && STACK_GROWS_UP)
+#define PER_CPU_STACK_START_OFFSET  (0 + 16)
+#else
+#define PER_CPU_STACK_START_OFFSET  ((PER_CPU_AREA_SIZE / 2) - 16)
+#endif
 
 
 static paddr_t per_cpu_area_start_paddr = 0;
@@ -40,7 +46,7 @@ ulong get_my_cpu_data_area_start_vaddr()
 
 ulong get_my_cpu_stack_top_vaddr()
 {
-    return get_my_cpu_area_start_vaddr() + PER_CPU_STACK_TOP_OFFSET;
+    return get_my_cpu_area_start_vaddr() + PER_CPU_STACK_START_OFFSET;
 }
 
 static void init_per_cpu_var(int *offset, size_t size)

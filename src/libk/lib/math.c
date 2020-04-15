@@ -1,5 +1,6 @@
+#include "common/include/arch.h"
 #include "common/include/inttypes.h"
-#include "loader/include/lib.h"
+#include "libk/include/bit.h"
 
 
 /*
@@ -75,6 +76,30 @@ s64 mul_s64(s64 a, s64 b)
     return (s64)um;
 }
 
+ulong mul_ulong(ulong a, ulong b)
+{
+#if (ARCH_WIDTH == 64)
+    return (ulong)mul_u64((u64)a, (u64)b);
+#elif (ARCH_WIDTH == 32)
+    return (ulong)mul_u32((u32)a, (u32)b);
+#else
+    #error Unsupported ARCH_WIDTH
+    return 0;
+#endif
+}
+
+ulong mul_long(long a, long b)
+{
+#if (ARCH_WIDTH == 64)
+    return (long)mul_s64((s64)a, (s64)b);
+#elif (ARCH_WIDTH == 32)
+    return (long)mul_s32((s32)a, (s32)b);
+#else
+    #error Unsupported ARCH_WIDTH
+    return 0;
+#endif
+}
+
 
 /*
  * Divide
@@ -91,28 +116,8 @@ void div_u32(u32 a, u32 b, u32 *qout, u32 *rout)
         }
     }
 
-    if (qout) {
-        *qout = q;
-    }
-
-    if (rout) {
-        *rout = r;
-    }
-
-//     u32 q = 0, r = a;
-//
-//     while (r >= b) {
-//         q++;
-//         r -= b;
-//     }
-//
-//     if (qout) {
-//         *qout = q;
-//     }
-//
-//     if (rout) {
-//         *rout = r;
-//     }
+    if (qout) *qout = q;
+    if (rout) *rout = r;
 }
 
 void div_s32(s32 a, s32 b, s32 *qout, s32 *rout)
@@ -136,13 +141,8 @@ void div_s32(s32 a, s32 b, s32 *qout, s32 *rout)
         ur = ~ur + 1 + ub;
     }
 
-    if (qout) {
-        *qout = (s32)uq;
-    }
-
-    if (rout) {
-        *rout = (s32)ur;
-    }
+    if (qout) *qout = (s32)uq;
+    if (rout) *rout = (s32)ur;
 }
 
 void div_u64(u64 a, u64 b, u64 *qout, u64 *rout)
@@ -157,28 +157,8 @@ void div_u64(u64 a, u64 b, u64 *qout, u64 *rout)
         }
     }
 
-    if (qout) {
-        *qout = q;
-    }
-
-    if (rout) {
-        *rout = r;
-    }
-
-//     u64 q = 0, r = a;
-//
-//     while (r >= b) {
-//         q++;
-//         r -= b;
-//     }
-//
-//     if (qout) {
-//         *qout = q;
-//     }
-//
-//     if (rout) {
-//         *rout = r;
-//     }
+    if (qout) *qout = q;
+    if (rout) *rout = r;
 }
 
 void div_s64(s64 a, s64 b, s64 *qout, s64 *rout)
@@ -202,11 +182,152 @@ void div_s64(s64 a, s64 b, s64 *qout, s64 *rout)
         ur = ~ur + 1 + ub;
     }
 
-    if (qout) {
-        *qout = (s64)uq;
-    }
+    if (qout) *qout = (s64)uq;
+    if (rout) *rout = (s64)ur;
+}
 
-    if (rout) {
-        *rout = (s64)ur;
-    }
+void div_ulong(ulong a, ulong b, ulong *qout, ulong *rout)
+{
+#if (ARCH_WIDTH == 64)
+    u64 q = 0, r = 0;
+    div_u64((u64)a, (u64)b, &q, &r);
+#elif (ARCH_WIDTH == 32)
+    u32 q = 0, r = 0;
+    div_u32((u32)a, (u32)b, &q, &r);
+#else
+    ulong q = 0, r = 0;
+    #error Unsupported ARCH_WIDTH
+#endif
+
+    if (qout) *qout = q;
+    if (rout) *rout = r;
+}
+
+void div_long(long a, long b, long *qout, long *rout)
+{
+#if (ARCH_WIDTH == 64)
+    s64 q = 0, r = 0;
+    div_s64((s64)a, (s64)b, &q, &r);
+#elif (ARCH_WIDTH == 32)
+    s32 q = 0, r = 0;
+    div_s32((s32)a, (s32)b, &q, &r);
+#else
+    long q = 0, r = 0;
+    #error Unsupported ARCH_WIDTH
+#endif
+
+    if (qout) *qout = q;
+    if (rout) *rout = r;
+}
+
+
+/*
+ * Quo
+ */
+u64 quo_u64(u64 a, u64 b)
+{
+    u64 q = 0;
+    div_u64(a, b, &q, NULL);
+    return q;
+}
+
+u64 quo_s64(s64 a, s64 b)
+{
+    s64 q = 0;
+    div_s64(a, b, &q, NULL);
+    return q;
+}
+
+u32 quo_u32(u32 a, u32 b)
+{
+    u32 q = 0;
+    div_u32(a, b, &q, NULL);
+    return q;
+}
+
+u64 quo_s32(s32 a, s32 b)
+{
+    s32 q = 0;
+    div_s32(a, b, &q, NULL);
+    return q;
+}
+
+ulong quo_ulong(ulong a, ulong b)
+{
+#if (ARCH_WIDTH == 64)
+    return (ulong)quo_u64((u64)a, (u64)b);
+#elif (ARCH_WIDTH == 32)
+    return (ulong)quo_u32((u32)a, (u32)b);
+#else
+    #error Unsupported ARCH_WIDTH
+    return 0;
+#endif
+}
+
+long quo_long(long a, long b)
+{
+#if (ARCH_WIDTH == 64)
+    return (long)quo_s64((s64)a, (s64)b);
+#elif (ARCH_WIDTH == 32)
+    return (long)quo_s32((s32)a, (s32)b);
+#else
+    #error Unsupported ARCH_WIDTH
+    return 0;
+#endif
+}
+
+
+/*
+ * Rem
+ */
+u64 rem_u64(u64 a, u64 b)
+{
+    u64 r = 0;
+    div_u64(a, b, NULL, &r);
+    return r;
+}
+
+u64 rem_s64(s64 a, s64 b)
+{
+    s64 r = 0;
+    div_s64(a, b, NULL, &r);
+    return r;
+}
+
+u32 rem_u32(u32 a, u32 b)
+{
+    u32 r = 0;
+    div_u32(a, b, NULL, &r);
+    return r;
+}
+
+u64 rem_s32(s32 a, s32 b)
+{
+    s32 r = 0;
+    div_s32(a, b, NULL, &r);
+    return r;
+}
+
+ulong rem_ulong(ulong a, ulong b)
+{
+#if (ARCH_WIDTH == 64)
+    return (ulong)rem_u64((u64)a, (u64)b);
+#elif (ARCH_WIDTH == 32)
+    return (ulong)rem_u32((u32)a, (u32)b);
+#else
+    #error Unsupported ARCH_WIDTH
+    return 0;
+#endif
+}
+
+long rem_long(long a, long b)
+{
+#if (ARCH_WIDTH == 64)
+    return (long)rem_s64((s64)a, (s64)b);
+#elif (ARCH_WIDTH == 32)
+    return (long)rem_s32((s32)a, (s32)b);
+#else
+    #error Unsupported ARCH_WIDTH
+    return 0;
+#endif
 }

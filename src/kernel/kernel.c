@@ -136,6 +136,8 @@ void kernel_entry(struct hal_exports *hal_exp)
 
     init_pfndb();
     init_palloc();
+    init_salloc();
+    init_malloc();
 
     init_test();
     init_kexp(hal_exp);

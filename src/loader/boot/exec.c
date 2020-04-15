@@ -207,14 +207,28 @@ void load_hal_and_kernel()
 {
     struct loader_args *largs = get_loader_args();
 
+    // Load HAL
     largs->hal_entry = (void *)load_elf("tdlrhal.elf",
         &largs->hal_start, &largs->hal_end);
 
-    kprintf("HAL @ %p to %p, entry @ %p\n", largs->hal_start, largs->hal_end,
-        largs->hal_entry);
+    kprintf("HAL @ %lx to %lx, entry @ %p\n",
+            largs->hal_start, largs->hal_end, largs->hal_entry);
 
+    // Load kernel
     largs->kernel_entry = (void *)load_elf("tdlrkrnl.elf",
         &largs->kernel_start, &largs->kernel_end);
 
-    largs->hal_grow = 1;
+    kprintf("Kernel @ %lx to %lx, entry @ %p\n",
+            largs->kernel_start, largs->kernel_end, largs->kernel_entry);
+
+    // Set up sysarea area size
+    largs->sysarea_lower = largs->hal_start < largs->kernel_start ?
+                            largs->hal_start : largs->kernel_start;
+    largs->sysarea_upper = largs->hal_end > largs->kernel_end ?
+                            largs->hal_end : largs->kernel_end;
+
+    largs->sysarea_lower = align_down_vaddr(largs->sysarea_lower, PAGE_SIZE);
+    largs->sysarea_upper = align_up_vaddr(largs->sysarea_upper, PAGE_SIZE);
+
+    largs->sysarea_grows_up = 1;
 }

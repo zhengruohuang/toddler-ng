@@ -132,7 +132,7 @@ static ppfn_t pfn_mod_order_page_count(ppfn_t pfn, paddr_t order_page_count)
     return pfn & (order_page_count - 1);
 }
 
-static int calc_palloc_order(int count)
+int calc_palloc_order(int count)
 {
     int order = 32 - clz32(count);
     if (popcount32(count) > 1) {
@@ -382,6 +382,24 @@ ppfn_t palloc_tag(int count, u32 mask, int match)
     }
 
     return 0;
+}
+
+ppfn_t palloc_direct_mapped(int count)
+{
+    static int tags[] = {
+        MEMMAP_ALLOC_MATCH_EXACT,   MEMMAP_TAG_NORMAL | MEMMAP_TAG_DIRECT_MAPPED | MEMMAP_TAG_DIRECT_ACCESS,
+        MEMMAP_ALLOC_MATCH_SET_ALL, MEMMAP_TAG_NORMAL | MEMMAP_TAG_DIRECT_MAPPED | MEMMAP_TAG_DIRECT_ACCESS,
+        MEMMAP_ALLOC_MATCH_EXACT,   MEMMAP_TAG_NORMAL | MEMMAP_TAG_DIRECT_MAPPED,
+        MEMMAP_ALLOC_MATCH_SET_ALL, MEMMAP_TAG_NORMAL | MEMMAP_TAG_DIRECT_MAPPED,
+    };
+
+    ppfn_t pfn = 0;
+    for (int t = 0; t < sizeof(tags) / sizeof(int) && !pfn; t += 2) {
+        pfn = palloc_tag(count, tags[t + 1], tags[t]);
+    }
+
+    panic_if(!pfn, "Unable to allocate direct mapped physical memory!\n");
+    return pfn;
 }
 
 ppfn_t palloc(int count)
