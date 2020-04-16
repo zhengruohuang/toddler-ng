@@ -190,6 +190,9 @@ void reserve_pfndb()
     pfndb = cast_paddr_to_ptr(pfndb_paddr);
 
     panic_if(!pfndb, "Unable to find a region to store PFNDB!\n");
+
+    kprintf("\tMemory reserved for PFNDB @ %llx, size: %llx bytes\n",
+        (u64)pfndb_u64, (u64)aligned_pfndb_bytes);
 }
 
 void init_pfndb()

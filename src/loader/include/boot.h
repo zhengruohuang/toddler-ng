@@ -3,6 +3,7 @@
 
 
 #include "common/include/inttypes.h"
+#include "common/include/mem.h"
 #include "loader/include/loader.h"
 #include "libk/include/memmap.h"
 
@@ -11,7 +12,7 @@
  * Memory map
  */
 extern u64 get_memmap_range(u64 *start);
-extern u64 memmap_alloc_phys(ulong size, ulong align);
+extern paddr_t memmap_alloc_phys(ulong size, ulong align);
 extern void init_memmap();
 
 

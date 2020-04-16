@@ -61,21 +61,21 @@ static inline void atomic_wb()
 /*
  * Read and write
  */
-static inline unsigned long atomic_read(volatile void *addr)
+static inline ulong atomic_read(volatile void *addr)
 {
-    unsigned long value = 0;
+    ulong value = 0;
 
     atomic_mb();
-    value = *(volatile unsigned long *)addr;
+    value = *(volatile ulong *)addr;
     atomic_mb();
 
     return value;
 }
 
-static inline void atomic_write(volatile ulong *addr, unsigned long value)
+static inline void atomic_write(volatile ulong *addr, ulong value)
 {
     atomic_mb();
-    *(volatile unsigned long *)addr = value;
+    *(volatile ulong *)addr = value;
     atomic_mb();
 }
 
@@ -84,9 +84,9 @@ static inline void atomic_write(volatile ulong *addr, unsigned long value)
  * Compare and swap
  */
 static inline int atomic_cas(volatile ulong *addr,
-    unsigned long old_val, unsigned long new_val)
+                             ulong old_val, ulong new_val)
 {
-    unsigned long failed, read;
+    ulong failed, read;
 
     __asm__ __volatile__ (
         "1: ldrex %[read], [%[ptr], #0];"
@@ -105,11 +105,11 @@ static inline int atomic_cas(volatile ulong *addr,
 }
 
 static inline ulong atomic_cas_val(volatile ulong *addr,
-    unsigned long old_val, unsigned long new_val)
+                                   ulong old_val, ulong new_val)
 {
 //     return __sync_val_compare_and_swap(addr, old_val, new_val);
 
-    unsigned long failed, read;
+    ulong failed, read;
 
     __asm__ __volatile__ (
         "1: ldrex %[read], [%[ptr], #0];"
@@ -131,11 +131,11 @@ static inline ulong atomic_cas_val(volatile ulong *addr,
 /*
  * Fetch and add
  */
-static inline void atomic_inc(volatile unsigned long *addr)
+static inline void atomic_inc(volatile ulong *addr)
 {
 //     __sync_fetch_and_add(addr, 1);
 
-    unsigned long tmp, failed;
+    ulong tmp, failed;
 
     __asm__ __volatile__ (
         "1: ldrex %[tmp], [%[ptr], #0];"
@@ -149,11 +149,11 @@ static inline void atomic_inc(volatile unsigned long *addr)
     );
 }
 
-static inline void atomic_dec(volatile unsigned long *addr)
+static inline void atomic_dec(volatile ulong *addr)
 {
 //     __sync_fetch_and_sub(addr, 1);
 
-    unsigned long tmp, failed;
+    ulong tmp, failed;
 
     __asm__ __volatile__ (
         "1: ldrex %[tmp], [%[ptr], #0];"

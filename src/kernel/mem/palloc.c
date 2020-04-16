@@ -134,7 +134,7 @@ static ppfn_t pfn_mod_order_page_count(ppfn_t pfn, paddr_t order_page_count)
 
 int calc_palloc_order(int count)
 {
-    int order = 32 - clz32(count);
+    int order = 32 - 1 - clz32(count);
     if (popcount32(count) > 1) {
         order++;
     }
@@ -300,15 +300,16 @@ ppfn_t palloc_region(int count, int region)
 {
     int order = calc_palloc_order(count);
     int order_count = 0x1 << order;
+    //kprintf("order: %d, order_count: %d\n", order, order_count);
 
     // See if this region has enough pages to allocate
     if (regions[region].avail_pages < order_count) {
-        return -1;
+        return 0;
     }
 
     // If this is the highest order, then we are not able to allocate the pages
     if (order == PALLOC_MAX_ORDER) {
-        return -1;
+        return 0;
     }
 
     // Lock the region
@@ -320,7 +321,7 @@ ppfn_t palloc_region(int count, int region)
             kprintf("Unable to split buddy");
 
             spinlock_unlock_int(&regions[region].lock);
-            return -1;
+            return 0;
         }
     }
 
@@ -398,6 +399,9 @@ ppfn_t palloc_direct_mapped(int count)
         pfn = palloc_tag(count, tags[t + 1], tags[t]);
     }
 
+    //kprintf("palloc direct count: %d, PPFN @ %llx, paddr @ %llx\n",
+    //        count, (u64)pfn, (u64)ppfn_to_paddr(pfn));
+
     panic_if(!pfn, "Unable to allocate direct mapped physical memory!\n");
     return pfn;
 }
@@ -420,6 +424,8 @@ ppfn_t palloc(int count)
                 "Unable to find memory region with the proper tags set!\n");
         pfn = palloc_tag(count, tags[t + 1], tags[t]);
     }
+
+    //kprintf("palloc PPFN @ %llx, paddr @ %llx\n", (u64)pfn, (u64)ppfn_to_paddr(pfn));
 
     return pfn;
 }
@@ -485,6 +491,9 @@ void reserve_palloc()
 
     // Initialize all nodes
     memzero(nodes, aligned_node_bytes);
+
+    kprintf("\tMemory reserved for palloc nodes @ %llx, size: %llx bytes\n",
+            (u64)nodes_u64, (u64)aligned_node_bytes);
 }
 
 static void init_region(ppfn_t start_pfn, ulong count, int region, u32 tags)
@@ -523,8 +532,8 @@ static void init_region(ppfn_t start_pfn, ulong count, int region, u32 tags)
 
                 // Insert the chunk into the buddy list
                 insert_node(cur_pfn, region, order);
-                kprintf("\t\tBuddy inserted, PFN: %llx, #pages: %lx, order: %d\n",
-                        (u64)cur_pfn, order_page_count, order);
+                kprintf("\t\tBuddy inserted, PFN: %llx, paddr @ %llx, #pages: %lx, order: %d\n",
+                        (u64)cur_pfn, (u64)ppfn_to_paddr(cur_pfn), order_page_count, order);
 
                 cur_pfn += order_page_count;
                 break;

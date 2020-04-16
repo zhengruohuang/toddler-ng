@@ -223,7 +223,7 @@ struct cp0_page_mask {
 
         u32 value;
     };
-} packed_struct;
+} packed4_struct;
 
 struct cp0_page_grain {
     union {
@@ -257,7 +257,7 @@ struct cp0_page_grain {
 
         u32 value;
     };
-} packed_struct;
+} packed4_struct;
 
 #define read_cp0_page_mask(value)   __mfc0(value, 5, 0)
 #define write_cp0_page_mask(value)  __mtc0(value, 5, 0)
@@ -342,7 +342,7 @@ struct cp0_cause {
 
         u32 value;
     };
-} packed_struct;
+} packed4_struct;
 
 #define read_cp0_cause(value)   __mfc0(value, 13, 0)
 #define write_cp0_cause(value)  __mtc0(value, 13, 0)
@@ -379,7 +379,7 @@ struct cp0_proc_id {
 
         u32 value;
     };
-} packed_struct;
+} packed4_struct;
 
 #define read_cp0_proc_id(value)   __mfc0(value, 15, 0)
 
@@ -439,7 +439,7 @@ struct cp0_config0 {
 
         u32 value;
     };
-} packed_struct;
+} packed4_struct;
 
 struct cp0_config1 {
     union {
@@ -483,7 +483,7 @@ struct cp0_config1 {
 
         u32 value;
     };
-} packed_struct;
+} packed4_struct;
 
 struct cp0_config2 {
     union {
@@ -515,7 +515,7 @@ struct cp0_config2 {
 
         u32 value;
     };
-} packed_struct;
+} packed4_struct;
 
 struct cp0_config3 {
     union {
@@ -535,7 +535,7 @@ struct cp0_config3 {
 
         u32 value;
     };
-} packed_struct;
+} packed4_struct;
 
 struct cp0_config4 {
     union {
@@ -579,7 +579,7 @@ struct cp0_config4 {
 
         u32 value;
     };
-} packed_struct;
+} packed4_struct;
 
 struct cp0_config5 {
     union {
@@ -615,7 +615,7 @@ struct cp0_config5 {
 
         u32 value;
     };
-} packed_struct;
+} packed4_struct;
 
 #define read_cp0_config(idx, value)     __mfc0(value, 16, idx)
 #define write_cp0_config(idx, value)    __mtc0(value, 16, idx)
@@ -715,7 +715,7 @@ struct cp0_entry_hi {
 
         u64 value;
     };
-} packed_struct;
+} packed8_struct;
 
 struct cp0_entry_lo {
     union {
@@ -745,7 +745,7 @@ struct cp0_entry_lo {
 
         u64 value;
     };
-} packed_struct;
+} packed8_struct;
 
 struct cp0_page_mask64 {
     union {
@@ -767,7 +767,7 @@ struct cp0_page_mask64 {
 
         u64 value;
     };
-} packed_struct;
+} packed8_struct;
 
 #define read_cp0_entry_hi(value)    __dmfc0(value, 10, 0)
 #define write_cp0_entry_hi(value)   __dmtc0(value, 10, 0)
@@ -811,7 +811,7 @@ struct cp0_entry_hi {
 
         u32 value;
     };
-} packed_struct;
+} packed4_struct;
 
 struct cp0_entry_lo {
     union {
@@ -839,7 +839,7 @@ struct cp0_entry_lo {
 
         u32 value;
     };
-} packed_struct;
+} packed4_struct;
 
 #define read_cp0_entry_hi(value)    __mfc0(value, 10, 0)
 #define write_cp0_entry_hi(value)   __mtc0(value, 10, 0)

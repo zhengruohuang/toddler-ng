@@ -1,7 +1,6 @@
 #include "common/include/inttypes.h"
 #include "common/include/context.h"
 #include "common/include/msr.h"
-#include "hal/include/vecnum.h"
 #include "hal/include/kprintf.h"
 #include "hal/include/hal.h"
 #include "hal/include/lib.h"

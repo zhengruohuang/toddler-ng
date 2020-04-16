@@ -6,7 +6,7 @@
 
 _start:
     // Go to kernel
-    b       kernel_entry
+    b       kernel
 
     // Should never reach here
 __stop:

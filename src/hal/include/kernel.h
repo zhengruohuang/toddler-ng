@@ -10,7 +10,6 @@
 /*
  * Kernel exports
  */
-extern ppfn_t kernel_palloc_tag(int count, int tag);
 extern ppfn_t kernel_palloc(int count);
 extern int kernel_pfree(ppfn_t ppfn);
 extern void kernel_dispatch(ulong sched_id, struct kernel_dispatch_info *kdi);

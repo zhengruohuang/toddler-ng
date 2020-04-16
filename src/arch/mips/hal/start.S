@@ -1,14 +1,18 @@
 #include "common/include/asm.h"
 
-.section ".text.boot"
 
 .set    noreorder
 
+
 .extern hal_entry
 
-.globl _start
+.global _start
+
+
+.section ".text.boot"
+
 .align  2
-.type _start,@function
+.type _start, @function
 .ent _start
 _start:
     .frame  sp, 0, ra

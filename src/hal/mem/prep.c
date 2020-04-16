@@ -24,10 +24,11 @@ ppfn_t pre_palloc(int count)
     ulong size = count * PAGE_SIZE;
     ulong align = PAGE_SIZE;
 
-    u64 paddr = find_free_memmap_region_for_palloc(size, align);
-    ppfn_t ppfn = (ulong)paddr_to_ppfn(paddr);
+    u64 paddr_u64 = find_free_memmap_region_for_palloc(size, align);
+    paddr_t paddr = cast_u64_to_paddr(paddr_u64);
+    ppfn_t ppfn = paddr_to_ppfn(paddr);
 
-    kprintf("pre_palloc @ %llx\n", paddr);
+    kprintf("pre_palloc @ %llx\n", (u64)paddr);
     return ppfn;
 
     //ulong paddr = (ulong)find_free_memmap_region(count * PAGE_SIZE, PAGE_SIZE);

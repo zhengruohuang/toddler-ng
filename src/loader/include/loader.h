@@ -17,10 +17,12 @@ struct firmware_args {
 
 struct loader_arch_funcs {
     // Per-arch info
-    ulong reserved_stack_size;
-    ulong page_size;
-    int num_reserved_got_entries;
+    //ulong reserved_stack_size;
+    //ulong page_size;
+    //int num_reserved_got_entries;
     u64 phys_mem_range_min, phys_mem_range_max;
+
+    // MP entry
     ulong mp_entry;
 
     // General

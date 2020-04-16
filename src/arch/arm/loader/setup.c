@@ -35,20 +35,6 @@ static int raspi2_putchar(int ch)
 }
 
 
-// /*
-//  * Access window <--> physical addr
-//  */
-// static paddr_t access_win_to_phys(void *ptr)
-// {
-//     return cast_ptr_to_paddr(ptr);
-// }
-//
-// static void *phys_to_access_win(paddr_t paddr)
-// {
-//     return cast_paddr_to_ptr(paddr);
-// }
-
-
 /*
  * Paging
  */
@@ -241,7 +227,7 @@ static void enable_caches_bpred()
     write_sys_ctrl(sys_ctrl.value);
 }
 
-static void call_hal(void *entry, int mp, struct loader_args *largs)
+static void call_hal(void *entry, struct loader_args *largs, int mp)
 {
     ulong sp;
 
@@ -278,7 +264,7 @@ static void jump_to_hal()
 
     enable_mmu(largs->page_table);
     enable_caches_bpred();
-    call_hal(largs->hal_entry, 0, largs);
+    call_hal(largs->hal_entry, largs, 0);
 
 //     hal_start hal = largs->hal_entry;
 //     hal(largs);
@@ -291,7 +277,7 @@ static void jump_to_hal_mp()
 
     enable_mmu(largs->page_table);
     enable_caches_bpred();
-    call_hal(largs->hal_entry, 1, largs);
+    call_hal(largs->hal_entry, largs, 1);
 }
 
 
@@ -364,11 +350,6 @@ void loader_entry(ulong zero, ulong mach_id, void *mach_cfg)
         fw_args.fw_params = mach_cfg;
     }
 
-    // Prepare arch info
-    funcs.reserved_stack_size = 0x8000;
-    funcs.page_size = PAGE_SIZE;
-    funcs.num_reserved_got_entries = ELF_GOT_NUM_RESERVED_ENTRIES;
-
     // MP entry
     extern void _start_mp();
     funcs.mp_entry = (ulong)&_start_mp;
@@ -378,8 +359,6 @@ void loader_entry(ulong zero, ulong mach_id, void *mach_cfg)
     funcs.init_arch = init_arch;
     funcs.setup_page = setup_page;
     funcs.map_range = map_range;
-    //funcs.access_win_to_phys = access_win_to_phys;
-    //funcs.phys_to_access_win = phys_to_access_win;
     funcs.final_memmap = final_memmap;
     funcs.final_arch = final_arch;
     funcs.jump_to_hal = jump_to_hal;

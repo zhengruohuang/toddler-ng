@@ -87,7 +87,7 @@ static inline int is_ptr_aligned(void *ptr, int align)
 static inline paddr_t cast_vaddr_to_paddr(ulong vaddr)
 {
     int bits = 64 - clz64((u64)vaddr);
-    panic_if(bits >= MAX_NUM_PADDR_BITS, "Unable to cast vaddr to paddr!\n");
+    panic_if(bits > MAX_NUM_PADDR_BITS, "Unable to cast vaddr to paddr!\n");
     return (paddr_t)vaddr;
 }
 
@@ -99,21 +99,21 @@ static inline paddr_t cast_ptr_to_paddr(void *ptr)
 static inline paddr_t cast_u64_to_paddr(u64 addr)
 {
     int bits = 64 - clz64(addr);
-    panic_if(bits >= MAX_NUM_PADDR_BITS, "Unable to cast vaddr to paddr!\n");
+    panic_if(bits > MAX_NUM_PADDR_BITS, "Unable to cast vaddr to paddr!\n");
     return (paddr_t)addr;
 }
 
 static inline paddr_t cast_u32_to_paddr(u32 addr)
 {
     int bits = 32 - clz32(addr);
-    panic_if(bits >= MAX_NUM_PADDR_BITS, "Unable to cast vaddr to paddr!\n");
+    panic_if(bits > MAX_NUM_PADDR_BITS, "Unable to cast vaddr to paddr!\n");
     return (paddr_t)addr;
 }
 
 static inline ulong cast_paddr_to_vaddr(paddr_t paddr)
 {
     int bits = 64 - clz64((u64)paddr);
-    panic_if(bits >= MAX_NUM_VADDR_BITS, "Unable to cast paddr to vaddr!\n");
+    panic_if(bits > MAX_NUM_VADDR_BITS, "Unable to cast paddr to vaddr!\n");
     return (ulong)paddr;
 }
 
@@ -130,7 +130,7 @@ static inline u64 cast_paddr_to_u64(paddr_t paddr)
 static inline u32 cast_paddr_to_u32(paddr_t paddr)
 {
     int bits = 64 - clz64((u64)paddr);
-    panic_if(bits >= 32, "Unable to cast paddr to u32!\n");
+    panic_if(bits > 32, "Unable to cast paddr to u32!\n");
     return (u32)paddr;
 }
 

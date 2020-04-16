@@ -6,6 +6,7 @@
 #include "loader/include/kprintf.h"
 #include "loader/include/firmware.h"
 #include "loader/include/boot.h"
+#include "loader/include/mem.h"
 
 
 #define MAX_MEMMAP_SIZE 64
@@ -36,9 +37,10 @@ u64 get_memmap_range(u64 *start)
 /*
  * Allocation
  */
-u64 memmap_alloc_phys(ulong size, ulong align)
+paddr_t memmap_alloc_phys(ulong size, ulong align)
 {
-    u64 paddr = find_free_memmap_region_for_palloc(size, align);
+    u64 paddr_u64 = find_free_memmap_region_for_palloc(size, align);
+    paddr_t paddr = cast_u64_to_paddr(paddr_u64);
     return paddr;
 }
 
@@ -62,24 +64,28 @@ extern int __end;
 
 static void claim_loader()
 {
-    struct loader_arch_funcs *funcs = get_loader_arch_funcs();
+    //struct loader_arch_funcs *funcs = get_loader_arch_funcs();
 
-    ulong vaddr = (ulong)&__start;
-    if (vaddr >= funcs->reserved_stack_size) {
-        vaddr -= funcs->reserved_stack_size;
-    } else {
-        vaddr = 0;
-    }
+    //ulong vaddr = (ulong)&__start;
+    //if (vaddr >= funcs->reserved_stack_size) {
+    //    vaddr -= funcs->reserved_stack_size;
+    //} else {
+    //    vaddr = 0;
+    //}
 
     //vaddr = ALIGN_DOWN(vaddr, funcs->page_size);
 
     //ulong vaddr_end = (ulong)&__end;
     //vaddr_end = ALIGN_UP(vaddr_end, funcs->page_size);
 
-    ulong size = (ulong)&__end - vaddr;
+    //ulong size = (ulong)&__end - vaddr;
     //ulong size = vaddr_end - vaddr;
 
-    paddr_t paddr = firmware_translate_virt_to_phys(vaddr);
+    ulong vaddr_start = align_down_vaddr((ulong)&__start, PAGE_SIZE);
+    ulong vaddr_end = align_up_vaddr((ulong)&__end, PAGE_SIZE);
+    ulong size = vaddr_end - vaddr_start;
+
+    paddr_t paddr = firmware_translate_virt_to_phys(vaddr_start);
     claim_memmap_region((u64)paddr, (u64)size, MEMMAP_USED);
 }
 

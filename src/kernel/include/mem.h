@@ -56,7 +56,7 @@ extern void test_palloc();
 /*
  * Struct allocator
  */
-typedef void (*salloc_callback_t)(void* entry);
+typedef void (*salloc_callback_t)(void *entry);
 
 extern void init_salloc();
 extern int salloc_create(size_t size, size_t align, int count, salloc_callback_t construct, salloc_callback_t destruct);

@@ -18,28 +18,19 @@ static void dispatch(ulong sched_id, struct kernel_dispatch_info *kdi)
 /*
  * Kernel exports
  */
-static ppfn_t wrap_palloc_tag(int count, int tag)
-{
-    return 0;
-//     return palloc_tag(count, tag);
-}
-
 static ppfn_t wrap_palloc(int count)
 {
-    return 0;
-//     return palloc(count);
+    return palloc_direct_mapped(count);
 }
 
 static int wrap_pfree(ppfn_t ppfn)
 {
-    return 0;
-//     return pfree(pfn);
+    return pfree(ppfn);
 }
 
 static void init_kexp(struct hal_exports *hal_exp)
 {
     hal_exp->kernel->dispatch = dispatch;
-    hal_exp->kernel->palloc_tag = wrap_palloc_tag;
     hal_exp->kernel->palloc = wrap_palloc;
     hal_exp->kernel->pfree = wrap_pfree;
     hal_exp->kernel->test_phase1 = test_mem;
@@ -120,7 +111,7 @@ int hal_restore_local_int(int enabled)
 /*
  * Kernel entry
  */
-void kernel_entry(struct hal_exports *hal_exp)
+void kernel(struct hal_exports *hal_exp)
 {
     hal = hal_exp;
 

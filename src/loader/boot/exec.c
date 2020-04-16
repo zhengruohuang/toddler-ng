@@ -1,5 +1,6 @@
 #include "common/include/inttypes.h"
 #include "common/include/arch.h"
+#include "common/include/abi.h"
 #include "common/include/elf.h"
 #include "loader/include/kprintf.h"
 #include "loader/include/lib.h"
@@ -135,13 +136,11 @@ static void relocate_got(elf_native_header_t *elf,
     panic_if(sec->section_entsize != sizeof(elf_native_addr_t),
         "Unable to handle GOT entry size: %ld\n", (ulong)sec->section_entsize);
 
-    struct loader_arch_funcs *arch_funcs = get_loader_arch_funcs();
-
     elf_native_addr_t *got = rebase_to_win(
         (void *)(ulong)sec->section_addr, target_win, access_win);
 
     int num_entries = sec->section_size / sizeof(elf_native_addr_t);
-    for (int i = arch_funcs->num_reserved_got_entries; i < num_entries; i++) {
+    for (int i = ELF_GOT_NUM_RESERVED_ENTRIES; i < num_entries; i++) {
         kprintf("Relocate @ %lx -> %p\n", (ulong)got[i],
             rebase_to_win((void *)(ulong)got[i], target_win, access_win));
 

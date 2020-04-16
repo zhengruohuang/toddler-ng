@@ -15,11 +15,6 @@
  */
 static struct kernel_exports kexp = { };
 
-ppfn_t kernel_palloc_tag(int count, int tag)
-{
-    return kexp.palloc_tag(count, tag);
-}
-
 ppfn_t kernel_palloc(int count)
 {
     return kexp.palloc(count);

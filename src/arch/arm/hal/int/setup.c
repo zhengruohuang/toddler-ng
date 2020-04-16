@@ -69,6 +69,8 @@ void int_handler_entry(int except, struct reg_context *regs)
         break;
     }
 
+    panic_if(seq == INT_SEQ_PANIC, "Panic int seq!\n");
+
     // Go to the generic handler!
     struct int_context intc;
     intc.vector = seq;

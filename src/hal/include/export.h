@@ -13,7 +13,6 @@
  * Kernel exported variables and functions
  */
 struct kernel_exports {
-    ppfn_t (*palloc_tag)(int count, int tag);
     ppfn_t (*palloc)(int count);
     int (*pfree)(ppfn_t ppfn);
     void (*dispatch)(ulong sched_id, struct kernel_dispatch_info *kdi);
