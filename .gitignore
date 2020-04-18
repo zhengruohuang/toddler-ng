@@ -4,8 +4,10 @@
 # Targets
 /target
 /bak
+/ext
 /vm
 
 # KDevelop
 /.kdev4
 *.kdev4
+/.vscode

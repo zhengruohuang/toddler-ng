@@ -5,6 +5,7 @@
 // #include "hal/include/setup.h"
 #include "hal/include/kprintf.h"
 #include "hal/include/lib.h"
+#include "hal/include/mem.h"
 #include "hal/include/mp.h"
 #include "hal/include/driver.h"
 
@@ -65,6 +66,44 @@ static void init_mm_mp()
 
 
 /*
+ * Alignment helpers
+ */
+static inline void *cast_paddr_to_cached_seg(paddr_t paddr)
+{
+    paddr_t cached_seg = paddr | (paddr_t)SEG_DIRECT_CACHED;
+    return cast_paddr_to_ptr(cached_seg);
+}
+
+static inline ulong cast_paddr_to_uncached_seg(paddr_t paddr)
+{
+    paddr_t cached_seg = paddr | (paddr_t)SEG_DIRECT_UNCACHED;
+    return cast_paddr_to_vaddr(cached_seg);
+}
+
+static inline paddr_t cast_cached_seg_to_paddr(void *ptr)
+{
+    ulong vaddr = (ulong)ptr;
+    ulong lower = vaddr & (ulong)SEG_DIRECT_MASK;
+    return cast_vaddr_to_paddr(lower);
+}
+
+static inline paddr_t cast_uncached_seg_to_paddr(ulong vaddr)
+{
+    ulong lower = vaddr & (ulong)SEG_DIRECT_MASK;
+    return cast_vaddr_to_paddr(lower);
+}
+
+static ulong hal_direct_access(paddr_t paddr, int count, int cache)
+{
+    if (cache) {
+        return (ulong)cast_paddr_to_cached_seg(paddr);
+    } else {
+        return (ulong)cast_paddr_to_uncached_seg(paddr);
+    }
+}
+
+
+/*
  * Simple and quick funcs
  */
 static void disable_local_int()
@@ -97,7 +136,7 @@ static ulong get_cur_mp_id()
 
 static void register_drivers()
 {
-
+    REGISTER_DEV_DRIVER(mips_cpu_timer);
 }
 
 static ulong get_syscall_params(struct reg_context *regs, ulong *param0, ulong *param1, ulong *param2)
@@ -196,8 +235,8 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.putchar = malta_putchar;
     funcs.halt = halt_cur_cpu;
 
-    funcs.has_direct_access = 0;
-    funcs.hal_direct_access = NULL;
+    funcs.has_direct_access = 1;
+    funcs.hal_direct_access = hal_direct_access;
     //funcs.map_range = map_range;
     //funcs.unmap_range = unumap_range;
     //funcs.translate = translate;

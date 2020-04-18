@@ -65,9 +65,9 @@ struct internal_dev_driver *get_all_internal_drivers()
 
 void register_dev_driver(struct internal_dev_driver *drv)
 {
-    if (all_internal_drivers) {
-        drv->next = all_internal_drivers;
-    }
+    kprintf("Register driver: %s\n", drv->name);
+
+    drv->next = all_internal_drivers;
     all_internal_drivers = drv;
 }
 
@@ -85,7 +85,6 @@ int match_devtree_compatible(struct devtree_node *node, const char *drv)
     do {
         char *dev_name = NULL;
         idx = devtree_get_compatible(node, idx, &dev_name);
-        //kprintf("%s\n", idx >= 0 ? dev_name : "none");
         if (idx >= 0 && !strcmp(dev_name, drv)) {
             return 1;
         }
@@ -131,6 +130,7 @@ static void probe_dev(struct dev_record *dev, struct fw_dev_info *fw_info)
     for (struct internal_dev_driver *drv = all_internal_drivers;
          drv; drv = drv->next
     ) {
+        //kprintf("try drv @ %p, name @ %p, name: %s, probe @ %p\n", drv, drv->name, drv->name, drv->probe);
         if (drv->probe) {
             int prob = drv->probe(fw_info, &dev->driver_param);
             if (prob != FW_DEV_PROBE_FAILED) {

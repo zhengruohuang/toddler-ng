@@ -181,6 +181,7 @@ static int map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
         }
     }
 
+    kprintf("mapped_pages: %d, start @ %lx, end @ %lx\n", mapped_pages, vaddr_start, vaddr_end);
     return mapped_pages;
 }
 
@@ -303,16 +304,12 @@ void loader_entry(int kargc, char **kargv, char **env, ulong mem_size)
         fw_args.fw_params = &karg_params;
     }
 
-    // Prepare arch info
-    funcs.reserved_stack_size = 0x8000;
-    funcs.page_size = PAGE_SIZE;
-    funcs.num_reserved_got_entries = ELF_GOT_NUM_RESERVED_ENTRIES;
-
     // Prepare funcs
     funcs.init_libk = init_libk;
     funcs.init_arch = init_arch;
     funcs.setup_page = setup_page;
     funcs.map_range = map_range;
+    funcs.has_direct_access = 1;
     funcs.access_win_to_phys = access_win_to_phys;
     funcs.phys_to_access_win = phys_to_access_win;
     funcs.final_memmap = final_memmap;

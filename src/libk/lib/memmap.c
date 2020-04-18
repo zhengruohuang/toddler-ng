@@ -349,6 +349,29 @@ u64 find_free_memmap_direct_mapped_region(u64 size, u64 align)
 }
 
 
+/*
+ * Check region type
+ */
+int check_memmap_region_usable(u64 start, u64 size)
+{
+    u64 end = start + size;
+
+    for (int i = 0; i < memmap->num_entries; i++) {
+        struct loader_memmap_entry *entry = &memmap->entries[i];
+        u64 entry_end = entry->start + entry->size;
+
+        if ((start >= entry->start && start <  entry_end) ||
+            (end   >  entry->start && end   <= entry_end)
+        ) {
+            if (entry->flags != MEMMAP_USABLE) {
+                return 0;
+            }
+        }
+    }
+
+    return 1;
+}
+
 
 /*
  * Misc

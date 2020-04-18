@@ -40,6 +40,7 @@ struct loader_arch_funcs {
 
     // Access window <--> physical addr
     // Probably only needed by MIPS
+    int has_direct_access;
     paddr_t (*access_win_to_phys)(void *ptr);
     void *(*phys_to_access_win)(paddr_t paddr);
 };

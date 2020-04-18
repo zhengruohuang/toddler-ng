@@ -24,6 +24,8 @@ extern u64 find_free_memmap_region(u64 size, u64 align, u32 mask, int match);
 extern u64 find_free_memmap_region_for_palloc(u64 size, u64 align);
 extern u64 find_free_memmap_direct_mapped_region(u64 size, u64 align);
 
+extern int check_memmap_region_usable(u64 start, u64 size);
+
 extern void print_memmap();
 extern struct loader_memmap *get_memmap();
 extern void init_libk_memmap(struct loader_memmap *mmap);
