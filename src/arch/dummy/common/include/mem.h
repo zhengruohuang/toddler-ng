@@ -1,5 +1,5 @@
-#ifndef __ARCH_ARM_COMMON_INCLUDE_MEM_H__
-#define __ARCH_ARM_COMMON_INCLUDE_MEM_H__
+#ifndef __ARCH_DUMMY_COMMON_INCLUDE_MEM_H__
+#define __ARCH_DUMMY_COMMON_INCLUDE_MEM_H__
 
 
 #include "common/include/inttypes.h"
@@ -17,3 +17,4 @@ typedef paddr_t             psize_t;
 
 
 #endif
+

@@ -2,7 +2,6 @@
 #define __ARCH_MIPS_COMMON_INCLUDE_MEM_H__
 
 
-#include "common/include/compiler.h"
 #include "common/include/inttypes.h"
 
 
