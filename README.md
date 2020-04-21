@@ -32,32 +32,32 @@ Current = Up to date
 
 ### Arch
 
-| Target                | Loader    | HAL       | Note
-| --------------------- | --------- | --------- | ---------
-| ia32-pc-multiboot     | Current   | Planned   | Minor fixes needed
-| amd64-pc-multiboot    | Current   | Planned   | Minor fixes needed
-| alpha-clipper-qemu    | Active    | Planned   |
-| armv7-raspi2-qemu     | Current   | Current   |
-| aarch64v8-raspi3-qemu | Current   | Planned   | Minor fixes needed
-| mips32l-malta-generic | Current   | Planned   |
-| mips32b-malta-generic | Current   | Planned   |
-| mips64l-malta-generic | Initial   | Planned   |
-| mips64b-malta-generic | Initial   | Planned   |
-| powerpc-mac-generic   | Current   | Planned   | Minor fixes needed
-| powerpc64-mac-generic | Initial   | Planned   |
-| sparcv8-leon3-qemu    | Current   | Planned   | Minor fixes needed
-| sparcv8-sun4m-generic | Active    | Planned   |
-| sparcv9-sun4u-generic | Planned   | Planned   |
-| riscv32-virt-qemu     | Current   | Planned   | Minor fixes needed
-| riscv64-virt-qemu     | Current   | Planned   | Minor fixes needed
-| m68k-atari-aranym     | Initial   | Planned   |
-| sh4-r2d-qemu          | Initial   | Planned   |
-| or1k-sim-qemu         | Planned   | Planned   |
-| ia64-sim-ski          | Planned   | Planned   |
-| s390-virtio-qemu      | Planned   | Planned   |
-| zarch-virtio-qemu     | Planned   | Planned   |
-| hppa-sim-qemu         | Planned   | Planned   |
-| vax-sim-simh          | Planned   | Planned   |
+| Target                | Loader    | HAL       | Note               |
+| --------------------- | --------- | --------- | ------------------ |
+| ia32-pc-multiboot     | Current   | Planned   | Minor fixes needed |
+| amd64-pc-multiboot    | Current   | Planned   | Minor fixes needed |
+| alpha-clipper-qemu    | Active    | Planned   |                    |
+| armv7-raspi2-qemu     | Current   | Current   |                    |
+| aarch64v8-raspi3-qemu | Current   | Planned   | Minor fixes needed |
+| mips32l-malta-generic | Current   | Planned   |                    |
+| mips32b-malta-generic | Current   | Planned   |                    |
+| mips64l-malta-generic | Initial   | Planned   |                    |
+| mips64b-malta-generic | Initial   | Planned   |                    |
+| powerpc-mac-generic   | Current   | Planned   | Minor fixes needed |
+| powerpc64-mac-generic | Initial   | Planned   |                    |
+| sparcv8-leon3-qemu    | Current   | Planned   | Minor fixes needed |
+| sparcv8-sun4m-generic | Active    | Planned   |                    |
+| sparcv9-sun4u-generic | Planned   | Planned   |                    |
+| riscv32-virt-qemu     | Current   | Planned   | Minor fixes needed |
+| riscv64-virt-qemu     | Current   | Planned   | Minor fixes needed |
+| m68k-atari-aranym     | Initial   | Planned   |                    |
+| sh4-r2d-qemu          | Initial   | Planned   |                    |
+| or1k-sim-qemu         | Planned   | Planned   |                    |
+| ia64-sim-ski          | Planned   | Planned   |                    |
+| s390-virtio-qemu      | Planned   | Planned   |                    |
+| zarch-virtio-qemu     | Planned   | Planned   |                    |
+| hppa-sim-qemu         | Planned   | Planned   |                    |
+| vax-sim-simh          | Planned   | Planned   |                    |
 
 ### Kernel
 
