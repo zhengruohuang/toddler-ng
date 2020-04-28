@@ -1,7 +1,8 @@
+#include "common/include/compiler.h"
 #include "common/include/inttypes.h"
 #include "common/include/stdarg.h"
 #include "libk/include/debug.h"
-#include "libk/include/kprintf.h"
+// #include "libk/include/kprintf.h"
 
 
 static cpu_stop_t stop_func = NULL;
@@ -20,6 +21,7 @@ void __stop()
 
     while (1);
 }
+
 
 // void __abort(const char *file, int line)
 // {

@@ -21,7 +21,7 @@ The next generation Toddler
 * Fix up SMP support
 * Replace NASM assmebly with GAS
 * Multiboot compliant on x86
-* Even more architectures - Alpha, HPPA, IA64, s390, VAX
+* Even more architectures - OpenRISC, HPPA, IA64, s390, VAX
 
 ## Status
 
@@ -52,7 +52,7 @@ Current = Up to date
 | riscv64-virt-qemu     | Current   | Planned   | Minor fixes needed |
 | m68k-atari-aranym     | Initial   | Planned   |                    |
 | sh4-r2d-qemu          | Initial   | Planned   |                    |
-| or1k-sim-qemu         | Planned   | Planned   |                    |
+| openrisc-sim-qemu     | Planned   | Planned   |                    |
 | ia64-sim-ski          | Planned   | Planned   |                    |
 | s390-virtio-qemu      | Planned   | Planned   |                    |
 | zarch-virtio-qemu     | Planned   | Planned   |                    |

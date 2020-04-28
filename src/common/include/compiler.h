@@ -54,6 +54,14 @@
 #define entry_func          __attribute__((section("entry")))
 #endif
 
+#ifndef noreturn_func
+#define noreturn_func       __attribute__((noreturn))
+#endif
+
+#ifndef pure_func
+#define pure_func           __attribute__((pure))
+#endif
+
 
 #endif
 

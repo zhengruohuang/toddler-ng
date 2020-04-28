@@ -1,0 +1,67 @@
+/dts-v1/;
+
+/ {
+    compatible = "opencores,or1ksim";
+
+    #address-cells = <1>;
+    #size-cells = <1>;
+
+    interrupt-parent = <&pic>;
+
+    aliases {
+        uart0 = &serial0;
+    };
+
+    chosen {
+        stdout-path = "uart0:115200";
+    };
+
+    memory@0 {
+        device_type = "memory";
+        reg = <0x00000000 0x8000000>;
+    };
+
+    cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        cpu@0 {
+            compatible = "opencores,or1200-rtlsvn481";
+            reg = <0>;
+            clock-frequency = <20000000>;
+        };
+    };
+
+    pic: pic {
+        compatible = "opencores,or1k-pic";
+
+        interrupt-controller;
+        #interrupt-cells = <1>;
+        interrupt-parent = <&pic>;
+    };
+
+    timer {
+        compatible = "or1k,or1k-cpu-timer";
+        always-on;
+
+        interrupt-parent = <&pic>;
+        interrupts = <0>;
+    };
+
+    serial0: serial@90000000 {
+        compatible = "opencores,uart16550-rtlsvn105", "ns16550a";
+        reg = <0x90000000 0x100>;
+        clock-frequency = <20000000>;
+
+        interrupt-parent = <&pic>;
+        interrupts = <2>;
+    };
+
+    enet0: ethoc@92000000 {
+        compatible = "opencores,ethoc";
+        reg = <0x92000000 0x800>;
+        big-endian;
+
+        interrupt-parent = <&pic>;
+        interrupts = <4>;
+    };
+};

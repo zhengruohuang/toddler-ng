@@ -57,9 +57,8 @@ static void init_libk()
         arch_funcs->init_libk();
     }
 
-    init_libk_memmap(loader_args->memmap);
-
     kprintf("In HAL!\n");
+    init_libk_memmap(loader_args->memmap);
 }
 
 static void init_arch()

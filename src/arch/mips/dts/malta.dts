@@ -19,9 +19,22 @@
         reg = <0x00000000 0x10000000>;
     };
 
+    cp0c: cp0_cause {
+        compatible = "mips,mips-cp0-cause";
+        always-on;
+
+        interrupt-controller;
+        #interrupt-cells = <0x1>;
+
+        interrupt-parent = <&cp0c>;
+    };
+
     timer {
         compatible = "mips,mips-cpu-timer";
         always-on;
+
+        interrupt-parent = <&cp0c>;
+        interrupts = <0x0>;
     };
 
     piix4e: south_bridge@b8000000 {
@@ -38,7 +51,8 @@
             interrupt-controller;
             #interrupt-cells = <0x1>;
 
-            interrupt-parent = <&i8259>;
+            interrupt-parent = <&cp0c>;
+            interrupts = <0x1>;
         };
 
         i8253: pit@40 {

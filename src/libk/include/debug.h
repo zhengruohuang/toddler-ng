@@ -2,6 +2,7 @@
 #define __LIBK_INCLUDE_DEBUG_H__
 
 
+#include "common/include/compiler.h"
 #include "common/include/inttypes.h"
 
 

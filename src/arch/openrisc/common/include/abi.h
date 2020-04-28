@@ -1,0 +1,10 @@
+#ifndef __ARCH_OPENRISC_COMMON_INCLUDE_ABI_H__
+#define __ARCH_OPENRISC_COMMON_INCLUDE_ABI_H__
+
+
+#define STACK_GROWS_UP  0
+
+#define DATA_ALIGNMENT  8
+
+
+#endif
