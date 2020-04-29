@@ -10,9 +10,6 @@
 #define ARCH_LITTLE_ENDIAN 0
 #define ARCH_BIG_ENDIAN 1
 
-#define HAL_BASE 0xfff88000
-#define KERNEL_BASE 0xfff08000
-
 // Unknown
 #else
 
@@ -22,4 +19,3 @@
 
 
 #endif
-

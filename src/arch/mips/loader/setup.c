@@ -162,7 +162,7 @@ static void map_page(void *page_table, ulong vaddr, paddr_t paddr,
 }
 
 static int map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
-    int cache, int exec, int write)
+                     int cache, int exec, int write)
 {
     int mapped_pages = 0;
 

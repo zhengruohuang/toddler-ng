@@ -2,7 +2,9 @@
 #define __ARCH_MIPS_COMMON_INCLUDE_ABI_H__
 
 
-#define ELF_GOT_NUM_RESERVED_ENTRIES 2
+#define LOADER_BASE     0x80010000
+#define HAL_BASE        0x80110000
+#define KERNEL_BASE     0x80182000
 
 #define STACK_GROWS_UP  0
 
