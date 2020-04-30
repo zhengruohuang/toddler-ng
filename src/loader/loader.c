@@ -53,6 +53,7 @@ static void init_libk()
     if (arch_funcs && arch_funcs->init_libk) {
         arch_funcs->init_libk();
     }
+    kprintf("In Loader!\n");
 }
 
 static void init_arch()

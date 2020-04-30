@@ -50,9 +50,9 @@ Current = Up to date
 | sparcv9-sun4u-generic | Planned   | Planned   |                    |
 | riscv32-virt-qemu     | Current   | Planned   | Minor fixes needed |
 | riscv64-virt-qemu     | Current   | Planned   | Minor fixes needed |
-| m68k-atari-aranym     | Initial   | Planned   |                    |
+| m68k-atari-aranym     | Active    | Planned   |                    |
 | sh4-r2d-qemu          | Initial   | Planned   |                    |
-| openrisc-sim-qemu     | Planned   | Planned   |                    |
+| openrisc-sim-qemu     | Current   | Planned   |                    |
 | ia64-sim-ski          | Planned   | Planned   |                    |
 | s390-virtio-qemu      | Planned   | Planned   |                    |
 | zarch-virtio-qemu     | Planned   | Planned   |                    |
