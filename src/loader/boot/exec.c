@@ -1,5 +1,4 @@
 #include "common/include/inttypes.h"
-#include "common/include/arch.h"
 #include "common/include/abi.h"
 #include "common/include/elf.h"
 #include "loader/include/kprintf.h"

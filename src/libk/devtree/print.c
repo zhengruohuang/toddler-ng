@@ -1,5 +1,5 @@
 #include "common/include/inttypes.h"
-#include "common/include/arch.h"
+#include "common/include/abi.h"
 #include "common/include/devtree.h"
 #include "libk/include/devtree.h"
 #include "libk/include/kprintf.h"

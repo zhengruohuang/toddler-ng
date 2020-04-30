@@ -7,7 +7,7 @@
 #define AVOID_LIBC_CONFLICT
 #endif
 
-#include "common/include/arch.h"
+#include "common/include/abi.h"
 #include "common/include/compiler.h"
 #include "common/include/coreimg.h"
 

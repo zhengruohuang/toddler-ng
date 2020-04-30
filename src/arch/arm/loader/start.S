@@ -1,6 +1,3 @@
-#include "common/include/mach.h"
-
-
 .global _start
 .global _start_mp
 

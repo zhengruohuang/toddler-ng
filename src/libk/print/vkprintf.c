@@ -1,6 +1,6 @@
 #include "common/include/inttypes.h"
 #include "common/include/stdarg.h"
-#include "common/include/arch.h"
+#include "common/include/abi.h"
 #include "libk/include/math.h"
 #include "libk/include/kprintf.h"
 

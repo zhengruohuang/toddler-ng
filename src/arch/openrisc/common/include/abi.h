@@ -2,6 +2,15 @@
 #define __ARCH_OPENRISC_COMMON_INCLUDE_ABI_H__
 
 
+// Dummy
+#if (defined(ARCH_OPENRISC))
+    #define ARCH_WIDTH          32
+    #define ARCH_LITTLE_ENDIAN  0
+    #define ARCH_BIG_ENDIAN     1
+#else
+    #error "Unknown arch type"
+#endif
+
 #define LOADER_BASE     0x100
 #define HAL_BASE        0xfff88000
 #define KERNEL_BASE     0xfff08000
