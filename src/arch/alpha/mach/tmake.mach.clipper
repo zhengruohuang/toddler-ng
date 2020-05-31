@@ -21,5 +21,5 @@ build_opts['qemu'] = {
     'bootargs'  : 'test',
     'bootimg'   : img_dir + 'tdlrboot.elf',
     'mp'        : '1',
-    'bios'      : ext_dir + 'bios/palcode-clipper'
+    'bios'      : ext_dir + 'alpha/palcode-clipper'
 }

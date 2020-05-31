@@ -1,7 +1,3 @@
-/*#include "common/include/mach.h"
-#include "common/include/abi.h"*/
-
-
 .global _start
 .global _stack_top
 
@@ -31,15 +27,19 @@ _start:
 
     //bis $31,$31,$31
 
-    br 1f
+    br      1f
     /* room for the initial PCB, which comes here */
     .quad   0,0,0,0,0,0,0,0
-1:  br $27,2f
-2:  ldgp $29,0($27)
-    lda $27, loader_entry
+1:  br      $27, 2f
+2:  ldgp    $29, 0($27)
+    lda     $27, loader_entry
+
+    br .
+    nop
 
     // Go to C!
-    jsr $26,($27), loader_entry
+    jsr     $26, ($27), loader_entry
 
+_stop:
     br .
     nop
