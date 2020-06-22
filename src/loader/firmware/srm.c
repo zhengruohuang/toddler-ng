@@ -1,32 +1,33 @@
+#include "common/include/compiler.h"
 #include "common/include/inttypes.h"
 #include "loader/include/lib.h"
+#include "loader/include/mem.h"
 #include "loader/include/devtree.h"
 #include "loader/include/firmware.h"
 #include "loader/include/kprintf.h"
 
 
-#define PARAM_OFFSET -0x6000
-#define HWRPB_BASE ((struct srm_hwrbp *)0x10000000ul)
-
 /*
  * DEC processor types for Alpha systems
  */
-#define EV3_CPU         1       // EV3
-#define EV4_CPU         2       // EV4 (21064)
-#define LCA4_CPU        4       // LCA4 (21066/21068)
-#define EV5_CPU         5       // EV5 (21164)
-#define EV45_CPU        6       // EV4.5 (21064/xxx)
-#define EV56_CPU        7       // EV5.6 (21164)
-#define EV6_CPU         8       // EV6 (21264)
-#define PCA56_CPU       9       // PCA56 (21164PC)
-#define PCA57_CPU       10      // PCA57 (notyet)
-#define EV67_CPU        11      // EV67 (21264A)
-#define EV68CB_CPU      12      // EV68CB (21264C)
-#define EV68AL_CPU      13      // EV68AL (21264B)
-#define EV68CX_CPU      14      // EV68CX (21264D)
-#define EV7_CPU         15      // EV7 (21364)
-#define EV79_CPU        16      // EV79 (21364??)
-#define EV69_CPU        17      // EV69 (21264/EV69A)
+enum srm_cpu_type {
+    SRM_CPU_TYPE_EV3        = 1,       // EV3
+    SRM_CPU_TYPE_EV4        = 2,       // EV4 (21064)
+    SRM_CPU_TYPE_LCA4       = 4,       // LCA4 (21066/21068)
+    SRM_CPU_TYPE_EV5        = 5,       // EV5 (21164)
+    SRM_CPU_TYPE_EV45       = 6,       // EV4.5 (21064/xxx)
+    SRM_CPU_TYPE_EV56       = 7,       // EV5.6 (21164)
+    SRM_CPU_TYPE_EV6        = 8,       // EV6 (21264)
+    SRM_CPU_TYPE_PCA56      = 9,       // PCA56 (21164PC)
+    SRM_CPU_TYPE_PCA57      = 10,      // PCA57 (notyet)
+    SRM_CPU_TYPE_EV67       = 11,      // EV67 (21264A)
+    SRM_CPU_TYPE_EV68CB     = 12,      // EV68CB (21264C)
+    SRM_CPU_TYPE_EV68AL     = 13,      // EV68AL (21264B)
+    SRM_CPU_TYPE_EV68CX     = 14,      // EV68CX (21264D)
+    SRM_CPU_TYPE_EV7        = 15,      // EV7 (21364)
+    SRM_CPU_TYPE_EV79       = 16,      // EV79 (21364??)
+    SRM_CPU_TYPE_EV69       = 17,      // EV69 (21264/EV69A)
+};
 
 /*
  * DEC system types for Alpha systems
@@ -122,57 +123,46 @@
 /*
  * HWRPB structures
  */
-struct srm_pcb {
-    ulong ksp;
-    ulong usp;
-    ulong ptbr;
-    uint pcc;
-    uint asn;
-    ulong unique;
-    ulong flags;
-    ulong res1, res2;
-} packed_struct;
-
 struct srm_per_cpu {
-    ulong hwpcb[16];
-    ulong flags;
-    ulong pal_mem_size;
-    ulong pal_scratch_size;
-    ulong pal_mem_pa;
-    ulong pal_scratch_pa;
-    ulong pal_revision;
-    ulong type;
-    ulong variation;
-    ulong revision;
-    ulong serial_no[2];
-    ulong logout_area_pa;
-    ulong logout_area_len;
-    ulong halt_PCBB;
-    ulong halt_PC;
-    ulong halt_PS;
-    ulong halt_arg;
-    ulong halt_ra;
-    ulong halt_pv;
-    ulong halt_reason;
-    ulong res;
-    ulong ipc_buffer[21];
-    ulong palcode_avail[16];
-    ulong compatibility;
-    ulong console_data_log_pa;
-    ulong console_data_log_length;
-    ulong bcache_info;
-} packed_struct;
+    u64 hwpcb[16];
+    u64 flags;
+    u64 pal_mem_size;
+    u64 pal_scratch_size;
+    u64 pal_mem_pa;
+    u64 pal_scratch_pa;
+    u64 pal_revision;
+    u64 type;
+    u64 variation;
+    u64 revision;
+    u64 serial_no[2];
+    u64 logout_area_pa;
+    u64 logout_area_len;
+    u64 halt_PCBB;
+    u64 halt_PC;
+    u64 halt_PS;
+    u64 halt_arg;
+    u64 halt_ra;
+    u64 halt_pv;
+    u64 halt_reason;
+    u64 res;
+    u64 ipc_buffer[21];
+    u64 palcode_avail[16];
+    u64 compatibility;
+    u64 console_data_log_pa;
+    u64 console_data_log_length;
+    u64 bcache_info;
+} packed8_struct;
 
 struct srm_proc_desc {
-    ulong weird_vms_stuff;
-    ulong address;
-} packed_struct;
+    u64 weird_vms_stuff;
+    u64 address;
+} packed8_struct;
 
 struct srm_vf_map {
-    ulong va;
-    ulong pa;
-    ulong count;
-} packed_struct;
+    u64 va;
+    u64 pa;
+    u64 count;
+} packed8_struct;
 
 struct srm_crb {
     struct srm_proc_desc *dispatch_va;
@@ -180,76 +170,77 @@ struct srm_crb {
     struct srm_proc_desc *fixup_va;
     struct srm_proc_desc *fixup_pa;
 
-    /* virtual->physical map */
-    ulong map_entries;
-    ulong map_pages;
+    // virtual->physical map
+    u64 map_entries;
+    u64 map_pages;
     struct srm_vf_map map[1];
-} packed_struct;
+} packed8_struct;
 
-struct srm_mem_clust {
-    ulong start_pfn;
-    ulong num_pages;
-    ulong num_tested;
-    ulong bitmap_va;
-    ulong bitmap_pa;
-    ulong bitmap_chksum;
-    ulong usage;
-} packed_struct;
+struct srm_mem_cluster {
+    u64 start_pfn;
+    u64 num_pages;
+    u64 num_tested;
+    u64 bitmap_va;
+    u64 bitmap_pa;
+    u64 bitmap_chksum;
+    u64 usage;
+} packed8_struct;
 
 struct srm_mem_desc {
-    ulong chksum;
-    ulong optional_pa;
-    ulong num_clusters;
-    struct srm_mem_clust clusters[0];
-} packed_struct;
+    u64 chksum;
+    u64 optional_pa;
+    u64 num_clusters;
+    struct srm_mem_cluster clusters[0];
+} packed8_struct;
 
 struct srm_dsr {
-    long smm;           // SMM nubber used by LMF
-    ulong lurt_off;     // offset to LURT table
-    ulong sysname_off;  // offset to sysname char count
-} packed_struct;
+    s64 smm;                // SMM nubber used by LMF
+    u64 lurt_off;           // Offset to LURT table
+    u64 sysname_off;        // Offset to sysname char count
+} packed8_struct;
 
 struct srm_hwrbp {
-    ulong phys_addr;    // check: physical address of the hwrpb
-    ulong id;           // check: "HWRPB\0\0\0"
-    ulong revision;
-    ulong size;         // size of hwrpb
-    ulong cpuid;
-    ulong pagesize;     // 8192, I hope
-    ulong pa_bits;      // number of physical address bits
-    ulong max_asn;
-    uchar ssn[16];      // system serial number: big bother is watching
-    ulong sys_type;
-    ulong sys_variation;
-    ulong sys_revision;
-    ulong intr_freq;    // interval clock frequency * 4096
-    ulong cycle_freq;   // cycle counter frequency
-    ulong vptb;         // Virtual Page Table Base address
-    ulong res1;
-    ulong tbhb_offset;  // Translation Buffer Hint Block
-    ulong nr_processors;
-    ulong processor_size;
-    ulong processor_offset;
-    ulong ctb_nr;
-    ulong ctb_size;     // console terminal block size
-    ulong ctbt_offset;  // console terminal block table offset
-    ulong crb_offset;   // console callback routine block
-    ulong mddt_offset;  // memory data descriptor table
-    ulong cdb_offset;   // configuration data block (or NULL)
-    ulong frut_offset;  // FRU table (or NULL)
-    void (*save_terminal)(ulong);
-    ulong save_terminal_data;
-    void (*restore_terminal)(ulong);
-    ulong restore_terminal_data;
-    void (*cpu_restart)(ulong);
-    ulong cpu_restart_data;
-    ulong res2;
-    ulong res3;
-    ulong chksum;
-    ulong rxrdy;
-    ulong txrdy;
-    ulong dsr_offset;   // "Dynamic System Recognition Data Block Table"
-} packed_struct;
+    u64 paddr;              // Must be HWRPB physical address
+    u8  magic[8];           // "HWRPB\0\0\0"
+    u64 revision;           // HWRPB revision
+    u64 size;               // HWRPB size
+    u64 cpuid;              // Primary CPU ID
+    u64 pagesize;           // Toddler supports only 8192
+    u32 num_pa_bits;        // Number of physical address bits
+    u32 num_ext_va_bits;    // Number of extension virtual address bits
+    u64 max_asn;            // Max valid ASN
+    u8  ssn[16];            // System serial number
+    u64 sys_type;           // System type
+    u64 sys_variation;      // System variation
+    u64 sys_revision;       // System revision
+    u64 intr_freq;          // Interval clock frequency * 4096
+    u64 cycle_freq;         // Cycle counter frequency
+    u64 vptb;               // Virtual page table base
+    u64 res1;               // Reserved for architecture
+    u64 tbhb_offset;        // Offset to ranslation buffer hint block
+    u64 nr_processors;      // Num of processor slots
+    u64 processor_size;     // Per-CPU slot size
+    u64 processor_offset;   // Offset to per-CPU slots
+    u64 ctb_nr;             // Number of CTBs
+    u64 ctb_size;           // CTB size
+    u64 ctbt_offset;        // Offset to console terminal block table (CTB)
+    u64 crb_offset;         // Offset to console callback routine block (CRB)
+    u64 mddt_offset;        // Offset to memory data descriptor table (MDDT)
+    u64 cdb_offset;         // Offset to configuration data block (CDB)
+    u64 frut_offset;        // Offset to FRU table (FRUT)
+    void (*save_term)(u64); // Terminal save state routine
+    u64 save_term_data;     // Terminal save state procedure value
+    void (*restore_term)(u64);  // Terminal restore state routine
+    u64 restore_term_data;  // Terminal restore state procedure value
+    void (*cpu_restart)(u64);   // CPU restart routine
+    u64 cpu_restart_data;   // CPU restart routine procedure value
+    u64 res2;               // Reserved for system software
+    u64 res3;               // Reserved for hardware
+    u64 chksum;             // Checksum
+    u64 rxrdy;              // RX
+    u64 txrdy;              // TX
+    u64 dsr_offset;         // Offset to dynamic system recognition data block table (DSR)
+} packed8_struct;
 
 
 static struct srm_hwrbp *hwrpb = NULL;
@@ -293,12 +284,85 @@ static void add_bootarg(char *cmdline)
     }
 }
 
-static void add_memmap()
+static inline char num_to_hex_digit(u32 num, int idx)
 {
+    u32 mask = 0xf << (idx * 8);
+    num &= mask;
+    num >>= idx * 8;
+    return num >= 10 ? 'a' + num - 10 : '0' + num;
 }
 
+static void add_memmap()
+{
+    struct srm_mem_desc *memdesc = (void *)hwrpb + hwrpb->mddt_offset;
+    kprintf("hwrpb @ %p, num clusters: %lld\n", hwrpb, memdesc->num_clusters);
 
-static void srm_add_initrd(void *initrd_start, ulong initrd_size)
+    int num_usable_clusters = 0;
+    u64 mem_start = -0x1ull;
+    u64 mem_end = 0;
+
+    for (u64 i = 0; i < memdesc->num_clusters; i++) {
+        struct srm_mem_cluster *cluster = &memdesc->clusters[i];
+
+        u64 start_addr = ppfn_to_paddr(cluster->start_pfn);
+        u64 end_addr = ppfn_to_paddr(cluster->start_pfn + cluster->num_pages);
+        if (start_addr < mem_start) mem_start = start_addr;
+        if (end_addr > mem_end) mem_end = end_addr;
+
+        if (!cluster->usage) {
+            // Usage: 0 = usable, 1 = reserved, 2 = volatile
+            num_usable_clusters++;
+        }
+
+        kprintf("cluster %lld, start ppn: %llx, num pages: %lld, usage: %llx\n",
+                i, cluster->start_pfn, cluster->num_pages, cluster->usage);
+    }
+
+    // Get chosen node
+    struct devtree_node *chosen = devtree_walk("/chosen");
+    if (!chosen) {
+        chosen = devtree_alloc_node(devtree_get_root(), "chosen");
+    }
+
+    devtree_alloc_prop_u64(chosen, "memstart", mem_start);
+    devtree_alloc_prop_u64(chosen, "memsize", mem_end - mem_start);
+
+    // Get memrsv-block node
+    struct devtree_node *memsrv = devtree_walk("/memrsv-block");
+    if (!memsrv) {
+        memsrv = devtree_alloc_node(devtree_get_root(), "memrsv-block");
+    }
+
+    u32 prop_idx = 0;
+    for (u64 i = 0; i < memdesc->num_clusters; i++) {
+        struct srm_mem_cluster *cluster = &memdesc->clusters[i];
+
+        // Usage: 0 = usable, 1 = reserved, 2 = volatile
+        if (cluster->usage) {
+            u64 start_addr = ppfn_to_paddr(cluster->start_pfn);
+            u64 end_addr = ppfn_to_paddr(cluster->start_pfn + cluster->num_pages);
+            u64 size = end_addr - start_addr;
+
+            char prop_name[] = {
+                    num_to_hex_digit(prop_idx, 6),
+                    num_to_hex_digit(prop_idx, 5),
+                    num_to_hex_digit(prop_idx, 4),
+                    num_to_hex_digit(prop_idx, 3),
+                    num_to_hex_digit(prop_idx, 2),
+                    num_to_hex_digit(prop_idx, 1),
+                    num_to_hex_digit(prop_idx, 0),
+                    '\0' };
+            u64 prop_data[] = {
+                    swap_big_endian64(start_addr),
+                    swap_big_endian64(size) };
+            devtree_alloc_prop(memsrv, prop_name, prop_data, 16);
+
+            prop_idx++;
+        }
+    }
+}
+
+static void add_initrd(void *initrd_start, ulong initrd_size)
 {
     // Get chosen node
     struct devtree_node *chosen = devtree_walk("/chosen");
@@ -323,12 +387,13 @@ static void init_srm(void *params)
     hwrpb = srm->hwrpb_base;
 
     add_bootarg(srm->cmdline);
+    add_initrd(srm->initrd_start, srm->initrd_size);
     add_memmap();
-    srm_add_initrd(srm->initrd_start, srm->initrd_size);
 }
 
 
 DECLARE_FIRMWARE_DRIVER(srm) = {
     .name = "srm",
+    .need_fdt = 1,
     .init = init_srm,
 };

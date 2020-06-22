@@ -9,7 +9,7 @@
 #define PAGE_BITS           13
 
 #define MAX_NUM_VADDR_BITS  43
-#define MAX_NUM_PADDR_BITS  45
+#define MAX_NUM_PADDR_BITS  41
 
 typedef u64                 paddr_t;
 typedef paddr_t             ppfn_t;

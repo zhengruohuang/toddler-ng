@@ -87,7 +87,9 @@ static inline int is_ptr_aligned(void *ptr, int align)
 static inline paddr_t cast_vaddr_to_paddr(ulong vaddr)
 {
     int bits = 64 - clz64((u64)vaddr);
-    panic_if(bits > MAX_NUM_PADDR_BITS, "Unable to cast vaddr to paddr!\n");
+    panic_if(bits > MAX_NUM_PADDR_BITS,
+             "Unable to cast vaddr @ %lx to paddr! bits: %d, MAX_NUM_PADDR_BITS: %d\n",
+             vaddr, bits, MAX_NUM_PADDR_BITS);
     return (paddr_t)vaddr;
 }
 

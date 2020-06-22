@@ -11,4 +11,3 @@ void init_devtree()
 {
     create_libk_devtree(buf, DEVTREE_BUF_SIZE);
 }
-

@@ -1,37 +1,66 @@
 #include "common/include/inttypes.h"
-#include "common/include/mach.h"
-// #include "common/include/abi.h"
-// #include "common/include/msr.h"
-// #include "common/include/mem.h"
+#include "common/include/page.h"
+#include "loader/include/kprintf.h"
 #include "loader/include/lib.h"
-#include "loader/include/loader.h"
-#include "loader/include/boot.h"
 #include "loader/include/firmware.h"
+#include "loader/include/boot.h"
+#include "loader/include/mem.h"
+#include "loader/include/loader.h"
+
+
+/*
+ * Direct access helpers
+ */
+#define SEG_DIRECT_SIZE         0x20000000000ul
+#define SEG_DIRECT_MAPPED       0xfffffc0000000000ul
+#define SEG_DIRECT_MAPPED_IO    (SEG_DIRECT_MAPPED + 0x10000000000ul)
+
+static inline void *cast_paddr_to_cached_seg(paddr_t paddr)
+{
+    panic_if(paddr >= (paddr_t)SEG_DIRECT_SIZE,
+             "Invalid paddr @ %llx\n", (u64)paddr);
+    ulong vaddr = cast_paddr_to_vaddr(paddr) | SEG_DIRECT_MAPPED;
+    return (void *)vaddr;
+}
+
+static inline void *cast_paddr_to_io_seg(paddr_t paddr)
+{
+    panic_if(paddr >= (paddr_t)SEG_DIRECT_SIZE,
+             "Invalid paddr @ %llx\n", (u64)paddr);
+    ulong vaddr = cast_paddr_to_vaddr(paddr) | SEG_DIRECT_MAPPED_IO;
+    return (void *)vaddr;
+}
+
+static inline paddr_t cast_direct_seg_to_paddr(void *ptr)
+{
+    ulong vaddr = (ulong)ptr;
+    vaddr &= (0x1ul << (MAX_NUM_PADDR_BITS + 1)) - 0x1ul;
+    return cast_vaddr_to_paddr(vaddr);
+}
 
 
 /*
  * Clipper UART
  */
-#define DIRECT_MAP_SEG          (0xfffffc0000000000 + 0x10000000000)
-#define SOUTH_BRIDGE_BASE_ADDR  0x1fc000000ull
-#define UART_BASE_ADDR          (SOUTH_BRIDGE_BASE_ADDR + 0x3f8)
-#define UART_DATA_ADDR          (UART_BASE_ADDR + 0x0)
-#define UART_LINE_STAT_ADDR     (UART_BASE_ADDR + 0x5)
+#define SOUTH_BRIDGE_BASE_ADDR  0x1fc000000ul
+#define UART_BASE_ADDR          (SOUTH_BRIDGE_BASE_ADDR + 0x3f8ul)
+#define UART_DATA_ADDR          (UART_BASE_ADDR + 0x0ul)
+#define UART_LINE_STAT_ADDR     (UART_BASE_ADDR + 0x5ul)
 
 static inline u8 mmio_read8(unsigned long addr)
 {
-    volatile u8 *ptr = (u8 *)(DIRECT_MAP_SEG | addr);
+    volatile u8 *ptr = (u8 *)cast_paddr_to_io_seg(cast_vaddr_to_paddr(addr));
     u8 val = *ptr;
     return val;
 }
 
 static inline void mmio_write8(unsigned long addr, u8 val)
 {
-    volatile u8 *ptr = (u8 *)(DIRECT_MAP_SEG | addr);
+    volatile u8 *ptr = (u8 *)cast_paddr_to_io_seg(cast_vaddr_to_paddr(addr));
     *ptr = val;
 }
 
-int arch_debug_putchar(int ch)
+static int clipper_putchar(int ch)
 {
     u32 ready = 0;
     while (!ready) {
@@ -46,160 +75,155 @@ int arch_debug_putchar(int ch)
 /*
  * Access window <--> physical addr
  */
-static void *access_win_to_phys(void *vaddr)
+static paddr_t access_win_to_phys(void *ptr)
 {
-    return vaddr;
+    // First make sure the vaddr is within the cached seg
+    ulong vaddr = (ulong)ptr;
+    panic_if((vaddr & SEG_DIRECT_MAPPED) != SEG_DIRECT_MAPPED,
+             "Unable to convert from access win @ %p to phys addr, out of range!", ptr);
+
+    // Map to phyical address
+    return cast_direct_seg_to_paddr(ptr);
 }
 
-static void *phys_to_access_win(void *paddr)
+static void *phys_to_access_win(paddr_t paddr)
 {
-    return paddr;
+    // First make sure the address is within the range
+    panic_if(paddr >= (paddr_t)SEG_DIRECT_SIZE,
+             "Unable to convert from phys to access win addr, out of range!");
+
+    // Map to cached seg
+    return cast_paddr_to_cached_seg(paddr);
 }
 
 
 /*
  * Paging
  */
-// static struct page_frame *root_page = NULL;
-// static struct page_frame *ctxt_table = NULL;
-//
-// static void *alloc_page()
-// {
-//     void *page = memmap_alloc_phys(PAGE_SIZE, PAGE_SIZE);
-//     return page;
-// }
+static struct page_frame *root_page = NULL;
+
+static void *alloc_page()
+{
+    paddr_t paddr = memmap_alloc_phys(PAGE_SIZE, PAGE_SIZE);
+    void *page = cast_paddr_to_cached_seg(paddr);
+    return page;
+}
 
 static void *setup_page()
 {
-//     // Allocate root page
-//     root_page = memmap_alloc_phys(PAGE_SIZE, PAGE_SIZE);
-//     memzero(root_page, PAGE_SIZE);
-//
-//     // Allocate and set up ctxt table, we use a entire page for ctxt table
-//     ctxt_table = memmap_alloc_phys(PAGE_SIZE, PAGE_SIZE);
-//     memzero(ctxt_table, PAGE_SIZE);
-//     ctxt_table->pte[0].pfn = ADDR_TO_PFN((ulong)root_page);
-//     ctxt_table->pte[0].type = PAGE_TABLE_ENTRY_TYPE_PTD;
-//
-//     return root_page;
+    root_page = alloc_page();
+    memzero(root_page, sizeof(struct page_frame));
+    return root_page;
 }
 
-// static void map_page(void *page_table, void *vaddr, void *paddr, int block,
-//     int cache, int exec, int write)
-// {
-//     struct page_frame *page = page_table;
-//     struct page_table_entry *entry = NULL;
-//
-//     for (int level = 1; level <= block; level++) {
-//         int idx = (int)GET_PTE_INDEX((ulong)vaddr, level);
-//         entry = &page->entries[idx];
-//
-//         if (level != block) {
-//             if (!entry->type) {
-//                 page = alloc_page();
-//                 memzero(page, sizeof(struct page_frame));
-//
-//                 entry->type = PAGE_TABLE_ENTRY_TYPE_PTD;
-//                 entry->pfn = ADDR_TO_PFN((ulong)page);
-//             } else {
-//                 panic_if(entry->type != PAGE_TABLE_ENTRY_TYPE_PTD,
-//                     "Entry type must be PTD: %d\n", entry->type);
-//                 page = (void *)PFN_TO_ADDR((ulong)entry->pfn);
-//             }
-//         }
-//     }
-//
-//     if (entry->type) {
-//         panic_if(entry->type != PAGE_TABLE_ENTRY_TYPE_PTE,
-//             "Entry type must be PTE: %d\n", entry->type);
-//         panic_if((ulong)entry->pfn != ADDR_TO_PFN((ulong)paddr) ||
-//             entry->cacheable != cache ||
-//             entry->perm != get_pte_perm(1, exec, write),
-//             "Trying to change an existing mapping!");
-//     }
-//
-//     else {
-//         entry->type = PAGE_TABLE_ENTRY_TYPE_PTE;
-//         entry->cacheable = cache;
-//         entry->perm = get_pte_perm(1, exec, write);
-//         entry->pfn = ADDR_TO_PFN((ulong)paddr);
-//     }
-// }
-
-static int map_range(void *page_table, void *vaddr, void *paddr, ulong size,
-    int cache, int exec, int write)
+static void map_page(void *page_table, ulong vaddr, paddr_t paddr,
+                     int cache, int exec, int write)
 {
-    return 0;
+    struct page_frame *page = page_table;
+    struct page_table_entry *entry = NULL;
 
-//     kprintf("Mapping %p -> %p, size: %lx, cache: %d, exec: %d, write: %d\n",
-//             vaddr, paddr, size, cache, exec, write);
-//
-//     ulong vaddr_start = ALIGN_DOWN((ulong)vaddr, PAGE_SIZE);
-//     ulong paddr_start = ALIGN_DOWN((ulong)paddr, PAGE_SIZE);
-//     ulong vaddr_end = ALIGN_UP((ulong)vaddr + size, PAGE_SIZE);
-//
-//     int mapped_pages = 0;
-//
-//     for (ulong cur_vaddr = vaddr_start, cur_paddr = paddr_start;
-//         cur_vaddr < vaddr_end;
-//     ) {
-//         // 16MB block
-//         if (ALIGNED(cur_vaddr, L1BLOCK_SIZE) &&
-//             ALIGNED(cur_paddr, L1BLOCK_SIZE) &&
-//             vaddr_end - cur_vaddr >= L1BLOCK_SIZE
-//         ) {
-//             map_page(page_table, (void *)cur_vaddr, (void *)cur_paddr, 1,
-//                 cache, exec, write);
-//
-//             mapped_pages += L1BLOCK_PAGE_COUNT;
-//             cur_vaddr += L1BLOCK_SIZE;
-//             cur_paddr += L1BLOCK_SIZE;
-//         }
-//
-//         // 256KB block
-//         else if (ALIGNED(cur_vaddr, L2BLOCK_SIZE) &&
-//             ALIGNED(cur_paddr, L2BLOCK_SIZE) &&
-//             vaddr_end - cur_vaddr >= L2BLOCK_SIZE
-//         ) {
-//             map_page(page_table, (void *)cur_vaddr, (void *)cur_paddr, 2,
-//                 cache, exec, write);
-//
-//             mapped_pages += L2BLOCK_PAGE_COUNT;
-//             cur_vaddr += L2BLOCK_SIZE;
-//             cur_paddr += L2BLOCK_SIZE;
-//         }
-//
-//         // 4KB page
-//         else {
-//             map_page(page_table, (void *)cur_vaddr, (void *)cur_paddr, 3,
-//                 cache, exec, write);
-//
-//             mapped_pages++;
-//             cur_vaddr += PAGE_SIZE;
-//             cur_paddr += PAGE_SIZE;
-//         }
-//     }
-//
-//     return mapped_pages;
+    for (int level = 0; level < PAGE_LEVELS; level++) {
+        int idx = get_page_table_index(vaddr, level);
+        entry = &page->entries[idx];
+
+        if (level != PAGE_LEVELS - 1) {
+            if (!entry->valid) {
+                page = alloc_page();
+                memzero(page, sizeof(struct page_frame));
+
+                paddr_t page_paddr = cast_direct_seg_to_paddr(page);
+                ppfn_t page_ppfn = paddr_to_ppfn(page_paddr);
+
+                entry->valid = 1;
+                entry->kernel_read = 1;
+                entry->kernel_write = 1;
+                entry->no_exec = 0;
+                entry->no_read = 0;
+                entry->no_write = 0;
+                entry->pfn = page_ppfn;
+            } else {
+                paddr_t page_paddr = ppfn_to_paddr((ppfn_t)entry->pfn);
+                page = cast_paddr_to_cached_seg(page_paddr);
+            }
+        }
+    }
+
+    if (entry->valid) {
+        panic_if((ppfn_t)entry->pfn != paddr_to_ppfn(paddr),
+            "Trying to change an existing mapping from %llx to %llx! pte: %llx",
+            (ppfn_t)entry->pfn, paddr_to_ppfn(paddr), entry->value);
+
+        if (exec) entry->no_exec = 0;
+        if (write) entry->no_write = 0;
+    } else {
+        entry->valid = 1;
+        entry->kernel_read = 1;
+        entry->kernel_write = 1;
+        entry->no_exec = !exec;
+        entry->no_read = 0;
+        entry->no_write = !write;
+        entry->pfn = paddr_to_ppfn(paddr);
+    }
+}
+
+static int map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
+                     int cache, int exec, int write)
+{
+    kprintf("Map, page_dir_pfn: %p, vaddr @ %p, paddr @ %llx, size: %ld, cache: %d, exec: %d, write: %d\n",
+            page_table, vaddr, (u64)paddr, size, cache, exec, write);
+
+    ulong vaddr_start = align_down_vaddr(vaddr, PAGE_SIZE);
+    paddr_t paddr_start = align_down_paddr(paddr, PAGE_SIZE);
+    ulong vaddr_end = align_up_vaddr(vaddr + size, PAGE_SIZE);
+
+    int mapped_pages = 0;
+
+    paddr_t cur_paddr = paddr_start;
+    for (ulong cur_vaddr = vaddr_start; cur_vaddr < vaddr_end; ) {
+        map_page(page_table, cur_vaddr, cur_paddr, cache, exec, write);
+        mapped_pages++;
+        cur_vaddr += PAGE_SIZE;
+        cur_paddr += PAGE_SIZE;
+    }
+
+    return mapped_pages;
 }
 
 
 /*
  * Jump to HAL
  */
-typedef void (*hal_start)(struct loader_args *largs);
+typedef void (*hal_start_t)(struct loader_args *largs, int mp);
+
+static void switch_pcb()
+{
+}
 
 static void jump_to_hal()
 {
     struct loader_args *largs = get_loader_args();
     kprintf("Jump to HAL @ %p\n", largs->hal_entry);
 
-    while (1);
+    hal_start_t hal = largs->hal_entry;
+    hal(largs, 0);
+}
 
-//     enable_mmu();
-//
-//     hal_start hal = largs->hal_entry;
-//     hal(largs);
+
+/*
+ * Finalize
+ */
+static void final_memmap()
+{
+    // FIXME: simply assume all the memory is direct mapped
+    // may not be true on some machines
+    u64 start = 0;
+    u64 size = get_memmap_range(&start);
+    tag_memmap_region(start, size, MEMMAP_TAG_DIRECT_MAPPED);
+}
+
+static void final_arch()
+{
+    map_range(root_page, UART_BASE_ADDR, UART_BASE_ADDR, 0x100, 0, 0, 1);
 }
 
 
@@ -213,23 +237,33 @@ static void init_arch()
 
 
 /*
+ * Init libk
+ */
+static void init_libk()
+{
+    init_libk_putchar(clipper_putchar);
+}
+
+
+/*
  * The Alpha entry point
  */
-#define PARAM_OFFSET -0x6000
-#define HWRPB_BASE 0x10000000ul
+#define PARAM_BASE      (0xfffffc0001010000ul)
+#define PARAM_OFFSET    (-0x6000ul)
+#define HWRPB_BASE      (0x10000000ul)
 
 void loader_entry(void *arg1, void *arg2, void *arg3, void *arg4, void *arg5)
 {
-//     while (1);
-    arch_debug_putchar('g');
-//     while (1);
+    //while (1);
+    clipper_putchar('g');
+    clipper_putchar('o');
+    clipper_putchar('o');
+    clipper_putchar('d');
 
-    arch_debug_putchar('o');
-    arch_debug_putchar('o');
-    arch_debug_putchar('d');
+    init_libk_putchar(clipper_putchar);
     kprintf("Hello, arg1 @ %p, arg2 @ %p, arg3 @ %p, arg4 @ %p, arg5 @ %p\n",
         arg1, arg2, arg3, arg4, arg5);
-//     while (1);
+    //while (1);
 
     /*
      * BSS will be initialized at the beginning of loader() func
@@ -245,41 +279,32 @@ void loader_entry(void *arg1, void *arg2, void *arg3, void *arg4, void *arg5)
     memzero(&fw_args, sizeof(struct firmware_args));
 
     // Prepare initrd
-    ulong *initrd_start = (void *)(0xfffffc0001010000ull + PARAM_OFFSET + 0x100ull);
-    ulong *initrd_size = (void *)(0xfffffc0001010000ull + PARAM_OFFSET + 0x108ull);
+    void *cmdline_start = (void *)(PARAM_BASE + PARAM_OFFSET);
+    ulong *initrd_start = (void *)(PARAM_BASE + PARAM_OFFSET + 0x100ull);
+    ulong *initrd_size = (void *)(PARAM_BASE + PARAM_OFFSET + 0x108ull);
     kprintf("initrd_start @ %lx, initrd_size: %lx\n", *initrd_start, *initrd_size);
 
-    // Prepare arg
-//     fw_args.type = FW_SRM;
-//     fw_args.srm.cmdline = (void *)(0xfffffc0001010000ull + PARAM_OFFSET);
-//     fw_args.srm.initrd_start = (void *)*initrd_start;
-//     fw_args.srm.initrd_size = *initrd_size;
-//     fw_args.srm.hwrpb_base = (void *)HWRPB_BASE;
-
+    // Prepare FW params
     struct firmware_params_srm fw_params;
     fw_params.hwrpb_base = (void *)HWRPB_BASE;
-    fw_params.cmdline = (void *)(0xfffffc0001010000ull + PARAM_OFFSET);
+    fw_params.cmdline = cmdline_start;
     fw_params.initrd_start = (void *)*initrd_start;
     fw_params.initrd_size = *initrd_size;
 
+    // Prepare arg
     fw_args.fw_name = "srm";
     fw_args.fw_params = &fw_params;
 
-//     // Prepare arch info
-//     // Note here we don't explicit reserve stack because it is directly
-//     // declared in start.S
-//     funcs.reserved_stack_size = 0;
-//     funcs.page_size = PAGE_SIZE;
-//     funcs.num_reserved_got_entries = ELF_GOT_NUM_RESERVED_ENTRIES;
-//     funcs.phys_mem_range_min = PHYS_MEM_RANGE_MIN;
-//     funcs.phys_mem_range_max = PHYS_MEM_RANGE_MAX;
-
     // Prepare funcs
+    funcs.init_libk = init_libk;
     funcs.init_arch = init_arch;
     funcs.setup_page = setup_page;
     funcs.map_range = map_range;
+    funcs.has_direct_access = 1;
     funcs.access_win_to_phys = access_win_to_phys;
     funcs.phys_to_access_win = phys_to_access_win;
+    funcs.final_memmap = final_memmap;
+    funcs.final_arch = final_arch;
     funcs.jump_to_hal = jump_to_hal;
 
     // Go to loader!

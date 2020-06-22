@@ -133,6 +133,7 @@ static void claim_firmware()
 
 static int is_valid_memory_node(struct devtree_node *memory)
 {
+    kprintf("memory node @ %p\n", memory);
     int reg_idx = 0;
     u64 addr = 0, size = 0;
 

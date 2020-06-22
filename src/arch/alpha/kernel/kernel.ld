@@ -4,8 +4,7 @@ ENTRY(_start)
 
 SECTIONS
 {
-/*     . = 0xfffffc0001010000; */
-    . = LOADER_BASE;
+    . = KERNEL_BASE;
     __start = .;
 
     .text :
@@ -24,7 +23,6 @@ SECTIONS
         __data_start = .;
         *(.data)
         *(.data*)
-        *(.data.stack)
         __data_end = .;
     }
 
