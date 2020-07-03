@@ -4,7 +4,6 @@
 
 #include "common/include/compiler.h"
 #include "common/include/inttypes.h"
-#include "common/include/arch.h"
 
 
 /*
@@ -98,7 +97,7 @@ struct proc_state {
         };
 #endif
     };
-} packed_struct;
+} packed4_struct;
 
 #define read_proc_state(value)  __read_msr(value, psr)
 #define write_proc_state(value) __write_msr(value, psr)
@@ -127,7 +126,7 @@ struct trap_base {
         };
 #endif
     };
-} packed_struct;
+} packed4_struct;
 
 #define read_trap_base(value)   __read_msr(value, tbr)
 #define write_trap_base(value)  __write_msr(value, tbr)
@@ -153,7 +152,7 @@ struct mmu_ctrl {
         };
 #endif
     };
-} packed_struct;
+} packed4_struct;
 
 #define read_mmu_ctrl(value)    asi_read32(ASI_MMU_REGS, 0, value)
 #define write_mmu_ctrl(value)   asi_write32(ASI_MMU_REGS, 0, value)
@@ -180,7 +179,7 @@ struct mmu_ctxt_table {
         };
 #endif
     };
-} packed_struct;
+} packed4_struct;
 
 #define read_mmu_ctxt_table(value)  asi_read32(ASI_MMU_REGS, 0x100, value)
 #define write_mmu_ctxt_table(value) asi_write32(ASI_MMU_REGS, 0x100, value)
@@ -209,7 +208,7 @@ struct mmu_fault_status {
         };
 #endif
     };
-} packed_struct;
+} packed4_struct;
 
 #define read_mmu_fault_status(value)    asi_read32(ASI_MMU_REGS, 0x300, value)
 #define write_mmu_fault_status(value)   asi_write32(ASI_MMU_REGS, 0x300, value)

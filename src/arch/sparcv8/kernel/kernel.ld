@@ -1,8 +1,10 @@
+#include "common/include/abi.h"
+
 ENTRY(kernel)
 
 SECTIONS
 {
-    . = 0xfff08000;
+    . = KERNEL_BASE;
     __start = .;
 
     .text :

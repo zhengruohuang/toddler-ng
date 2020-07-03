@@ -1,8 +1,10 @@
-ENTRY(hal)
+#include "common/include/abi.h"
+
+ENTRY(_start)
 
 SECTIONS
 {
-    . = 0xfff88000;
+    . = HAL_BASE;
     __start = .;
 
     .text :

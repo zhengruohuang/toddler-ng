@@ -292,16 +292,16 @@ void loader_entry(int kargc, char **kargv, char **env, ulong mem_size)
     struct firmware_params_karg karg_params;
 
     if (kargc == -2) {
-        fw_args.fw_name = "fdt";
-        fw_args.fw_params = (void *)kargv;
+        fw_args.fw_name = "none";
+        fw_args.fdt.has_supplied = 1;
+        fw_args.fdt.supplied = (void *)kargv;
     } else {
+        fw_args.fw_name = "karg";
+        fw_args.fw_params = &karg_params;
         karg_params.kargc = kargc;
         karg_params.kargv = kargv;
         karg_params.env = env;
         karg_params.mem_size = mem_size;
-
-        fw_args.fw_name = "karg";
-        fw_args.fw_params = &karg_params;
     }
 
     // Prepare funcs

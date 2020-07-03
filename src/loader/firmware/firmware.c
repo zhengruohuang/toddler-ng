@@ -23,7 +23,6 @@ static void register_internal_drivers()
 {
     REGISTER_FIRMWARE_DRIVER(none);
     REGISTER_FIRMWARE_DRIVER(atags);
-    REGISTER_FIRMWARE_DRIVER(fdt);
     REGISTER_FIRMWARE_DRIVER(ofw);
     REGISTER_FIRMWARE_DRIVER(obp);
     REGISTER_FIRMWARE_DRIVER(karg);
@@ -55,7 +54,11 @@ void init_firmware()
     panic_if(!cur_firmware_driver, "Unable to init firmware!\n");
 
     if (cur_firmware_driver->need_fdt) {
-        init_appended_fdt();
+        if (fw_args->fdt.has_supplied) {
+            init_supplied_fdt(fw_args->fdt.supplied);
+        } else {
+            init_appended_fdt();
+        }
     }
 
     if (cur_firmware_driver->init) {

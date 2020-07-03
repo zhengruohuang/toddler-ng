@@ -1,7 +1,7 @@
 #include "common/include/inttypes.h"
 #include "common/include/abi.h"
 #include "common/include/msr.h"
-#include "common/include/mem.h"
+#include "common/include/page.h"
 #include "loader/include/lib.h"
 #include "loader/include/loader.h"
 #include "loader/include/boot.h"
@@ -308,23 +308,20 @@ void loader_entry(void *obp_entry)
 
     // Prepare arg
     if (obp_entry) {
-        //fw_args.type = FW_OBP;
-        //fw_args.obp.obp = obp_entry;
         fw_args.fw_name = "obp";
         fw_args.fw_params = obp_entry;
     } else {
-        //fw_args.type = FW_NONE;
         fw_args.fw_name = "none";
     }
 
     // Prepare arch info
     // Note here we don't explicit reserve stack because it is directly
     // declared in start.S
-    funcs.reserved_stack_size = 0;
-    funcs.page_size = PAGE_SIZE;
-    funcs.num_reserved_got_entries = ELF_GOT_NUM_RESERVED_ENTRIES;
-    funcs.phys_mem_range_min = PHYS_MEM_RANGE_MIN;
-    funcs.phys_mem_range_max = PHYS_MEM_RANGE_MAX;
+    //funcs.reserved_stack_size = 0;
+    //funcs.page_size = PAGE_SIZE;
+    //funcs.num_reserved_got_entries = ELF_GOT_NUM_RESERVED_ENTRIES;
+    //funcs.phys_mem_range_min = PHYS_MEM_RANGE_MIN;
+    //funcs.phys_mem_range_max = PHYS_MEM_RANGE_MAX;
 
     // Prepare funcs
     funcs.init_arch = init_arch;

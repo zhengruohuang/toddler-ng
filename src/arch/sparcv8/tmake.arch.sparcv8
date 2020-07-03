@@ -33,7 +33,7 @@ def start_emu():
 
 # Setup arch toolchain
 arch_default_toolchain = copy.deepcopy(default_toolchain)
-arch_default_toolchain.set_opt('prefix', 'sparc64-linux-gnu-')
+arch_default_toolchain.set_opt('prefix', 'sparc-linux-')
 arch_default_toolchain.set_opt('ld', 'ld')
 arch_default_toolchain.set_opt('asflags', '-mcpu=v8 -m32 -O2 -nostdlib -fno-builtin -fno-stack-protector -fno-pic -std=c99 -Wall') # -fPIC
 arch_default_toolchain.set_opt('ccflags', '-mcpu=v8 -m32 -O2 -nostdlib -fno-builtin -fno-stack-protector -fno-pic -std=c99 -Wall')

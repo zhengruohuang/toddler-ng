@@ -447,8 +447,9 @@ void loader_entry(void *initrd_addr, ulong initrd_size, void *ofw_entry)
     struct firmware_params_ofw ofw_params;
 
     if (initrd_addr && is_fdt_header(initrd_addr)) {
-        fw_args.fw_name = "fdt";
-        fw_args.fw_params = (void *)initrd_addr;
+        fw_args.fw_name = "none";
+        fw_args.fdt.has_supplied = 1;
+        fw_args.fdt.supplied = initrd_addr;
     } else {
         //fw_args.type = FW_OFW;
         //fw_args.ofw.ofw = ofw_entry;

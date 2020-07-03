@@ -343,8 +343,9 @@ void loader_entry(ulong zero, ulong mach_id, void *mach_cfg)
     if (!mach_cfg) {
         fw_args.fw_name = "none";
     } else if (is_fdt_header(mach_cfg)) {
-        fw_args.fw_name = "fdt";
-        fw_args.fw_params = mach_cfg;
+        fw_args.fw_name = "none";
+        fw_args.fdt.has_supplied = 1;
+        fw_args.fdt.supplied = mach_cfg;
     } else {
         fw_args.fw_name = "atags";
         fw_args.fw_params = mach_cfg;

@@ -524,8 +524,9 @@ void loader_entry(void *fdt, void *res0, void *res1, void *res2)
     if (is_fdt_header(fdt)) {
         //fw_args.type = FW_FDT;
         //fw_args.fdt.fdt = fdt;
-        fw_args.fw_name = "fdt";
-        fw_args.fw_params = fdt;
+        fw_args.fw_name = "none";
+        fw_args.fdt.has_supplied = 1;
+        fw_args.fdt.supplied = fdt;
     } else {
         //fw_args.type = FW_NONE;
         fw_args.fw_name = "none";

@@ -342,8 +342,9 @@ void loader_entry(ulong cfg_type, void *cfg)
     if (cfg_type == 1) {
         //fw_args.type = FW_FDT;
         //fw_args.fdt.fdt = cfg;
-        fw_args.fw_name = "fdt";
-        fw_args.fw_params = cfg;
+        fw_args.fw_name = "none";
+        fw_args.fdt.has_supplied = 1;
+        fw_args.fdt.supplied = cfg;
     } else {
         //fw_args.type = FW_NONE;
         fw_args.fw_name = "none";

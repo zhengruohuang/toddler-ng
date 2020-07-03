@@ -251,8 +251,3 @@ void init_appended_fdt()
     fdt = hdr;
     init_fdt();
 }
-
-DECLARE_FIRMWARE_DRIVER(fdt) = {
-    .name = "fdt",
-    .init = init_supplied_fdt,
-};

@@ -13,6 +13,11 @@ struct firmware_args {
 
     char *fw_name;
     void *fw_params;
+
+    struct {
+        int has_supplied;
+        void *supplied;
+    } fdt;
 };
 
 struct loader_arch_funcs {
