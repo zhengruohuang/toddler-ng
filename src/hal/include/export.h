@@ -13,9 +13,21 @@
  * Kernel exported variables and functions
  */
 struct kernel_exports {
+    // Allocate physical pages, at any location
     ppfn_t (*palloc)(int count);
     int (*pfree)(ppfn_t ppfn);
-    void (*dispatch)(ulong sched_id, struct kernel_dispatch_info *kdi);
+
+    // Allocate direct mapped physical pages and covert to accessible pointer
+    void *(*palloc_ptr)(int count);
+    int (*pfree_ptr)(void *ptr);
+
+    // Kernel dispatch
+    void (*dispatch)(ulong sched_id, struct kernel_dispatch *kdi);
+
+    // Start working
+    void (*start)();
+
+    // Test kernel components
     void (*test_phase1)();
 };
 
@@ -41,7 +53,7 @@ typedef int (*map_range_t)(void *page_table, ulong vaddr, paddr_t paddr,
                            int kernel, int override);
 typedef int (*unmap_range_t)(void *page_table, ulong vaddr, paddr_t paddr,
                              size_t length);
-typedef ulong (*page_translate_t)(void *page_table, ulong vaddr);
+typedef paddr_t (*page_translate_t)(void *page_table, ulong vaddr);
 
 // Address space
 typedef void *(*init_addr_space_t)();
@@ -50,8 +62,8 @@ typedef void *(*init_addr_space_t)();
 typedef void (*init_context_t)(struct reg_context *context, ulong entry,
                                ulong param, ulong stack_top, int user_mode);
 typedef void (*set_context_param_t)(struct reg_context *context, ulong param);
-typedef void (*switch_context_t)(ulong sched_id, struct reg_context *context,
-                                 ulong page_dir_pfn, int user_mode, ulong asid, ulong tcb);
+typedef void (*switch_context_t)(ulong thread_id, struct reg_context *context,
+                                 void *page_table, int user_mode, ulong asid, ulong tcb);
 
 // Syscall
 typedef void (*set_syscall_return_t)(struct reg_context *context,
@@ -74,7 +86,7 @@ struct hal_exports {
     void *kernel_page_table;
 
     // Core image
-    ulong coreimg_load_addr;
+    void *coreimg;
 
     // MP
     int num_cpus;
@@ -96,7 +108,7 @@ struct hal_exports {
     page_translate_t translate;
 
     // Address space
-    int user_page_dir_page_count;
+    //int user_page_dir_page_count;
     ulong vaddr_space_end;
     init_addr_space_t init_addr_space;
 

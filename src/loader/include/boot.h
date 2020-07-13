@@ -6,6 +6,7 @@
 #include "common/include/mem.h"
 #include "loader/include/loader.h"
 #include "libk/include/memmap.h"
+#include "libk/include/coreimg.h"
 
 
 /*
@@ -21,7 +22,6 @@ extern void init_memmap();
  */
 extern void *find_supplied_coreimg(int *size);
 extern void init_coreimg();
-extern void *coreimg_find_file(const char *name);
 
 
 /*

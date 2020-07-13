@@ -15,18 +15,20 @@ extern_per_cpu(ulong, cur_int_stack_top);
 extern void init_int_entry_mp();
 extern void init_int_entry();
 
+extern void restore_context_gpr();
+
 
 /*
  * Switch
  */
-extern void switch_to(ulong sched_id, struct reg_context *context,
-                      ulong page_dir_pfn, int user_mode, ulong asid, ulong tcb);
+extern void switch_to(ulong thread_id, struct reg_context *context,
+                      void *page_table, int user_mode, ulong asid, ulong tcb);
 
 
 /*
  * Map
  */
-extern ulong translate(void *page_table, ulong vaddr);
+extern paddr_t translate(void *page_table, ulong vaddr);
 extern int map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
                      int cache, int exec, int write, int kernel, int override,
                      palloc_t palloc);

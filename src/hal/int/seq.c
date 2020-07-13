@@ -50,7 +50,7 @@ int_handler_t get_int_handler(int seq)
     return handler;
 }
 
-int invoke_int_handler(int seq, struct int_context *ictxt, struct kernel_dispatch_info *kdi)
+int invoke_int_handler(int seq, struct int_context *ictxt, struct kernel_dispatch *kdi)
 {
     int_handler_t handler = get_int_handler(seq);
     return handler ? handler(ictxt, kdi) : INT_HANDLE_SIMPLE;

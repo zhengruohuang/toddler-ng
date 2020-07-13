@@ -44,7 +44,7 @@ static void update_compare(struct mips_cpu_timer_record *record)
 /*
  * Interrupt
  */
-static int handler(struct int_context *ictxt, struct kernel_dispatch_info *kdi)
+static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
 {
     //kprintf("Timer!\n");
 

@@ -2,6 +2,9 @@
 #define __ARCH_ARM_COMMON_INCLUDE_ATOMIC_H__
 
 
+#include "common/include/inttypes.h"
+
+
 /*
  * Pause
  */

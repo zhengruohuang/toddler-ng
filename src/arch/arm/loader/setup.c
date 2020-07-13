@@ -260,7 +260,8 @@ static void call_hal(void *entry, struct loader_args *largs, int mp)
 static void jump_to_hal()
 {
     struct loader_args *largs = get_loader_args();
-    kprintf("Jump to HAL @ %p\n", largs->hal_entry);
+    kprintf("Jump to HAL @ %p, page table @ %p\n",
+            largs->hal_entry, largs->page_table);
 
     enable_mmu(largs->page_table);
     enable_caches_bpred();
@@ -273,7 +274,8 @@ static void jump_to_hal()
 static void jump_to_hal_mp()
 {
     struct loader_args *largs = get_loader_args();
-    kprintf("Jump to HAL @ %p\n", largs->hal_entry);
+    kprintf("MP Jump to HAL @ %p, page table @ %p\n",
+            largs->hal_entry, largs->page_table);
 
     enable_mmu(largs->page_table);
     enable_caches_bpred();

@@ -1,12 +1,15 @@
 #include "common/include/inttypes.h"
 #include "common/include/msr.h"
 #include "common/include/io.h"
+#include "common/include/page.h"
 #include "hal/include/hal.h"
 #include "hal/include/setup.h"
 #include "hal/include/kprintf.h"
 #include "hal/include/lib.h"
 #include "hal/include/mp.h"
+#include "hal/include/mem.h"
 #include "hal/include/driver.h"
+#include "hal/include/kernel.h"
 
 
 /*
@@ -82,7 +85,7 @@ static void disable_local_int()
 
 static void enable_local_int()
 {
-    kprintf("enable_local_int\n");
+    //kprintf("enable_local_int\n");
 
     __asm__ __volatile__ (
         "cpsie aif;"
@@ -156,21 +159,21 @@ static void start_cpu(int mp_seq, ulong mp_id, ulong entry)
 {
 }
 
-static void *init_user_page_dir()
+static void *init_user_page_table()
 {
-//     volatile struct l1table *l1tab = (struct l1table *)PFN_TO_ADDR(page_dir_pfn);
-//
-//     int i;
-//     for (i = 0; i < 4096; i++) {
-//         l1tab->value_u32[i] = 0;
-//     }
-//
-//     // Duplicate the last 4MB mapping
-//     l1tab->value_u32[4095] = kernel_l1table->value_u32[4095];
-//     l1tab->value_u32[4094] = kernel_l1table->value_u32[4094];
-//     l1tab->value_u32[4093] = kernel_l1table->value_u32[4093];
-//     l1tab->value_u32[4092] = kernel_l1table->value_u32[4092];
-    return NULL;
+    struct l1table *page_table = kernel_palloc_ptr(L1PAGE_TABLE_SIZE / PAGE_SIZE);
+    memzero(page_table, L1PAGE_TABLE_SIZE);
+
+    struct loader_args *largs = get_loader_args();
+    struct l1table *kernel_page_table = largs->page_table;
+
+    // Duplicate the last 4MB mapping
+    page_table->value_u32[4095] = kernel_page_table->value_u32[4095];
+    page_table->value_u32[4094] = kernel_page_table->value_u32[4094];
+    page_table->value_u32[4093] = kernel_page_table->value_u32[4093];
+    page_table->value_u32[4092] = kernel_page_table->value_u32[4092];
+
+    return page_table;
 }
 
 static void set_thread_context_param(struct reg_context *context, ulong param)
@@ -197,6 +200,16 @@ static void init_thread_context(struct reg_context *context, ulong entry,
     psr.value = 0;
     psr.mode = user_mode ? 0x10 : 0x1f;
     context->cpsr = psr.value;
+}
+
+static void kernel_dispatch_prep(ulong thread_id, struct kernel_dispatch *kdi)
+{
+    struct loader_args *largs = get_loader_args();
+    struct l1table *kernel_page_table = largs->page_table;
+
+    write_trans_tab_base0(kernel_page_table);
+    inv_tlb_all();
+    //TODO: atomic_membar();
 }
 
 
@@ -238,11 +251,11 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.arch_disable_local_int = disable_local_int;
     funcs.arch_enable_local_int = enable_local_int;
 
-    funcs.init_addr_space = init_user_page_dir;
+    funcs.init_addr_space = init_user_page_table;
     funcs.init_context = init_thread_context;
     funcs.set_context_param = set_thread_context_param;
     funcs.switch_to = switch_to;
-    funcs.kernel_dispatch_prep = NULL;
+    funcs.kernel_dispatch_prep = kernel_dispatch_prep;
 
     funcs.invalidate_tlb = invalidate_tlb;
 
@@ -251,8 +264,8 @@ static void hal_entry_bsp(struct loader_args *largs)
 
 static void hal_entry_mp()
 {
-    // Switch to CPU-private stack
-    ulong sp = get_my_cpu_stack_top_vaddr();
+    // Switch to CPU-private stack, but leave some space for interrupt handling
+    ulong sp = get_my_cpu_init_stack_top_vaddr();
     ulong pc = (ulong)&hal_mp;
 
     __asm__ __volatile__ (

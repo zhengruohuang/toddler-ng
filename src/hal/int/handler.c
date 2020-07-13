@@ -1,6 +1,8 @@
 #include "common/include/inttypes.h"
 #include "common/include/context.h"
+#include "common/include/syscall.h"
 #include "hal/include/kprintf.h"
+#include "hal/include/kernel.h"
 #include "hal/include/hal.h"
 #include "hal/include/lib.h"
 #include "hal/include/mem.h"
@@ -12,7 +14,7 @@
 /*
  * Default handlers
  */
-static int int_handler_dummy(struct int_context *context, struct kernel_dispatch_info *kdi)
+static int int_handler_dummy(struct int_context *context, struct kernel_dispatch *kdi)
 {
 //     kprintf("Interrupt, Vector: %lx, PC: %x, SP: %x, CPSR: %x\n",
 //             context->vector, context->context->pc, context->context->sp, context->context->cpsr);
@@ -21,7 +23,7 @@ static int int_handler_dummy(struct int_context *context, struct kernel_dispatch
     return INT_HANDLE_SIMPLE;
 }
 
-static int int_handler_dev(struct int_context *context, struct kernel_dispatch_info *kdi)
+static int int_handler_dev(struct int_context *context, struct kernel_dispatch *kdi)
 {
     return handle_dev_int(context, kdi);
 }
@@ -30,7 +32,7 @@ static int int_handler_dev(struct int_context *context, struct kernel_dispatch_i
 
 void int_handler(int seq, struct int_context *ictxt)
 {
-    kprintf("Interrupt, seq: %d\n", seq);
+    //kprintf("Interrupt, seq: %d\n", seq);
     //while (1);
 
     // Mark local interrupts as disabled
@@ -40,10 +42,9 @@ void int_handler(int seq, struct int_context *ictxt)
     handle_halt();
 
     // Prepare the handling
-    struct kernel_dispatch_info kdispatch;
+    struct kernel_dispatch kdispatch;
     kdispatch.regs = ictxt->regs;
-    kdispatch.dispatch_type = KERNEL_DISPATCH_UNKNOWN;
-    kdispatch.syscall.num = 0;
+    kdispatch.num = SYSCALL_INTERRUPT;
 
     ictxt->mp_seq = get_cur_mp_seq();
 
@@ -54,14 +55,13 @@ void int_handler(int seq, struct int_context *ictxt)
     // kernel will call sched and never go back to this func
     if (handle_type & INT_HANDLE_CALL_KERNEL) {
         // Tell HAL we are in kernel
-        //*get_per_cpu(int, cur_in_user_mode) = 0;
+        *get_per_cpu(int, cur_in_user_mode) = 0;
 
         // Go to kernel!
-        //kernel_dispatch(&kdispatch);
+        kernel_dispatch(*get_per_cpu(ulong, cur_running_thread_id), &kdispatch);
     }
 
-    //while (1);
-//     panic("Need to implement lazy scheduling!");
+    // Will now return, arch HAL must implement restoring from interrupt
 }
 
 

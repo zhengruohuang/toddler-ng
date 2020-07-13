@@ -29,22 +29,23 @@ static void init_bss()
 /*
  * Loader info
  */
-static struct loader_args *loader_args = NULL;
+static char loader_arch_args[32] = { 0 };
+static struct loader_args loader_args = { 0 };
 
 struct loader_args *get_loader_args()
 {
-    return loader_args;
+    return &loader_args;
 }
 
 
 /*
  * Arch funcs
  */
-static struct hal_arch_funcs *arch_funcs;
+static struct hal_arch_funcs arch_funcs = { 0 };
 
 struct hal_arch_funcs *get_hal_arch_funcs()
 {
-    return arch_funcs;
+    return &arch_funcs;
 }
 
 
@@ -53,53 +54,53 @@ struct hal_arch_funcs *get_hal_arch_funcs()
  */
 static void init_libk()
 {
-    if (arch_funcs && arch_funcs->init_libk) {
-        arch_funcs->init_libk();
+    if (arch_funcs.init_libk) {
+        arch_funcs.init_libk();
     }
 
     kprintf("In HAL!\n");
-    init_libk_memmap(loader_args->memmap);
+    init_libk_memmap(loader_args.memmap);
 }
 
 static void init_arch()
 {
-    if (arch_funcs && arch_funcs->init_arch) {
-        arch_funcs->init_arch();
+    if (arch_funcs.init_arch) {
+        arch_funcs.init_arch();
     }
 }
 
 static void init_arch_mp()
 {
-    if (arch_funcs && arch_funcs->init_arch_mp) {
-        arch_funcs->init_arch_mp();
+    if (arch_funcs.init_arch_mp) {
+        arch_funcs.init_arch_mp();
     }
 }
 
 static void arch_init_int()
 {
-    if (arch_funcs && arch_funcs->init_int) {
-        arch_funcs->init_int();
+    if (arch_funcs.init_int) {
+        arch_funcs.init_int();
     }
 }
 
 static void arch_init_int_mp()
 {
-    if (arch_funcs && arch_funcs->init_int_mp) {
-        arch_funcs->init_int_mp();
+    if (arch_funcs.init_int_mp) {
+        arch_funcs.init_int_mp();
     }
 }
 
 static void arch_init_mm()
 {
-    if (arch_funcs && arch_funcs->init_mm) {
-        arch_funcs->init_mm();
+    if (arch_funcs.init_mm) {
+        arch_funcs.init_mm();
     }
 }
 
 static void arch_init_mm_mp()
 {
-    if (arch_funcs && arch_funcs->init_mm_mp) {
-        arch_funcs->init_mm_mp();
+    if (arch_funcs.init_mm_mp) {
+        arch_funcs.init_mm_mp();
     }
 }
 
@@ -109,8 +110,8 @@ static void arch_init_mm_mp()
  */
 ulong arch_hal_direct_access(paddr_t paddr, int count, int cache)
 {
-    if (arch_funcs->hal_direct_access) {
-        return arch_funcs->hal_direct_access(paddr, count, cache);
+    if (arch_funcs.hal_direct_access) {
+        return arch_funcs.hal_direct_access(paddr, count, cache);
     }
 
     panic("Arch does not HAL direct access!\n");
@@ -119,8 +120,8 @@ ulong arch_hal_direct_access(paddr_t paddr, int count, int cache)
 
 ulong arch_get_cur_mp_id()
 {
-    if (arch_funcs->get_cur_mp_id) {
-        return arch_funcs->get_cur_mp_id();
+    if (arch_funcs.get_cur_mp_id) {
+        return arch_funcs.get_cur_mp_id();
     }
 
     panic_if(get_num_cpus() != 1,
@@ -130,8 +131,8 @@ ulong arch_get_cur_mp_id()
 
 void arch_start_cpu(int mp_seq, ulong mp_id, ulong entry)
 {
-    if (arch_funcs->start_cpu) {
-        arch_funcs->start_cpu(mp_seq, mp_id, entry);
+    if (arch_funcs.start_cpu) {
+        arch_funcs.start_cpu(mp_seq, mp_id, entry);
         return;
     }
 
@@ -141,24 +142,35 @@ void arch_start_cpu(int mp_seq, ulong mp_id, ulong entry)
 
 void arch_register_drivers()
 {
-    if (arch_funcs->register_drivers) {
-        arch_funcs->register_drivers();
+    if (arch_funcs.register_drivers) {
+        arch_funcs.register_drivers();
     }
 }
 
 ulong arch_get_syscall_params(struct reg_context *regs, ulong *param0, ulong *param1, ulong *param2)
 {
+    if (arch_funcs.get_syscall_params) {
+        return arch_funcs.get_syscall_params(regs, param0, param1, param2);
+    }
+
+    panic("Arch HAL must implement arch_get_syscall_params!");
     return 0;
 }
 
 void arch_set_syscall_return(struct reg_context *regs, int success, ulong return0, ulong return1)
 {
+    if (arch_funcs.set_syscall_return) {
+        arch_funcs.set_syscall_return(regs, success, return0, return1);
+        return;
+    }
+
+    panic("Arch HAL must implement arch_set_syscall_return!");
 }
 
 int arch_handle_syscall(ulong num, ulong param0, ulong param1, ulong param2, ulong *return0, ulong *return1)
 {
-    if (arch_funcs->handle_arch_syscall) {
-        return arch_funcs->handle_arch_syscall(num, param0, param1, param2, return0, return1);
+    if (arch_funcs.handle_arch_syscall) {
+        return arch_funcs.handle_arch_syscall(num, param0, param1, param2, return0, return1);
     }
 
     return 1;
@@ -166,8 +178,8 @@ int arch_handle_syscall(ulong num, ulong param0, ulong param1, ulong param2, ulo
 
 void arch_disable_local_int()
 {
-    if (arch_funcs->arch_disable_local_int) {
-        arch_funcs->arch_disable_local_int();
+    if (arch_funcs.arch_disable_local_int) {
+        arch_funcs.arch_disable_local_int();
         return;
     }
 
@@ -176,27 +188,28 @@ void arch_disable_local_int()
 
 void arch_enable_local_int()
 {
-    if (arch_funcs->arch_enable_local_int) {
-        return arch_funcs->arch_enable_local_int();
+    if (arch_funcs.arch_enable_local_int) {
+        return arch_funcs.arch_enable_local_int();
     }
 
     panic("Arch HAL must implement enable_local_int!");
 }
 
-void arch_switch_to(ulong sched_id, struct reg_context *context,
-    ulong page_dir_pfn, int user_mode, ulong asid, ulong tcb)
+void arch_switch_to(ulong thread_id, struct reg_context *context,
+                    void *page_table, int user_mode, ulong asid, ulong tcb)
 {
-    if (arch_funcs->switch_to) {
-        arch_funcs->switch_to(sched_id, context, page_dir_pfn, user_mode, asid, tcb);
+    if (arch_funcs.switch_to) {
+        arch_funcs.switch_to(thread_id, context, page_table, user_mode, asid, tcb);
+        return;
     }
 
     panic("Arch HAL must implement switch_to!");
 }
 
-void arch_kernel_dispatch_prep(ulong sched_id, struct kernel_dispatch_info *kdi)
+void arch_kernel_dispatch_prep(ulong sched_id, struct kernel_dispatch *kdi)
 {
-    if (arch_funcs->kernel_dispatch_prep) {
-        return arch_funcs->kernel_dispatch_prep(sched_id, kdi);
+    if (arch_funcs.kernel_dispatch_prep) {
+        return arch_funcs.kernel_dispatch_prep(sched_id, kdi);
     }
 }
 
@@ -210,12 +223,22 @@ void hal(struct loader_args *largs, struct hal_arch_funcs *funcs)
     init_bss();
 
     // Save largs and funcs
-    loader_args = largs;
-    arch_funcs = funcs;
+    memcpy(&loader_args, largs, sizeof(struct loader_args));
+    memcpy(&arch_funcs, funcs, sizeof(struct hal_arch_funcs));
+
+    // Save arch args
+    if (largs->arch_args && largs->arch_args_bytes <= sizeof(loader_arch_args)) {
+        memcpy(loader_arch_args, largs->arch_args, largs->arch_args_bytes);
+        loader_args.arch_args = loader_arch_args;
+    }
 
     // Init libk and arch
     init_libk();
     init_arch();
+
+    // Check if we were able to save loader arch args
+    panic_if(largs->arch_args_bytes > sizeof(loader_arch_args),
+             "No enough space to save arch_args!\n");
 
     // Init pre-kernel palloc
     init_pre_palloc();
@@ -254,13 +277,11 @@ void hal(struct loader_args *largs, struct hal_arch_funcs *funcs)
     // Start all devices
     start_all_devices();
 
-    // And finally, enable local interrupts
-    enable_local_int();
+    // And finally, start working
+    kernel_start();
 
-    //while (1)
     kprintf("HAL done!\n");
-
-    while (1);
+    unreachable();
 }
 
 void hal_mp()
@@ -283,9 +304,11 @@ void hal_mp()
     kernel_test_phase1();
 
     // Start all devices
+    start_all_devices_mp();
 
-    // And finally, enable local interrupts
-    //enable_local_int();
+    // And finally, start working
+    kernel_start();
 
-    while (1);
+    kprintf("HAL MP done!\n");
+    unreachable();
 }

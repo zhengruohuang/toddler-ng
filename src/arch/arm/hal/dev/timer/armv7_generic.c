@@ -42,7 +42,7 @@ int is_generic_timer_asserted()
 /*
  * Interrupt
  */
-static int handler(struct int_context *ictxt, struct kernel_dispatch_info *kdi)
+static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
 {
     //kprintf("Timer!\n");
 
@@ -70,6 +70,21 @@ static int handler(struct int_context *ictxt, struct kernel_dispatch_info *kdi)
 /*
  * Driver interface
  */
+static void cpu_power_on(struct driver_param *param, int seq, ulong id)
+{
+    struct armv7_generic_timer_record *record = param->record;
+
+    struct generic_timer_phys_ctrl_reg ctrl;
+    ctrl.value = 0;
+    write_generic_timer_phys_ctrl(ctrl.value);
+
+    ctrl.enabled = 1;
+    write_generic_timer_phys_interval(record->timer_step);
+    write_generic_timer_phys_ctrl(ctrl.value);
+
+    kprintf("MP Timer started! record @ %p, step: %d, ctrl: %x\n", record, record->timer_step, ctrl.value);
+}
+
 static void start(struct driver_param *param)
 {
     struct armv7_generic_timer_record *record = param->record;
@@ -95,8 +110,10 @@ static void setup(struct driver_param *param)
 
     // Set up the actual freq
     record->timer_step = freq / INT_FREQ_DIV;
-
     kprintf("Timer freq @ %uHz, step set @ %u, record @ %p\n", freq, record->timer_step, record);
+
+    // Register special function
+    REG_SPECIAL_DRV_FUNC(cpu_power_on, param, cpu_power_on);
 }
 
 static int probe(struct fw_dev_info *fw_info, struct driver_param *param)

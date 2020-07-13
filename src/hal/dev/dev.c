@@ -121,6 +121,13 @@ void start_all_devices()
     }
 }
 
+void start_all_devices_mp()
+{
+    ulong id = arch_get_cur_mp_id();
+    int seq = get_mp_seq_by_id(id);
+    drv_func_cpu_power_on(seq, id);
+}
+
 
 /*
  * Device enumeration
@@ -240,7 +247,7 @@ static void build_int_hierarchy()
     panic_if(!int_hierarchy, "No root intc found!\n");
 }
 
-int handle_dev_int(struct int_context *ictxt, struct kernel_dispatch_info *kdi)
+int handle_dev_int(struct int_context *ictxt, struct kernel_dispatch *kdi)
 {
     int seq = int_hierarchy->dev->driver_param.int_seq;
     ictxt->param = int_hierarchy->dev->driver_param.record;

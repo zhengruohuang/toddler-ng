@@ -22,9 +22,30 @@ typedef struct slist {
     spinlock_t lock;
 } slist_t;
 
-extern void init_slist();
+#define slist_foreach(l, node) \
+    for (slist_node_t *node = (l)->head; node; node = node->next)
 
+#define slist_access_exclusive(l) \
+    for (spinlock_t *__lock = &(l)->lock; __lock; __lock = NULL) \
+        for (spinlock_lock_int(__lock); __lock; spinlock_unlock_int(__lock), __lock = NULL) \
+            for (int __term = 0; !__term; __term = 1)
+
+#define slist_foreach_exclusive(l, node) \
+    for (spinlock_t *__lock = &(l)->lock; __lock; __lock = NULL) \
+        for (spinlock_lock_int(__lock); __lock; spinlock_unlock_int(__lock), __lock = NULL) \
+            for (slist_node_t *node = (l)->head; node; node = node->next)
+
+extern void init_slist();
 extern void slist_create(slist_t *l);
+
+extern void slist_insert(slist_t *l, slist_node_t *prev, void *n);
+extern void *slist_remove(slist_t *l, slist_node_t *prev, slist_node_t *s);
+
+extern void *slist_front(slist_t *l);
+extern void *slist_back(slist_t *l);
+
+extern void slist_push_back_exclusive(slist_t *l, void *n);
+extern void slist_push_front_exclusive(slist_t *l, void *n);
 
 extern void slist_push_back(slist_t *l, void *n);
 extern void slist_push_front(slist_t *l, void *n);
@@ -32,8 +53,6 @@ extern void slist_push_front(slist_t *l, void *n);
 extern void *slist_pop_back(slist_t *l);
 extern void *slist_pop_front(slist_t *l);
 
-extern void slist_delete_unlocked(slist_t *l, slist_node_t *s);
-extern void slist_remove(slist_t *l, void *n);
 
 
 // /*

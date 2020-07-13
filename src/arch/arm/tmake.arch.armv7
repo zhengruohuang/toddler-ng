@@ -39,7 +39,7 @@ arch_default_toolchain.set_opt('prefix', 'arm-linux-gnueabi-')
 arch_default_toolchain.set_opt('ld', 'ld')
 arch_default_toolchain.set_opt('asflags', '-O2 -nostdlib -fno-builtin -fno-stack-protector -fPIC -march=armv7-a -mfloat-abi=soft -std=c99 -Wall')
 arch_default_toolchain.set_opt('ccflags', '-O2 -nostdlib -fno-builtin -fno-stack-protector -fPIC -march=armv7-a -mfloat-abi=soft -std=c99 -Wall')
-arch_default_toolchain.set_opt('ldflags', '-s -static')
+arch_default_toolchain.set_opt('ldflags', '-static')
 build_toolchains['default'] = arch_default_toolchain
 
 

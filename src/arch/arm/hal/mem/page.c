@@ -66,6 +66,11 @@ static struct l2table *alloc_l2table(palloc_t palloc)
 static void map_page(void *page_table, ulong vaddr, paddr_t paddr, int block,
     int cache, int exec, int write, int kernel, int override, palloc_t palloc)
 {
+    //kprintf("Map page, page_table: %lx, vaddr @ %lx, paddr @ %lx, block: %d, "
+    //       "cache: %d, exec: %d, write: %d, kernel: %d, override: %d\n",
+    //       page_table, vaddr, paddr, block, cache, exec, write, kernel, override
+    //);
+
     struct l1table *l1table = page_table;
     int l1idx = GET_L1PTE_INDEX((ulong)vaddr);
     struct l1page_table_entry *l1entry = &l1table->entries[l1idx];
@@ -86,8 +91,8 @@ static void map_page(void *page_table, ulong vaddr, paddr_t paddr, int block,
             l1entry->block.bfn = (u32)paddr_to_pbfn(paddr);
             l1entry->block.no_exec = !exec;
             l1entry->block.read_only = !write;
-            l1entry->block.user_access = 0;   // Kernel page
-            l1entry->block.user_write = 1;    // Kernel page write is determined by read_only
+            l1entry->block.user_access = !kernel;
+            l1entry->block.user_write = 1;  // Kernel page write is determined by read_only
             l1entry->block.cacheable = cache;
             l1entry->block.cache_inner = l1entry->block.cache_outer = 0x1;
                                 // write-back, write-allocate when cacheable
@@ -130,7 +135,7 @@ static void map_page(void *page_table, ulong vaddr, paddr_t paddr, int block,
             l2entry->pfn = (u32)paddr_to_ppfn(paddr);
             l2entry->no_exec = !exec;
             l2entry->read_only = !write;
-            l2entry->user_access = 0;   // Kernel page
+            l2entry->user_access = !kernel;
             l2entry->user_write = 1;    // Kernel page write is determined by read_only
             l2entry->cacheable = cache;
             l2entry->cache_inner = l2entry->cache_outer = 0x1;
@@ -148,9 +153,9 @@ int map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
               int cache, int exec, int write, int kernel, int override,
               palloc_t palloc)
 {
-    //kprintf("Map, page_dir_pfn: %lx, vaddr @ %lx, paddr @ %lx, size: %ld, "
-    //        "cache: %d, exec: %d, write: %d, kernel: %d, override: %d\n",
-    //        page_dir_pfn, vaddr, paddr, size, cache, exec, write, kernel, override
+    //kprintf("Map range, page_table: %lx, vaddr @ %lx, paddr @ %lx, size: %ld, "
+    //       "cache: %d, exec: %d, write: %d, kernel: %d, override: %d\n",
+    //       page_table, vaddr, paddr, size, cache, exec, write, kernel, override
     //);
 
     ulong vaddr_start = align_down_vaddr(vaddr, PAGE_SIZE);

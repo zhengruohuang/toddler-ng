@@ -4,7 +4,7 @@ ENTRY(_start)
 
 SECTIONS
 {
-    . = KERNEL_BASE;
+    . = USER_BASE;
     __start = .;
 
     .text :

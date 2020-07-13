@@ -75,25 +75,25 @@ int drv_func_detect_topology()
     return DRV_FUNC_INVOKE_NOT_REG;
 }
 
-int drv_func_cpu_power_on(ulong id)
+int drv_func_cpu_power_on(int seq, ulong id)
 {
     for (struct special_drv_func_list *n = funcs.cpu_power_on;
          n; n = n->next
     ) {
         panic_if(!n->record.func, "cpu_power_on invalid!\n");
-        n->record.on_cpu_power_on(n->record.param, id);
+        n->record.on_cpu_power_on(n->record.param, seq, id);
     }
 
     return DRV_FUNC_INVOKE_OK;
 }
 
-int drv_func_cpu_power_off(ulong id)
+int drv_func_cpu_power_off(int seq, ulong id)
 {
     for (struct special_drv_func_list *n = funcs.cpu_power_off;
          n; n = n->next
     ) {
         panic_if(!n->record.func, "cpu_power_off invalid!\n");
-        n->record.on_cpu_power_off(n->record.param, id);
+        n->record.on_cpu_power_off(n->record.param, seq, id);
     }
 
     return DRV_FUNC_INVOKE_OK;

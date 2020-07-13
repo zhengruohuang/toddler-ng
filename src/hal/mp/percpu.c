@@ -49,6 +49,15 @@ ulong get_my_cpu_stack_top_vaddr()
     return get_my_cpu_area_start_vaddr() + PER_CPU_STACK_START_OFFSET;
 }
 
+ulong get_my_cpu_init_stack_top_vaddr()
+{
+#if (defined(STACK_GROWS_UP) && STACK_GROWS_UP)
+    return get_my_cpu_stack_top_vaddr() + sizeof(struct reg_context) + 16;
+#else
+    return get_my_cpu_stack_top_vaddr() - sizeof(struct reg_context) - 16;
+#endif
+}
+
 static void init_per_cpu_var(int *offset, size_t size)
 {
     assert(cur_per_cpu_offset + size < PAGE_SIZE);

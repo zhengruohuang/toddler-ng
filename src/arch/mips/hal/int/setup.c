@@ -74,7 +74,7 @@ void tlb_refill_handler(struct reg_context *regs)
 //     }
 }
 
-static int int_handler_tlb_refill(struct int_context *ctxt, struct kernel_dispatch_info *kdi)
+static int int_handler_tlb_refill(struct int_context *ctxt, struct kernel_dispatch *kdi)
 {
 //     struct cp0_entry_hi hi;
 //     read_cp0_entry_hi(hi.value);

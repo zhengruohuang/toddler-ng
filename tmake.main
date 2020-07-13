@@ -71,38 +71,50 @@ def build_klibc():
     )
 
 def build_user():
-    # External flags for generic processes
-    user_ld = find_deepest_arch_file('klibc/user.ld')
-    klibc = bin_dir + 'tdlrklibc.a'
+    ## External flags for generic processes
+    #user_ld = find_deepest_arch_file('klibc/user.ld')
+    #klibc = bin_dir + 'tdlrklibc.a'
 
-    # Build driver
-    print_info('driver', 'Building driver')
-    build_dir(
-        bin_dir + 'tdlrdrv.elf',
-        src_dir + 'driver/', [ '.c' ],
-        ext_libs = [ klibc ],
-        ext_ld_deps = [ user_ld ],
-        ld_script = user_ld,
-        toolchain = get_toolchain('user'),
-    )
+    ## Build driver
+    #print_info('driver', 'Building driver')
+    #build_dir(
+        #bin_dir + 'tdlrdrv.elf',
+        #src_dir + 'driver/', [ '.c' ],
+        #ext_libs = [ klibc ],
+        #ext_ld_deps = [ user_ld ],
+        #ld_script = user_ld,
+        #toolchain = get_toolchain('user'),
+    #)
 
-    # Build system
+    ## Build system
+    #print_info('system', 'Building system')
+    #build_dir(
+        #bin_dir + 'tdlrsys.elf',
+        #src_dir + 'system/', [ '.c' ],
+        #ext_libs = [ klibc ],
+        #ext_ld_deps = [ user_ld ],
+        #ld_script = user_ld,
+        #toolchain = get_toolchain('user'),
+    #)
+
+    ## Build shell
+    #print_info('shell', 'Building shell')
+    #build_dir(
+        #bin_dir + 'tdlrshell.elf',
+        #src_dir + 'shell/', [ '.c' ],
+        #ext_libs = [ klibc ],
+        #ext_ld_deps = [ user_ld ],
+        #ld_script = user_ld,
+        #toolchain = get_toolchain('user'),
+    #)
+
+    user_ld = find_deepest_arch_file('system/system.ld')
+
     print_info('system', 'Building system')
     build_dir(
         bin_dir + 'tdlrsys.elf',
         src_dir + 'system/', [ '.c' ],
-        ext_libs = [ klibc ],
-        ext_ld_deps = [ user_ld ],
-        ld_script = user_ld,
-        toolchain = get_toolchain('user'),
-    )
-
-    # Build shell
-    print_info('shell', 'Building shell')
-    build_dir(
-        bin_dir + 'tdlrshell.elf',
-        src_dir + 'shell/', [ '.c' ],
-        ext_libs = [ klibc ],
+        #ext_libs = [ klibc ],
         ext_ld_deps = [ user_ld ],
         ld_script = user_ld,
         toolchain = get_toolchain('user'),

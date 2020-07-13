@@ -17,12 +17,17 @@ void spinlock_init(spinlock_t *lock)
 
 void spinlock_lock(spinlock_t *lock)
 {
+    spinlock_t old_val, new_val;
+    new_val.value = 0;
+    new_val.locked = 1;
+
     do {
         do {
+            old_val.value = lock->value;
             atomic_pause();
-        } while (lock->value);
+        } while (old_val.locked);
         atomic_mb();
-    } while (!atomic_cas(&lock->value, 0, 1));
+    } while (!atomic_cas(&lock->value, old_val.value, new_val.value));
 
     atomic_mb();
 
@@ -48,11 +53,18 @@ void spinlock_lock_int(spinlock_t *lock)
 
     spinlock_lock(lock);
 
-    spinlock_t newlock;
-    newlock.locked = 1;
-    newlock.int_enabled = enabled;
+    //kprintf("spin lock @ %p, int: %d\n", lock, enabled);
 
-    int success = atomic_cas(&lock->value, 1, newlock.value);
+    spinlock_t old_val;
+    old_val.value = lock->value;
+    assert(old_val.locked);
+
+    spinlock_t new_val;
+    new_val.value = 0;
+    new_val.locked = 1;
+    new_val.int_enabled = enabled;
+
+    int success = atomic_cas(&lock->value, old_val.value, new_val.value);
     assert(success);
     atomic_mb();
 }
@@ -63,9 +75,7 @@ void spinlock_unlock_int(spinlock_t *lock)
 
     spinlock_unlock(lock);
 
-//     if (enabled) {
-//         kprintf("spin store: %d\n", enabled);
-//     }
+    //kprintf("spin unlock @ %p, int: %d\n", lock, enabled);
 
     hal_restore_local_int(enabled);
 }

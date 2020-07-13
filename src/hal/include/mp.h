@@ -24,6 +24,7 @@
 extern ulong get_my_cpu_area_start_vaddr();
 extern ulong get_my_cpu_data_area_start_vaddr();
 extern ulong get_my_cpu_stack_top_vaddr();
+extern ulong get_my_cpu_init_stack_top_vaddr();
 
 extern void *access_per_cpu_var(int *offset, size_t size);
 extern void init_per_cpu_area();

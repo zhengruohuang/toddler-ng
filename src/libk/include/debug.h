@@ -115,6 +115,16 @@ extern int kprintf(const char *fmt, ...);
     } while (0)
 
 
+/*
+ * Unreachable
+ */
+#define unreachable()                                           \
+    do {                                                        \
+        panic("Unreachable: should never reach here!\n");       \
+        while (1);                                              \
+    } while (0)
+
+
 // /*
 //  * Old
 //  */

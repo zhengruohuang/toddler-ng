@@ -5,4 +5,7 @@
 #include "libk/include/kprintf.h"
 
 
+extern int kprintf_unlocked(const char *fmt, ...);
+
+
 #endif

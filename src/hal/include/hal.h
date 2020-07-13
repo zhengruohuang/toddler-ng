@@ -65,7 +65,7 @@ struct hal_arch_funcs {
     init_context_t init_context;
     set_context_param_t set_context_param;
     switch_context_t switch_to;
-    void (*kernel_dispatch_prep)(ulong sched_id, struct kernel_dispatch_info *kdi);
+    void (*kernel_dispatch_prep)(ulong thread_id, struct kernel_dispatch *kdi);
 
     // TLB
     invalidate_tlb_t invalidate_tlb;
@@ -84,9 +84,9 @@ extern void arch_set_syscall_return(struct reg_context *regs, int succeed, ulong
 extern int arch_handle_syscall(ulong num, ulong param0, ulong param1, ulong param2, ulong *return0, ulong *return1);
 extern void arch_disable_local_int();
 extern void arch_enable_local_int();
-extern void arch_switch_to(ulong sched_id, struct reg_context *context,
-                           ulong page_dir_pfn, int user_mode, ulong asid, ulong tcb);
-extern void arch_kernel_dispatch_prep(ulong sched_id, struct kernel_dispatch_info *kdi);
+extern void arch_switch_to(ulong thread_id, struct reg_context *context,
+                           void *page_table, int user_mode, ulong asid, ulong tcb);
+extern void arch_kernel_dispatch_prep(ulong thread_id, struct kernel_dispatch *kdi);
 
 extern void hal(struct loader_args *largs, struct hal_arch_funcs *funcs);
 extern void hal_mp();

@@ -12,35 +12,28 @@
 decl_per_cpu(struct l1table *, cur_page_dir);
 
 
-void switch_to(ulong sched_id, struct reg_context *context,
-               ulong page_dir_pfn, int user_mode, ulong asid, ulong tcb)
+void switch_to(ulong thread_id, struct reg_context *context,
+               void *page_table, int user_mode, ulong asid, ulong tcb)
 {
-    // Switch page dir
-    struct l1table **pl1tab = get_per_cpu(struct l1table *, cur_page_dir);
-
-    paddr_t page_dir_paddr = ppfn_to_paddr(page_dir_pfn);
-    struct l1table *page_dir = cast_paddr_to_ptr(page_dir_paddr);
-    *pl1tab = page_dir;
-
-//     kprintf("To switch page dir PFN @ %lx\n", page_dir_pfn);
-
-    write_trans_tab_base0(page_dir);
-    inv_tlb_all();
-    //TODO: atomic_membar();
-
     // Copy context to interrupt stack
     ulong *cur_stack_top = get_per_cpu(ulong, cur_int_stack_top);
     memcpy((void *)*cur_stack_top, context, sizeof(struct reg_context));
 
-//     kprintf("SVC stack @ %lx\n", *cur_stack_top);
-
-    // Finally mark interrupts as enabled
+    // Mark interrupt state as enabled
     set_local_int_state(1);
 
-//     if (user_mode) {
-//         stop(0xbbbb);
-//     }
+    // Switch page dir
+    struct l1table **pl1tab = get_per_cpu(struct l1table *, cur_page_dir);
+    *pl1tab = page_table;
+
+    //kprintf("To switch page table @ %lx\n", page_table);
+    write_trans_tab_base0(page_table);
+    inv_tlb_all();
+    //TODO: atomic_membar();
+
+    //kprintf("cur_stack_top: %p, PC @ %p, SP @ %p, R0: %p\n", *cur_stack_top, context->pc, context->sp, context->r0);
+    //kprintf("Target PC @ %p\n", *(ulong *)*cur_stack_top);
 
     // Restore GPRs
-    // TODO: restore_context_gpr();
+    restore_context_gpr(*cur_stack_top);
 }

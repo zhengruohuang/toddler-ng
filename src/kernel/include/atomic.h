@@ -13,6 +13,8 @@ typedef struct {
     volatile ulong value;
 } atomic_t;
 
+#define ATOMIC_ZERO { .value = 0 }
+
 
 /*
  * Spin lock
@@ -27,6 +29,12 @@ typedef struct {
     };
 } spinlock_t;
 
+#define SPINLOCK_INIT { .value = 0 }
+
+static inline int spinlock_is_locked(spinlock_t *lock)
+{
+    return lock->locked ? 1 : 0;
+}
 
 extern void spinlock_init(spinlock_t *lock);
 
@@ -44,12 +52,14 @@ typedef struct {
     union {
         volatile ulong value;
         struct {
-            volatile ulong locked       : 1;
+            volatile ulong write        : 1;
             volatile ulong int_enabled  : 1;
-            volatile ulong counter      : sizeof(ulong) * 8 - 2;
+            volatile ulong reads        : sizeof(ulong) * 8 - 2;
         };
     };
 } rwlock_t;
+
+#define RWLOCK_INIT { .value = 0 }
 
 extern void rwlock_init(rwlock_t *lock);
 
@@ -58,8 +68,8 @@ extern void rwlock_read_unlock(rwlock_t *lock);
 extern void rwlock_write_lock(rwlock_t *lock);
 extern void rwlock_write_unlock(rwlock_t *lock);
 
-extern void rwlock_read_lock_int(rwlock_t *lock);
-extern void rwlock_read_unlock_int(rwlock_t *lock);
+extern int rwlock_read_lock_int(rwlock_t *lock);
+extern void rwlock_read_unlock_int(rwlock_t *lock, int enabled);
 extern void rwlock_write_lock_int(rwlock_t *lock);
 extern void rwlock_write_unlock_int(rwlock_t *lock);
 
@@ -76,6 +86,8 @@ typedef struct {
     volatile local_barrier_t *local;
     ulong total;
 } barrier_t;
+
+#define BARRIER_INIT(tot) { .local = NULL, .total = tot }
 
 extern void barrier_init(barrier_t *barrier, ulong total);
 void barrier_destroy(barrier_t *barrier);

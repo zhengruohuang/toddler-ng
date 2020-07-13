@@ -8,11 +8,15 @@
 struct loader_args {
     // Arch-specific data
     void *arch_args;
+    ulong arch_args_bytes;
 
     // Important data structures
     void *memmap;
     void *devtree;
     void *page_table;
+
+    // Coreimg
+    void *coreimg;
 
     // MP
     ulong mp_entry;

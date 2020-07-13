@@ -304,7 +304,7 @@ static void disable_irq(struct bcm2836_record *record, int mp_seq, int irq)
  */
 static int invoke(struct bcm2836_record *record, int cpu,
                   int irq, struct driver_param *int_dev,
-                  struct int_context *ictxt, struct kernel_dispatch_info *kdi)
+                  struct int_context *ictxt, struct kernel_dispatch *kdi)
 {
     if (irq == -1) {
         return INT_HANDLE_SIMPLE;
@@ -326,7 +326,7 @@ static int invoke(struct bcm2836_record *record, int cpu,
             INT_HANDLE_CALL_KERNEL : INT_HANDLE_SIMPLE;
 }
 
-static int handler(struct int_context *ictxt, struct kernel_dispatch_info *kdi)
+static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
 {
     struct bcm2836_record *record = ictxt->param;
     int cpu = ictxt->mp_seq;

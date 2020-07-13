@@ -403,6 +403,7 @@ static void jump_to_hal()
     arch_loader_args.pht_size = pht_size;
     arch_loader_args.pht_mask = pht_hash_mask;
     largs->arch_args = &arch_loader_args;
+    largs->arch_args_bytes = sizeof(struct arch_loader_args);
 
     // Call real mode
     void *stack_paddr = firmware_translate_virt_to_phys(&_stack_top);

@@ -37,7 +37,7 @@ struct int_context {
     void *param;
 } natural_struct;
 
-typedef int (*int_handler_t)(struct int_context *ictxt, struct kernel_dispatch_info *kdi);
+typedef int (*int_handler_t)(struct int_context *ictxt, struct kernel_dispatch *kdi);
 
 extern void int_handler(int seq, struct int_context *ictxt);
 extern void init_int_handler();
@@ -68,7 +68,7 @@ extern int set_int_handler(int seq, int_handler_t hdlr);
 extern int alloc_int_seq(int_handler_t hdlr);
 extern void free_int_seq(int seq);
 extern int_handler_t get_int_handler(int seq);
-extern int invoke_int_handler(int seq, struct int_context *ictxt, struct kernel_dispatch_info *kdi);
+extern int invoke_int_handler(int seq, struct int_context *ictxt, struct kernel_dispatch *kdi);
 
 
 /*
@@ -94,13 +94,13 @@ extern void init_int_state_mp();
 /*
  * Context
  */
-extern_per_cpu(ulong, cur_running_sched_id);
+extern_per_cpu(ulong, cur_running_thread_id);
 extern_per_cpu(int, cur_in_user_mode);
 extern_per_cpu(struct reg_context, cur_context);
 extern_per_cpu(ulong, cur_tcb_vaddr);
 
-extern void switch_context(ulong sched_id, struct reg_context *context,
-                    ulong page_dir_pfn, int user_mode, ulong asid, ulong tcb);
+extern void switch_context(ulong thread_id, struct reg_context *context,
+                           void *page_table, int user_mode, ulong asid, ulong tcb);
 
 extern void init_context();
 extern void init_context_mp();

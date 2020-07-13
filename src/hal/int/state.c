@@ -1,3 +1,5 @@
+#include "common/include/inttypes.h"
+#include "common/include/atomic.h"
 #include "hal/include/mp.h"
 #include "hal/include/lib.h"
 #include "hal/include/hal.h"
@@ -10,6 +12,7 @@ static decl_per_cpu(int, interrupt_enabled);
 
 int get_local_int_state()
 {
+    atomic_mb();
     volatile int *ptr = get_per_cpu(int, interrupt_enabled);
     int enabled = *ptr;
 
@@ -20,6 +23,7 @@ void set_local_int_state(int enabled)
 {
     volatile int *ptr = get_per_cpu(int, interrupt_enabled);
     *ptr = enabled;
+    atomic_mb();
 }
 
 
@@ -39,7 +43,6 @@ int disable_local_int()
 void enable_local_int()
 {
     set_local_int_state(1);
-
     arch_enable_local_int();
 }
 

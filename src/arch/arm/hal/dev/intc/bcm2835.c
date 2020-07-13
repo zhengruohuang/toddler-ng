@@ -202,7 +202,7 @@ static void disable_all(struct bcm2835_record *record)
  */
 static int invoke(struct bcm2835_record *record, int bank,
                   int irq, struct driver_param *int_dev,
-                  struct int_context *ictxt, struct kernel_dispatch_info *kdi)
+                  struct int_context *ictxt, struct kernel_dispatch *kdi)
 {
     if (irq == -1) {
         return INT_HANDLE_SIMPLE;
@@ -224,7 +224,7 @@ static int invoke(struct bcm2835_record *record, int bank,
             INT_HANDLE_CALL_KERNEL : INT_HANDLE_SIMPLE;
 }
 
-static int handle(struct int_context *ictxt, struct kernel_dispatch_info *kdi,
+static int handle(struct int_context *ictxt, struct kernel_dispatch *kdi,
                   struct bcm2835_record *record, int bank, u32 irq_mask)
 {
     int num_irqs = popcount32(irq_mask);
@@ -243,7 +243,7 @@ static int handle(struct int_context *ictxt, struct kernel_dispatch_info *kdi,
     return handle_type;
 }
 
-static int handler(struct int_context *ictxt, struct kernel_dispatch_info *kdi)
+static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
 {
     struct bcm2835_record *record = ictxt->param;
 

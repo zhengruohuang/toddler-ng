@@ -11,7 +11,7 @@ static int slist_node_salloc_id;
 void init_slist()
 {
     slist_node_salloc_id = salloc_create(sizeof(slist_node_t), 0, 0, NULL, NULL);
-    kprintf("\tDoubly linked slist node salloc ID: %d\n", slist_node_salloc_id);
+    kprintf("\tSingly linked slist node salloc ID: %d\n", slist_node_salloc_id);
 }
 
 void slist_create(slist_t *l)
@@ -23,101 +23,191 @@ void slist_create(slist_t *l)
     spinlock_init(&l->lock);
 }
 
-void slist_push_front(slist_t *l, void *n)
+void slist_insert(slist_t *l, slist_node_t *prev, void *n)
 {
-    // Allocate a slist node
+    panic_if(!spinlock_is_locked(&l->lock), "slist must be locked!\n");
+
     slist_node_t *s = salloc(slist_node_salloc_id);
     assert(s);
     s->node = n;
 
-    spinlock_lock_int(&l->lock);
+    if (prev) {
+        s->next = prev->next;
+        prev->next = s;
+        if (l->tail == prev) {
+            l->tail = s;
+        }
+    } else {
+        s->next = l->head;
+        l->head = s;
+        if (!l->tail) {
+            l->tail = s;
+        }
+    }
 
+    l->count++;
+}
+
+void *slist_remove(slist_t *l, slist_node_t *prev, slist_node_t *s)
+{
+    panic_if(!spinlock_is_locked(&l->lock), "slist must be locked!\n");
+    if (!s) {
+        return NULL;
+    }
+
+    if (prev) {
+        assert(prev->next == s);
+
+        prev->next = s->next;
+        if (l->tail == s) {
+            l->tail = prev;
+        }
+    } else {
+        assert(l->head == s);
+
+        if (l->tail == s) {
+            l->tail = l->head = NULL;
+        } else {
+            l->head = s->next;
+        }
+    }
+    return NULL;
+}
+
+void *slist_front(slist_t *l)
+{
+    panic_if(!spinlock_is_locked(&l->lock), "slist must be locked!\n");
+    return l->head;
+}
+
+void *slist_back(slist_t *l)
+{
+    panic_if(!spinlock_is_locked(&l->lock), "slist must be locked!\n");
+    return l->tail;
+}
+
+static inline void push_front_internal(slist_t *l, slist_node_t *s)
+{
     s->next = l->head;
     l->head = s;
-    l->count++;
 
-    spinlock_unlock_int(&l->lock);
+    if (!l->tail) {
+        l->tail = s;
+    }
+
+    l->count++;
+}
+
+static inline void push_back_internal(slist_t *l, slist_node_t *s)
+{
+    if (l->tail) {
+        l->tail->next = s;
+    }
+    l->tail = s;
+
+    if (!l->head) {
+        l->head = s;
+    }
+
+    s->next = NULL;
+    l->count++;
+}
+
+void slist_push_front(slist_t *l, void *n)
+{
+    panic_if(!spinlock_is_locked(&l->lock), "slist must be locked!\n");
+
+    slist_node_t *s = salloc(slist_node_salloc_id);
+    assert(s);
+    s->node = n;
+
+    push_front_internal(l, s);
 }
 
 void slist_push_back(slist_t *l, void *n)
 {
-    // Allocate a slist node
+    panic_if(!spinlock_is_locked(&l->lock), "slist must be locked!\n");
+
+    slist_node_t *s = salloc(slist_node_salloc_id);
+    assert(s);
+    s->node = n;
+
+    push_back_internal(l, s);
+}
+
+void slist_push_front_exclusive(slist_t *l, void *n)
+{
     slist_node_t *s = salloc(slist_node_salloc_id);
     assert(s);
     s->node = n;
 
     spinlock_lock_int(&l->lock);
-
-    if (l->tail) l->tail->next = s;
-    l->tail = s;
-    s->next = NULL;
-
-//     // Push back
-//     s->next = NULL;
-//     s->prev = l->prev;
-//
-//     if (l->prev) {
-//         l->prev->next = s;
-//     }
-//     l->prev = s;
-//
-//     if (!l->next) {
-//         l->next = s;
-//     }
-//
-//     l->count++;
-
+    push_front_internal(l, s);
     spinlock_unlock_int(&l->lock);
 }
 
-// static void inline slist_detach(slist_t *l, slist_node_t *s)
-// {
-//     if (s->prev) {
-//         s->prev->next = s->next;
-//     }
-//
-//     if (s->next) {
-//         s->next->prev = s->prev;
-//     }
-//
-//     if (l->prev == s) {
-//         l->prev = s->prev;
-//     }
-//
-//     if (l->next == s) {
-//         l->next = s->next;
-//     }
-//
-//     l->count--;
-// }
-//
-// void slist_remove(slist_t *l, slist_node_t *s)
-// {
-//     spinlock_lock_int(&l->lock);
-//     slist_detach(l, s);
-//     spinlock_unlock_int(&l->lock);
-//
-//     sfree(s);
-// }
-//
-// void *slist_pop_front(slist_t *l)
-// {
-//     slist_node_t *s = NULL;
-//     void *n = NULL;
-//
-//     spinlock_lock_int(&l->lock);
-//
-//     if (l->count) {
-//         assert(l->next);
-//
-//         s = l->next;
-//         slist_detach(l, s);
-//     }
-//
-//     spinlock_unlock_int(&l->lock);
-//
-//     n = s->node;
-//     sfree(s);
-//
-//     return n;
-// }
+void slist_push_back_exclusive(slist_t *l, void *n)
+{
+    slist_node_t *s = salloc(slist_node_salloc_id);
+    assert(s);
+    s->node = n;
+
+    spinlock_lock_int(&l->lock);
+    push_back_internal(l, s);
+    spinlock_unlock_int(&l->lock);
+}
+
+void *slist_pop_front(slist_t *l)
+{
+    panic_if(!spinlock_is_locked(&l->lock), "slist must be locked!\n");
+
+    slist_node_t *s = l->head;
+    if (!s) {
+        return NULL;
+    }
+
+    if (l->tail == s) {
+        l->tail = l->head = NULL;
+    } else {
+        l->head = s->next;
+    }
+
+    l->count--;
+    void *n = s->node;
+    sfree(s);
+
+    return n;
+}
+
+void *slist_pop_back(slist_t *l)
+{
+    panic_if(!spinlock_is_locked(&l->lock), "slist must be locked!\n");
+
+    slist_node_t *s = l->tail;
+    if (!s) {
+        return NULL;
+    }
+
+    if (l->head == s) {
+        l->head = l->tail = NULL;
+    } else {
+        slist_node_t *prev_s = NULL;
+
+        for (slist_node_t *prev = NULL, *cur = l->head; cur; prev = cur, cur = cur->next) {
+            if (cur == s) {
+                prev_s = prev;
+                break;
+            }
+        }
+        assert(prev_s);
+
+        prev_s->next = NULL;
+        l->tail = prev_s;
+    }
+
+    l->count--;
+    void *n = s->node;
+    sfree(s);
+
+    return n;
+}

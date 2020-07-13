@@ -2,6 +2,7 @@
 #include "common/include/coreimg.h"
 #include "loader/include/devtree.h"
 #include "loader/include/kprintf.h"
+#include "loader/include/boot.h"
 #include "loader/include/lib.h"
 
 
@@ -14,14 +15,6 @@ unsigned char __attribute__((weak, aligned(8))) embedded_coreimg[] = {
     0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0
 };
 
-
-static struct coreimg_fat *coreimg = NULL;
-
-
-static bool is_coreimg_header(struct coreimg_fat *img)
-{
-    return img->header.magic == COREIMG_MAGIC;
-}
 
 void *find_supplied_coreimg(int *size)
 {
@@ -67,7 +60,7 @@ void *find_supplied_coreimg(int *size)
     return (void *)(ulong)start;
 }
 
-static void *search_appended_coreimg()
+static void *find_appended_coreimg()
 {
     if (is_coreimg_header((struct coreimg_fat *)embedded_coreimg)) {
         return embedded_coreimg;
@@ -78,26 +71,15 @@ static void *search_appended_coreimg()
 
 void init_coreimg()
 {
-    coreimg = find_supplied_coreimg(NULL);
+    void *coreimg = find_supplied_coreimg(NULL);
     if (!coreimg) {
-        coreimg = search_appended_coreimg();
+        coreimg = find_appended_coreimg();
     }
 
     panic_if(!coreimg, "Unable to find coreimg!");
-}
+    init_libk_coreimg(coreimg);
 
-void *coreimg_find_file(const char *name)
-{
-    int file_count = coreimg->header.file_count;
-    struct coreimg_record *record = NULL;
-
-    for (int i = 0; i < file_count; i++) {
-        record = &coreimg->records[i];
-        if (!strncmp(name, record->file_name, 20)) {
-            int offset = record->start_offset;
-            return (void *)coreimg + offset;
-        }
-    }
-
-    return NULL;
+    // Save coreimg
+    struct loader_args *largs = get_loader_args();
+    largs->coreimg = coreimg;
 }

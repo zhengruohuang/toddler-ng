@@ -25,10 +25,25 @@ int kernel_pfree(ppfn_t ppfn)
     return kexp.pfree(ppfn);
 }
 
-void kernel_dispatch(ulong sched_id, struct kernel_dispatch_info *kdi)
+void *kernel_palloc_ptr(int count)
+{
+    return kexp.palloc_ptr(count);
+}
+
+int kernel_pfree_ptr(void *ptr)
+{
+    return kexp.pfree_ptr(ptr);
+}
+
+void kernel_dispatch(ulong sched_id, struct kernel_dispatch *kdi)
 {
     arch_kernel_dispatch_prep(sched_id, kdi);
     return kexp.dispatch(sched_id, kdi);
+}
+
+void kernel_start()
+{
+    kexp.start();
 }
 
 void kernel_test_phase1()
@@ -63,7 +78,7 @@ static void fill_hal_exports()
     hexp.kernel_page_table = largs->page_table;
 
     // Core image info
-    hexp.coreimg_load_addr = 0;    // TODO: get_bootparam()->coreimg_load_addr;
+    hexp.coreimg = largs->coreimg;
 
     // MP
     hexp.num_cpus = get_num_cpus();
@@ -84,7 +99,7 @@ static void fill_hal_exports()
     hexp.translate = funcs->translate;
 
     // Address space
-    hexp.user_page_dir_page_count = 0;     // TODO: funcs->exports.user_page_dir_page_count;
+    //hexp.user_page_dir_page_count = 0;     // TODO: funcs->exports.user_page_dir_page_count;
     hexp.vaddr_space_end = 0;  // TODO: funcs->exports.vaddr_space_end;
     hexp.init_addr_space = funcs->init_addr_space;
 

@@ -12,7 +12,13 @@
  */
 extern ppfn_t kernel_palloc(int count);
 extern int kernel_pfree(ppfn_t ppfn);
-extern void kernel_dispatch(ulong sched_id, struct kernel_dispatch_info *kdi);
+
+extern void *kernel_palloc_ptr(int count);
+extern int kernel_pfree_ptr(void *ptr);
+
+extern void kernel_dispatch(ulong sched_id, struct kernel_dispatch *kdi);
+extern void kernel_start();
+
 extern void kernel_test_phase1();
 
 

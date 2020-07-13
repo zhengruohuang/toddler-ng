@@ -7,6 +7,7 @@
 #include "libk/include/math.h"
 #include "libk/include/align.h"
 #include "libk/include/string.h"
+#include "libk/include/coreimg.h"
 
 
 extern char *strdup(const char *s);

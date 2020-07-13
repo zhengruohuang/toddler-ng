@@ -6,6 +6,7 @@
 #include "libk/include/debug.h"
 #include "libk/include/math.h"
 #include "libk/include/string.h"
+#include "libk/include/coreimg.h"
 
 
 #endif
