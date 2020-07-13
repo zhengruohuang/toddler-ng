@@ -110,6 +110,8 @@ static void register_drivers()
     REGISTER_DEV_DRIVER(armv7_generic_timer);
 
     REGISTER_DEV_DRIVER(armv7_cpu);
+
+    REGISTER_DEV_DRIVER(arm_pl011);
 }
 
 static ulong get_syscall_params(struct reg_context *regs, ulong *param0, ulong *param1, ulong *param2)
