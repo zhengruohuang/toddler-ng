@@ -7,6 +7,7 @@
 #include "common/include/mem.h"
 #include "libk/include/memmap.h"
 #include "libk/include/mem.h"
+#include "kernel/include/atomic.h"
 
 
 /*
@@ -61,9 +62,47 @@ extern void test_palloc();
  */
 typedef void (*salloc_callback_t)(void *entry);
 
-extern void init_salloc();
-extern int salloc_create(size_t size, size_t align, int count, salloc_callback_t construct, salloc_callback_t destruct);
-extern void *salloc(int obj_id);
+struct salloc_bucket;
+
+typedef struct salloc_obj {
+    // Sizes
+    size_t struct_size;
+    size_t block_size;
+
+    // Alignment
+    size_t alignment;
+    ulong block_start_offset;
+
+    // Constructor/Destructor
+    salloc_callback_t constructor;
+    salloc_callback_t destructor;
+
+    // Bucket info
+    int bucket_page_count;
+    int bucket_block_count;
+
+    // Buckets
+    //  Note that we only have partial list since empty buckets are freed
+    //  immediately, and full buckets are dangling, they will be put back to
+    //  the partial list when they become partial
+    struct {
+        struct salloc_bucket *next;
+        ulong count;
+    } partial_buckets;
+
+    // The spin lock that protects the entire salloc obj
+    // not very efficient, but it does the job
+    spinlock_t lock;
+} salloc_obj_t;
+
+#define SALLOC_OBJ_INIT { \
+        .struct_size = 0, \
+        .block_size = 0, \
+        .lock = SPINLOCK_INIT \
+    }
+
+extern void salloc_create(salloc_obj_t *obj, size_t size, size_t align, int count, salloc_callback_t ctor, salloc_callback_t dtor);
+extern void *salloc(salloc_obj_t *obj);
 extern void sfree(void *ptr);
 
 

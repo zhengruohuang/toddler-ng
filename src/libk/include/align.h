@@ -13,13 +13,13 @@
  */
 static inline ulong align_up_ulong(ulong val, ulong align)
 {
-    panic_if(popcount(val) != 1, "Align must be power of 2!\n");
+    panic_if(popcount(align) != 1, "Align must be power of 2!\n");
     return ALIGN_UP(val, align);
 }
 
 static inline ulong align_down_ulong(ulong val, ulong align)
 {
-    panic_if(popcount(val) != 1, "Align must be power of 2!\n");
+    panic_if(popcount(align) != 1, "Align must be power of 2!\n");
     return ALIGN_DOWN(val, align);
 }
 

@@ -14,15 +14,15 @@ static int int_handler_syscall(struct int_context *ictxt, struct kernel_dispatch
 
     // See if we can quickly handle this syscall in HAL
     switch (num) {
-    case SYSCALL_NONE_HAL:
+    case SYSCALL_HAL_NONE:
         success = 1;
         break;
-    case SYSCALL_PING_HAL:
+    case SYSCALL_HAL_PING:
         return0 = param0 + 1;
         return1 = param1 + 1;
         success = 1;
         break;
-    case SYSCALL_GET_TCB:
+    case SYSCALL_HAL_GET_TIB:
         return0 = *get_per_cpu(ulong, cur_tcb_vaddr);
         success = 1;
         break;

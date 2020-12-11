@@ -12,18 +12,18 @@
 struct malloc_entry {
     size_t block_size;
     int block_count;
-    int salloc_id;
+    salloc_obj_t salloc_obj;
 };
 
 static struct malloc_entry malloc_entries[] = {
-    { 16,   0, 0 },
-    { 32,   0, 0 },
-    { 64,   0, 0 },
-    { 128,  0, 0 },
-    { 256,  0, 0 },
-    { 384,  0, 0 },
-    { 512,  0, 0 },
-    { 768,  0, 0 },
+    { 16,   0, SALLOC_OBJ_INIT },
+    { 32,   0, SALLOC_OBJ_INIT },
+    { 64,   0, SALLOC_OBJ_INIT },
+    { 128,  0, SALLOC_OBJ_INIT },
+    { 256,  0, SALLOC_OBJ_INIT },
+    { 384,  0, SALLOC_OBJ_INIT },
+    { 512,  0, SALLOC_OBJ_INIT },
+    { 768,  0, SALLOC_OBJ_INIT },
 };
 
 
@@ -35,16 +35,16 @@ void init_malloc()
     int entry_count = sizeof(malloc_entries) / sizeof(struct malloc_entry);
 
     for (i = 0; i < entry_count; i++) {
-        malloc_entries[i].salloc_id = salloc_create(
+        salloc_create(&malloc_entries[i].salloc_obj,
             malloc_entries[i].block_size, 0, malloc_entries[i].block_count,
             NULL, NULL
         );
 
         // ID == 0 is invalid
-        assert(malloc_entries[i].salloc_id);
+        //assert(malloc_entries[i].salloc_id);
 
-        kprintf("\tAlloc obj #%d created, ID: %d, size: %ld bytes\n", i,
-                malloc_entries[i].salloc_id, malloc_entries[i].block_size);
+        kprintf("\tAlloc obj #%d created, obj @ %p, size: %ld bytes\n", i,
+                &malloc_entries[i].salloc_obj, malloc_entries[i].block_size);
     }
 }
 
@@ -55,7 +55,7 @@ void *malloc(size_t size)
 
     for (i = 0; i < entry_count; i++) {
         if (size <= malloc_entries[i].block_size) {
-            void *ptr = salloc(malloc_entries[i].salloc_id);
+            void *ptr = salloc(&malloc_entries[i].salloc_obj);
             if (ptr) {
                 return ptr;
             }

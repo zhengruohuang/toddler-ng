@@ -4,7 +4,7 @@
 
 #include "common/include/inttypes.h"
 #include "common/include/context.h"
-// #include "common/include/proc.h"
+#include "common/include/proc.h"
 #include "kernel/include/atomic.h"
 #include "kernel/include/struct.h"
 
@@ -35,64 +35,16 @@
 // };
 
 
-// /*
-//  * Scheduling
-//  */
-// enum sched_state {
-//     sched_enter,
-//     sched_ready,
-//     sched_run,
-//     sched_idle,
-//     sched_stall,
-//     sched_exit,
-// };
-//
-// struct sched {
-//     // Sched list
-//     struct sched *prev;
-//     struct sched *next;
-//
-//     // Sched control info
-//     ulong sched_id;
-//     enum sched_state state;
-//
-//     // Priority
-//     int base_priority;
-//     int priority;
-//     int is_idle;
-//
-//     // Containing proc and thread
-//     ulong proc_id;
-//     struct process *proc;
-//     ulong thread_id;
-//     struct thread *thread;
-//
-//     // Affinity
-//     int pin_cpu_id;
-// };
-//
-// struct sched_list {
-//     ulong count;
-//     struct sched *head;
-//     struct sched *tail;
-//
-//     spinlock_t lock;
-// };
-
-
 /*
  * Thread
  */
 struct process;
 
 enum thread_state {
-    THREAD_STATE_ENTER, // Thread just created
-    THREAD_STATE_SCHED, // Thread is being sched
+    THREAD_STATE_ENTER,     // Thread just created
     THREAD_STATE_NORMAL,    // Thread running
-    THREAD_STATE_STALL, // Thread waiting for syscall or IO reponse
-    THREAD_STATE_WAIT,
-    THREAD_STATE_EXIT,  // Thread waiting to be terminated
-    THREAD_STATE_CLEAN, // Thread terminated, waiting to be claned
+    THREAD_STATE_WAIT,      // Thread waiting for object
+    THREAD_STATE_EXIT,      // Thread waiting to be terminated
 };
 
 struct thread_memory {
@@ -101,35 +53,43 @@ struct thread_memory {
     ulong block_size;
 
     // Stack
-    ulong stack_top_offset;
-    ulong stack_limit_offset;
-    ulong stack_size;
-    ulong stack_top_paddr;
-
-    // TCB
-    ulong tcb_start_offset;
-    ulong tcb_size;
-    ulong tcb_start_paddr;
+    struct {
+        ulong top_offset;
+        ulong limit_offset;
+        ulong size;
+        void *top_paddr_ptr;
+    } stack;
 
     // TLS
-    ulong tls_start_offset;
+    struct {
+        ulong start_offset;
+        ulong size;
+        void *start_paddr_ptr;
+    } tls;
+
+    // Msg, allocated on stack
+    struct {
+        ulong start_offset;
+        ulong size;
+        void *start_paddr_ptr;
+    } msg;
+};
+
+struct thread_attri {
+    int pin_cpu_mp_seq;
+    ulong stack_size;
     ulong tls_size;
-    ulong tls_start_paddr;
-
-    // Msg recv
-    ulong msg_recv_offset;
-    ulong msg_recv_size;
-    ulong msg_recv_paddr;
-
-    // Msg send
-    ulong msg_send_offset;
-    ulong msg_send_size;
-    ulong msg_send_paddr;
 };
 
 struct thread {
+    list_node_t node;
+    list_node_t node_proc;
+    list_node_t node_sched;
+    list_node_t node_wait;
+
     // Thread info
     ulong tid;
+    int is_main;
     enum thread_state state;
     struct thread_memory memory;
 
@@ -142,54 +102,58 @@ struct thread {
     // Context
     struct reg_context context;
 
+    // Wait
+    enum thread_wait_type wait_type;
+    ulong wait_obj;
+    u64 wait_timeout_ms;
+
     // CPU affinity
     int pin_cpu_id;
 
-    // Scheduling
-    //ulong sched_id;
-    //struct sched *sched;
-
     // IPC
-    //struct msg_node *cur_msg;
+    ulong reply_msg_to_tid;
 
     // Lock
     spinlock_t lock;
     atomic_t ref_count;
 };
 
-#define thread_access_exclusive(tid, t) \
+#define access_thread(tid, t) \
     for (struct thread *t = acquire_thread(tid); t; release_thread(t), t = NULL) \
         for (int __term = 0; !__term; __term = 1)
 
-#define create_thread_and_run(tid, t, p, entry, param, pin, stack, tls) \
-    for (ulong tid = create_thread(p, entry, param, pin, stack, tls); tid; tid = 0) \
-        for (struct thread *t = acquire_thread(tid); t; release_thread(t), t = NULL) \
-            for (int __term = 0; !__term; run_thread(t)) \
-                for (; !__term; __term = 1)
+#define create_and_run_thread(tid, t, p, entry, param, attri) \
+    for (ulong tid = create_thread(p, entry, param, attri); tid; tid = 0) \
+        for (struct thread *t = acquire_thread(tid); t; release_thread(t), run_thread(t), t = NULL) \
+            for (int __term = 0; !__term; __term = 1)
 
-#define create_thread_and_access_exclusive(tid, t, p, entry, param, pin, stack, tls) \
-    for (ulong tid = create_thread(p, entry, param, pin, stack, tls); tid; tid = 0) \
+#define create_and_access_thread(tid, t, p, entry, param, attri) \
+    for (ulong tid = create_thread(p, entry, param, attri); tid; tid = 0) \
         for (struct thread *t = acquire_thread(tid); t; release_thread(t), t = NULL) \
             for (int __term = 0; !__term; __term = 1)
 
-#define create_krun(tid, t, entry, param, pin) \
+#define create_and_run_kernel_thread(tid, t, entry, param, attri) \
     for (struct process *p = acquire_process(get_kernel_pid()); p; release_process(p), p = NULL) \
-        create_thread_and_run(tid, t, p, (ulong)(entry), (ulong)(param), pin, 0, 0)
+        create_and_run_thread(tid, t, p, (ulong)(entry), (ulong)(param), attri)
 
-#define create_kthread(tid, t, entry, param, pin) \
+#define create_and_access_kernel_thread(tid, t, entry, param, attri) \
     for (struct process *p = acquire_process(get_kernel_pid()); p; release_process(p), p = NULL) \
-        create_thread_and_access_exclusive(tid, t, p, (ulong)(entry), (ulong)(param), pin, 0, 0)
+        create_and_access_thread(tid, t, p, (ulong)(entry), (ulong)(param), attri)
 
 extern void init_thread();
 
 extern struct thread *acquire_thread(ulong id);
 extern void release_thread(struct thread *t);
+extern int thread_exists(ulong tid);
 
 extern ulong create_thread(struct process *p, ulong entry_point, ulong param,
-                                    int pin_cpu_id, ulong stack_size, ulong tls_size);
-extern void run_thread(struct thread *t);
+                           struct thread_attri *attri);
+extern void exit_thread(struct thread *t);
 
 extern void thread_save_context(struct thread *t, struct reg_context *ctxt);
+
+extern void set_thread_state(struct thread *t, int state);
+extern void run_thread(struct thread *t);
 
 
 /*
@@ -212,47 +176,53 @@ enum process_state {
     PROCESS_STATE_EXIT,
 };
 
+enum process_vm_block_state {
+    VM_STATE_FREE_UNMAPPED,
+    VM_STATE_FREE_MAPPED,
+    VM_STATE_INUSE,
+};
+
+struct dynamic_block {
+    list_node_t node;
+    list_node_t node_free;
+    list_node_t node_mapped;
+
+    enum process_vm_block_state state;
+    ulong base;
+    ulong size;
+};
+
 struct process_memory {
     // Entry point
     ulong entry_point;
 
     // Memory layout
-    ulong program_start;
-    ulong program_end;
+    struct {
+        ulong start;
+        ulong end;
+    } program;
 
-    ulong dynamic_top;
-    ulong dynamic_bottom;
+    struct {
+        ulong start;
+        ulong end;
+    } heap;
 
-    ulong heap_start;
-    ulong heap_end;
-};
+    struct {
+        ulong top;
+        ulong bottom;
 
-struct dynamic_block {
-    struct dynamic_block *next;
-
-    ulong base;
-    ulong size;
-};
-
-struct dynamic_block_list {
-    struct dynamic_block *head;
-    int count;
-};
-
-struct dynamic_area {
-    ulong cur_top;
-
-    struct dynamic_block_list in_use;
-    struct dynamic_block_list free;
+        list_t blocks;  // All blocks
+        list_t free;    // Free and unmapped
+        list_t mapped;  // Free but mapped
+    } dynamic;
 };
 
 struct process {
+    list_node_t node;
+
     // Process and parent ID, -1 = No parent
     ulong pid;
     ulong parent_pid;
-
-    // ASID
-    ulong asid;
 
     // Name and URL
     char *name;
@@ -263,52 +233,49 @@ struct process {
     enum process_state state;
     int user_mode;
 
+    // ASID
+    ulong asid;
+
     // Page table
     void *page_table;
 
     // Virtual memory
-    struct process_memory memory;
+    struct process_memory vm;
 
-    // Dynamic area map
-    struct dynamic_area dynamic;
+    // Threads
+    list_t threads;
+    atomic_t thread_create_count;
+    atomic_t thread_exit_count;
 
-    // Thread
-    slist_t threads;
+    // Wait objects
+    list_t wait_objects;
 
     // Scheduling
-    uint priority;
+    int priority;
 
     // IPC
-    ulong mailbox_id;
-    //list_t msgs;
-    //hashtable_t msg_handlers;
+    ulong popup_msg_handler;
 
     // Lock
     spinlock_t lock;
     atomic_t ref_count;
 };
 
-struct process_list {
-    ulong count;
-    struct process *next;
 
-    spinlock_t lock;
-};
-
-
-// /*
-//  * Dynamic area
-//  */
-// extern void init_dalloc();
-// extern void create_dalloc(struct process *p);
-// extern ulong dalloc(struct process *p, ulong size);
-// extern void dfree(struct process *p, ulong base);
+/*
+ * Dynamic VM
+ */
+extern void init_dynamic_vm();
+extern ulong vm_alloc(struct process *p, ulong size, ulong align, ulong attri);
+extern void vm_free(struct process *p, ulong base);
+extern void vm_cleanup(struct process *p);
+extern void vm_purge(struct process *p);
 
 
 /*
  * Process
  */
-#define process_access_exclusive(id, proc) \
+#define access_process(id, proc) \
     for (struct process *proc = acquire_process(id); proc; release_process(proc), proc = NULL) \
         for (int __term = 0; !__term; __term = 1)
 
@@ -317,6 +284,7 @@ extern ulong get_kernel_pid();
 
 extern struct process *acquire_process(ulong id);
 extern void release_process(struct process *p);
+extern int process_exists(ulong pid);
 
 extern ulong create_process(ulong parent_id, char *name, enum process_type type);
 extern int load_coreimg_elf(struct process *p, char *url, void *img);
@@ -326,36 +294,6 @@ extern int load_coreimg_elf(struct process *p, char *url, void *img);
  * Start up
  */
 extern void init_startup();
-
-
-// /*
-//  * Thread
-//  */
-// extern struct thread *gen_thread_by_thread_id(ulong thread_id);
-// extern void init_thread();
-//
-// extern void create_thread_lists(struct process *p);
-// extern struct thread *create_thread(
-//     struct process *p, ulong entry_point, ulong param,
-//     int pin_cpu_id,
-//     ulong stack_size, ulong tls_size
-// );
-//
-// extern void set_thread_arg(struct thread *t, ulong arg);
-// extern void change_thread_control(struct thread *t, ulong entry_point, ulong param);
-//
-// extern void destroy_absent_threads(struct process *p);
-//
-// extern void run_thread(struct thread *t);
-// extern void idle_thread(struct thread *t);
-// extern int wait_thread(struct thread *t);
-// extern void terminate_thread_self(struct thread *t);
-// extern void terminate_thread(struct thread *t);
-// extern void clean_thread(struct thread *t);
-//
-// extern asmlinkage void kernel_idle_thread(ulong param);
-// extern asmlinkage void kernel_demo_thread(ulong param);
-// extern asmlinkage void kernel_tclean_thread(ulong param);
 
 
 /*
@@ -368,19 +306,38 @@ extern void sched_put(struct thread *t);
 extern void switch_to_thread(struct thread *t);
 extern void sched();
 
-// extern struct sched *get_sched(ulong sched_id);
-//
-// extern struct sched *enter_sched(struct thread *t);
-// extern void ready_sched(struct sched *s);
-// extern void idle_sched(struct sched *s);
-// extern void wait_sched(struct sched *s);
-// extern void exit_sched(struct sched *s);
-// extern void exit_sched(struct sched *s);
-// extern void clean_sched(struct sched *s);
-//
-// extern int desched(ulong sched_id, struct context *context);
-// extern void resched(ulong sched_id);
-// extern void sched();
+
+/*
+ * Wait
+ */
+#define access_wait_queue_exclusive(q) \
+    for (list_t *q = acquire_wait_queue_exclusive(); q; release_wait_queue(), q = NULL) \
+        for (int __term = 0; !__term; __term = 1)
+
+extern void init_wait();
+extern list_t *acquire_wait_queue_exclusive();
+extern void release_wait_queue();
+
+extern void sleep_thread(struct thread *t);
+
+extern ulong alloc_wait_object(struct process *p, ulong user_obj_id, ulong total, int global);
+extern int wait_on_object(struct process *p, struct thread *t, int wait_type, ulong obj_id, ulong timeout_ms);
+extern ulong wake_on_object(struct process *p, struct thread *t, int wait_type, ulong obj_id, ulong max_wakeup_count);
+extern ulong wake_on_object_exclusive(struct process *p, struct thread *t, int wait_type, ulong wait_obj, ulong max_wakeup_count);
+
+extern void purge_wait_queue(struct process *p);
+
+
+/*
+ * IPC
+ */
+extern void init_ipc();
+
+extern int ipc_reg_popup_handler(struct process *p, struct thread *t, ulong entry);
+
+extern int ipc_request(struct process *p, struct thread *t, ulong dst_pid, ulong opcode, ulong flags, int *wait);
+extern int ipc_respond(struct process *p, struct thread *t);
+extern int ipc_receive(struct process *p, struct thread *t, ulong timeout_ms, ulong *opcode, int *wait);
 
 
 // /*

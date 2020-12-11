@@ -4,8 +4,7 @@
 
 
 #include "common/include/inttypes.h"
-//#include "common/include/memory.h"
-//#include "kernel/include/hal.h"
+#include "common/include/stdarg.h"
 #include "kernel/include/lib.h"
 #include "kernel/include/mem.h"
 #include "kernel/include/struct.h"
@@ -26,7 +25,7 @@ static void kernel_demo_thread(ulong param)
         int cpu_id = hal_get_cur_mp_seq();
         //kprintf("Kernel demo thread #%d on CPU #%d%s!\n",
         //        index, cpu_id , index == cpu_id ? ", TID == CPU ID" : "");
-        syscall_yield();
+        syscall_thread_yield();
     } while (1);
 }
 
@@ -34,26 +33,27 @@ static void kernel_demo_thread(ulong param)
 /*
  * Thread list
  */
-static slist_t threads;
+static list_t threads;
 
 struct thread *acquire_thread(ulong id)
 {
     struct thread *t = NULL;
 
-    slist_foreach_exclusive(&threads, n) {
-        struct thread *cur = n->node;
+    list_foreach_exclusive(&threads, n) {
+        struct thread *cur = list_entry(n, struct thread, node);
         if (cur->tid == id) {
             t = cur;
-            spinlock_lock_int(&t->lock);
+            //spinlock_lock_int(&t->lock);
             atomic_inc(&t->ref_count.value);
-            spinlock_unlock_int(&t->lock);
+            atomic_mb();
+            //spinlock_unlock_int(&t->lock);
             break;
         }
     }
 
-    if (t) {
-        spinlock_lock_int(&t->lock);
-    }
+    //if (t) {
+    //    spinlock_lock_int(&t->lock);
+    //}
 
     //kprintf("acquired thread @ %p\n", t);
     return t;
@@ -64,29 +64,45 @@ void release_thread(struct thread *t)
     //kprintf("release thread @ %p, int enabled: %d\n", t, t->lock.int_enabled);
 
     panic_if(!t, "Inconsistent acquire/release pair\n");
-    panic_if(!t->lock.locked, "Inconsistent acquire/release pair\n");
-    panic_if(t->ref_count.value <= 0, "Inconsistent ref_count\n");
+    //panic_if(!t->lock.locked, "Inconsistent acquire/release pair\n");
+    panic_if(t->ref_count.value <= 0, "Inconsistent ref_count: %ld, tid: %lx\n",
+             t->ref_count.value, t->tid);
 
+    atomic_mb();
     atomic_dec(&t->ref_count.value);
-    spinlock_unlock_int(&t->lock);
+    //spinlock_unlock_int(&t->lock);
+}
+
+int thread_exists(ulong tid)
+{
+    int exists = 0;
+
+    list_foreach_exclusive(&threads, n) {
+        struct thread *cur = list_entry(n, struct thread, node);
+        if (cur->tid == tid) {
+            exists = 1;
+            break;
+        }
+    }
+
+    return exists;
 }
 
 
 /*
  * Init
  */
-static int thread_salloc_id;
+static salloc_obj_t thread_salloc_obj;
 
 void init_thread()
 {
     kprintf("Initializing thread manager\n");
 
     // Create salloc obj
-    thread_salloc_id = salloc_create(sizeof(struct thread), 0, 0, NULL, NULL);
-    kprintf("\tThread salloc ID: %d\n", thread_salloc_id);
+    salloc_create(&thread_salloc_obj, sizeof(struct thread), 0, 0, NULL, NULL);
 
     // Init thread list
-    slist_create(&threads);
+    list_init(&threads);
 
 //     // Create kernel demo threads
 //     for (int i = 0; i < 4; i++) {
@@ -100,19 +116,23 @@ void init_thread()
 /*
  * Thread creation
  */
+#define KERNEL_TLS_SIZE     (PAGE_SIZE)
+#define KERNEL_STACK_SIZE   (PAGE_SIZE)
+
+#define USER_TLS_SIZE       (PAGE_SIZE * 4)
+#define USER_STACK_SIZE     (PAGE_SIZE * 4)
+
 static ulong alloc_thread_id(struct thread *t)
 {
     ulong id = (ulong)t;
     return id;
 }
 
-ulong create_thread(struct process *p, ulong entry_point, ulong param,
-                             int pin_cpu_id, ulong stack_size, ulong tls_size)
+static struct thread *create_exec_context(struct process *p,
+                                          struct thread_attri *attri)
 {
-    panic_if(!spinlock_is_locked(&p->lock), "process must be locked!\n");
-
     // Allocate a thread struct
-    struct thread *t = (struct thread *)salloc(thread_salloc_id);
+    struct thread *t = (struct thread *)salloc(&thread_salloc_obj);
     assert(t);
 
     // Assign a thread id
@@ -125,138 +145,103 @@ ulong create_thread(struct process *p, ulong entry_point, ulong param,
     t->asid = p->asid;
     t->state = THREAD_STATE_ENTER;
 
+    ulong seq = atomic_fetch_and_add(&p->thread_create_count.value, 1);
+    t->is_main = !seq;
+
     // Round up stack size and tls size
-    stack_size = ALIGN_UP(stack_size ? stack_size : PAGE_SIZE, PAGE_SIZE);
-    tls_size = ALIGN_UP(tls_size ? tls_size : PAGE_SIZE, PAGE_SIZE);
+    ulong default_stack_size = t->user_mode ? USER_STACK_SIZE : KERNEL_STACK_SIZE;
+    ulong default_tls_size = t->user_mode ? USER_TLS_SIZE : KERNEL_TLS_SIZE;
+    ulong stack_size = attri && attri->stack_size ? ALIGN_UP(attri->stack_size, PAGE_SIZE) : default_stack_size;
+    ulong tls_size = attri && attri->tls_size ? ALIGN_UP(attri->tls_size, PAGE_SIZE) : default_tls_size;
 
     // Setup sizes
-    t->memory.msg_send_size = PAGE_SIZE;
-    t->memory.msg_recv_size = PAGE_SIZE;
-    t->memory.tls_size = tls_size;
-    t->memory.stack_size = stack_size;
-    t->memory.block_size = t->memory.msg_send_size + t->memory.msg_recv_size +
-                            t->memory.tls_size + t->memory.stack_size;
+    t->memory.tls.size = tls_size;
+    t->memory.stack.size = stack_size;
+    t->memory.block_size = t->memory.tls.size + t->memory.stack.size;
 
     // Setup offsets
-    t->memory.msg_send_offset = 0;
-    t->memory.msg_recv_offset = t->memory.msg_send_offset + t->memory.msg_send_size;
-    t->memory.tls_start_offset = t->memory.msg_recv_offset + t->memory.msg_recv_size;
-    t->memory.stack_limit_offset = t->memory.tls_start_offset + t->memory.tls_size;
-    t->memory.stack_top_offset = t->memory.stack_limit_offset + stack_size;
+    t->memory.tls.start_offset = 0;
+    t->memory.stack.limit_offset = t->memory.tls.start_offset + t->memory.tls.size;
+    t->memory.stack.top_offset = t->memory.stack.limit_offset + t->memory.stack.size;
 
     // Allocate memory
     if (p->type == PROCESS_TYPE_KERNEL) {
         t->memory.block_base = (ulong)palloc_ptr(t->memory.block_size / PAGE_SIZE);
         //kprintf("Kernel thread block allocated paddr @ %p\n", (void *)t->memory.block_base);
 
-        t->memory.msg_send_paddr = t->memory.block_base + t->memory.msg_send_offset;
-        t->memory.msg_recv_paddr = t->memory.block_base + t->memory.msg_recv_offset;
-        t->memory.tls_start_paddr = t->memory.block_base + t->memory.tls_start_offset;
-        t->memory.stack_top_paddr = t->memory.block_base + t->memory.stack_top_offset;
+        t->memory.tls.start_paddr_ptr = (void *)(t->memory.block_base + t->memory.tls.start_offset);
+        t->memory.stack.top_paddr_ptr = (void *)(t->memory.block_base + t->memory.stack.top_offset);
     } else {
-//         // Allocate a dynamic block
-//         t->memory.block_base = dalloc(p, t->memory.block_size);
-        t->memory.block_base = 0x80000000ul;
+        // Allocate a dynamic block
+        t->memory.block_base = vm_alloc(p, t->memory.block_size, PAGE_SIZE, VM_ATTRI_DATA);
 
-        // Allocate and map physical memory
-        ppfn_t ppfn = palloc(stack_size / PAGE_SIZE);
-        paddr_t paddr = ppfn_to_paddr(ppfn);
-        int mapped_count = get_hal_exports()->map_range(p->page_table,
-            t->memory.block_base + t->memory.stack_limit_offset,
-            paddr, stack_size, 1, 1, 1, 0, 0);
+        // Allocate physical memory
+        t->memory.tls.start_paddr_ptr = palloc_ptr(1);
+        void *initial_stack_paddr_ptr = palloc_ptr(1);
+        t->memory.stack.top_paddr_ptr = initial_stack_paddr_ptr + PAGE_SIZE;
 
-//
-//         // Allocate memory and map it
-//         // Msg send
-//         ulong paddr = PFN_TO_ADDR(palloc(t->memory.msg_send_size / PAGE_SIZE));
-//         assert(paddr);
-//         int succeed = hal->map_user(
-//             p->page_dir_pfn,
-//             t->memory.block_base + t->memory.msg_send_offset,
-//             paddr, t->memory.msg_send_size, 0, 1, 1, 0
-//         );
-//         assert(succeed);
-//         t->memory.msg_send_paddr = paddr;
-//         //kprintf("Mapped msg send, vaddr @ %p, paddr @ %p\n",
-//         //        (void *)(t->memory.block_base + t->memory.msg_send_offset), (void *)paddr);
-//
-//         // Msg recv
-//         paddr = PFN_TO_ADDR(palloc(t->memory.msg_recv_size / PAGE_SIZE));
-//         assert(paddr);
-//         succeed = hal->map_user(
-//             p->page_dir_pfn,
-//             t->memory.block_base + t->memory.msg_recv_offset,
-//             paddr, t->memory.msg_recv_size, 0, 1, 1, 0
-//         );
-//         assert(succeed);
-//         t->memory.msg_recv_paddr = paddr;
-//         //kprintf("Mapped msg recv, vaddr @ %p, paddr @ %p\n",
-//         //        (void *)(t->memory.block_base + t->memory.msg_recv_offset), (void *)paddr);
-//
-//         // TLS
-//         paddr = PFN_TO_ADDR(palloc(tls_size / PAGE_SIZE));
-//         assert(paddr);
-//         succeed = hal->map_user(
-//             p->page_dir_pfn,
-//             t->memory.block_base + t->memory.tls_start_offset,
-//             paddr, tls_size, 0, 1, 1, 0
-//         );
-//         assert(succeed);
-//         t->memory.tls_start_paddr = paddr;
-//         //kprintf("Mapped TLS, vaddr @ %p, paddr @ %p\n",
-//         //       (void *)(t->memory.block_base + t->memory.tls_start_offset), (void *)paddr);
-//
-//         // Stack
-//         paddr = PFN_TO_ADDR(palloc(stack_size / PAGE_SIZE));
-//         assert(paddr);
-//         succeed = hal->map_user(
-//             p->page_dir_pfn,
-//             t->memory.block_base + t->memory.stack_limit_offset,
-//             paddr, stack_size, 0, 1, 1, 0
-//         );
-//         assert(succeed);
-//         t->memory.stack_top_paddr = paddr + stack_size;
-//         //kprintf("Mapped stack, vaddr @ %p, paddr @ %p\n",
-//         //        (void *)(t->memory.block_base + t->memory.stack_limit_offset), (void *)paddr);
+        // Map virtual to physical
+        get_hal_exports()->map_range(p->page_table,
+                                     t->memory.block_base + t->memory.tls.start_offset,
+                                     cast_ptr_to_paddr(t->memory.tls.start_paddr_ptr),
+                                     t->memory.tls.size,
+                                     1, 1, 1, 0, 0);
+        get_hal_exports()->map_range(p->page_table,
+                                     t->memory.block_base + t->memory.stack.top_offset - PAGE_SIZE,
+                                     cast_ptr_to_paddr(initial_stack_paddr_ptr),
+                                     PAGE_SIZE,
+                                     1, 1, 1, 0, 0);
     }
 
-    // Insert TCB into TLS
-    //t->memory.tcb_start_offset = t->memory.tls_start_offset;
-    //t->memory.tcb_start_paddr = t->memory.tls_start_paddr;
-    //t->memory.tcb_size = sizeof(struct thread_control_block);
+    // Adjust stack top to make some room for msg block
+    const ulong msg_block_size = align_up_ulong(sizeof(msg_t), 16);
+    t->memory.msg.size = msg_block_size;
+    t->memory.stack.top_offset -= msg_block_size;
+    t->memory.stack.top_paddr_ptr -= msg_block_size;
+    t->memory.msg.start_offset = t->memory.stack.top_offset;
+    t->memory.msg.start_paddr_ptr = t->memory.stack.top_paddr_ptr;
 
-    //t->memory.tls_start_offset += t->memory.tcb_size;
-    //t->memory.tls_start_paddr += t->memory.tcb_size;
+    // Add some extra room to separate stack and msg proxy
+    // Not something necessary, just to be extra safe
+    t->memory.stack.top_offset -= 16;
+    t->memory.stack.top_paddr_ptr -= 16;
 
-    // Initialize TCB
-    //struct thread_control_block *tcb = (struct thread_control_block *)t->memory.tcb_start_paddr;
-    //kprintf("TCB @ %p\n", tcb);
+    // Init TIB
+    struct thread_info_block *tib = (struct thread_info_block *)t->memory.tls.start_paddr_ptr;
+    memzero(tib, sizeof(struct thread_info_block));
 
-    //tcb->self = (struct thread_control_block *)(t->memory.block_base + t->memory.tcb_start_offset);
-    //tcb->msg_send = (void *)(t->memory.block_base + t->memory.msg_send_offset);
-    //tcb->msg_recv = (void *)(t->memory.block_base + t->memory.msg_recv_offset);
-    //tcb->tls = (void *)(t->memory.block_base + t->memory.tls_start_offset);
-    //tcb->proc_id = p->proc_id;
-    //tcb->thread_id = t->thread_id;
+    tib->self = (struct thread_info_block *)(t->memory.block_base + t->memory.tls.start_offset);
+    tib->pid = t->pid;
+    tib->tid = t->tid;
 
-    // Prepare the param
-    //ulong *param_ptr = (ulong *)(t->memory.stack_top_paddr - sizeof(ulong));
-    //*param_ptr = param;
+    tib->msg = (void *)(t->memory.block_base + t->memory.msg.start_offset);
+    tib->tls = (void *)(t->memory.block_base + t->memory.tls.start_offset + sizeof(struct thread_info_block));
+    tib->tls_size = t->memory.tls.size - sizeof(struct thread_info_block);
+
+    // Init lock
+    spinlock_init(&t->lock);
+    t->ref_count.value = 1;
+
+    // Insert the thread into global and the process local thread lists
+    list_push_back_exclusive(&threads, &t->node);
+    list_push_back_exclusive(&p->threads, &t->node_proc);
+    atomic_inc(&p->ref_count.value);
+
+    // Done
+    return t;
+}
+
+ulong create_thread(struct process *p, ulong entry_point, ulong param,
+                    struct thread_attri *attri)
+{
+    // Create thread execution context
+    struct thread *t = create_exec_context(p, attri);
 
     // Context
     get_hal_exports()->init_context(
         &t->context, entry_point, param,
-        t->memory.block_base + t->memory.stack_top_offset - sizeof(ulong) * 2,
+        t->memory.block_base + t->memory.stack.top_offset,
         t->user_mode);
-
-    // Init lock
-    spinlock_init(&t->lock);
-    t->ref_count.value = 2;
-    atomic_inc(&p->ref_count.value);
-
-    // Insert the thread into the thread list
-    slist_push_back_exclusive(&p->threads, t);
-    slist_push_back_exclusive(&threads, t);
 
     // Done
     return t->tid;
@@ -264,8 +249,40 @@ ulong create_thread(struct process *p, ulong entry_point, ulong param,
 
 
 /*
- * Thread destruction
+ * Exit thread
  */
+void exit_thread(struct thread *t)
+{
+    kprintf("Exiting thread @ %p\n", t);
+
+    panic_if(t->ref_count.value != 1, "Inconsistent ref count: %ld, tid @ %lx\n",
+             t->ref_count.value, t->tid);
+
+    access_process(t->pid, proc) {
+        // TODO: check thread state
+
+        // Clean up dynamic area
+        if (proc->type == PROCESS_TYPE_KERNEL) {
+            pfree_ptr((void *)t->memory.block_base);
+        } else {
+        }
+
+        access_wait_queue_exclusive(wait_queue) {
+            list_remove_exclusive(&threads, &t->node);
+            list_remove_exclusive(&proc->threads, &t->node_proc);
+
+            wake_on_object(proc, t, WAIT_ON_THREAD, t->tid, 0);
+            if (t->is_main) {
+                wake_on_object(proc, t, WAIT_ON_MAIN_THREAD, t->tid, 0);
+            }
+        }
+
+        sfree(t);
+        atomic_dec(&proc->ref_count.value);
+        atomic_mb();
+    }
+}
+
 // static void destroy_thread(struct process *p, struct thread *t)
 // {
 //     //kprintf("[Thread] To destory absent thread, process: %s\n", p->name);
@@ -344,7 +361,6 @@ ulong create_thread(struct process *p, ulong entry_point, ulong param,
  */
 void thread_save_context(struct thread *t, struct reg_context *ctxt)
 {
-    panic_if(!spinlock_is_locked(&t->lock), "thread must be locked!\n");
     memcpy(&t->context, ctxt, sizeof(struct reg_context));
 }
 
@@ -352,12 +368,57 @@ void thread_save_context(struct thread *t, struct reg_context *ctxt)
 /*
  * Change thread state
  */
+const char *get_thread_state_name(int state)
+{
+    switch (state) {
+    case THREAD_STATE_NORMAL:
+        return "normal";
+    case THREAD_STATE_WAIT:
+        return "wait";
+    case THREAD_STATE_EXIT:
+        return "exit";
+    default:
+        return "unknown";
+    }
+
+    return "unknown";
+}
+
+void set_thread_state(struct thread *t, int state)
+{
+    spinlock_exclusive_int(&t->lock) {
+        // Check if transition is valid
+        switch (state) {
+        case THREAD_STATE_NORMAL:
+            panic_if(t->state != THREAD_STATE_ENTER && t->state != THREAD_STATE_WAIT,
+                     "Invalid thread state transition: %s -> %s\n",
+                     get_thread_state_name(t->state), get_thread_state_name(state));
+            break;
+        case THREAD_STATE_WAIT:
+            panic_if(t->state != THREAD_STATE_NORMAL,
+                     "Invalid thread state transition: %s -> %s\n",
+                     get_thread_state_name(t->state), get_thread_state_name(state));
+            break;
+        case THREAD_STATE_EXIT:
+            panic_if(t->state != THREAD_STATE_NORMAL && t->state != THREAD_STATE_WAIT,
+                     "Invalid thread state transition: %s -> %s\n",
+                     get_thread_state_name(t->state), get_thread_state_name(state));
+            break;
+        default:
+            panic("Invalid thread state transition: %s -> %s\n",
+                  get_thread_state_name(t->state), get_thread_state_name(state));
+            break;
+        }
+
+        t->state = state;
+    }
+}
+
 void run_thread(struct thread *t)
 {
-    //assert(t->state == thread_enter || t->state == thread_wait || t->state == thread_stall || t->state == thread_sched);
+    atomic_inc(&t->ref_count.value);
+    atomic_mb();
 
-    panic_if(!spinlock_is_locked(&t->lock), "thread must be locked!\n");
-
-    t->state = THREAD_STATE_NORMAL;
+    set_thread_state(t, THREAD_STATE_NORMAL);
     sched_put(t);
 }

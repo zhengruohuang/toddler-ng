@@ -170,5 +170,31 @@ static inline void atomic_dec(volatile ulong *addr)
     );
 }
 
+static inline ulong atomic_fetch_and_add(volatile ulong *addr, ulong add)
+{
+    ulong old_val, new_val, ret_val;
+
+    do {
+        old_val = *addr;
+        new_val = old_val + add;
+        ret_val = atomic_cas_val(addr, old_val, new_val);
+    } while (ret_val != old_val);
+
+    return ret_val;
+}
+
+static inline ulong atomic_fetch_and_sub(volatile ulong *addr, ulong sub)
+{
+    ulong old_val, new_val, ret_val;
+
+    do {
+        old_val = *addr;
+        new_val = old_val - sub;
+        ret_val = atomic_cas_val(addr, old_val, new_val);
+    } while (ret_val != old_val);
+
+    return ret_val;
+}
+
 
 #endif

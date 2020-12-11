@@ -7,6 +7,7 @@
 
 
 #define INT_FREQ_DIV    8
+#define MS_PER_INT      (1000 / (INT_FREQ_DIV))
 
 
 struct generic_timer_phys_ctrl_reg {
@@ -24,6 +25,7 @@ struct generic_timer_phys_ctrl_reg {
 
 struct armv7_generic_timer_record {
     u32 timer_step;
+    int clock_idx;
 };
 
 
@@ -54,6 +56,11 @@ static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
     ctrl.enabled = 0;
     ctrl.masked = 1;
     write_generic_timer_phys_ctrl(ctrl.value);
+
+    // Clock
+    if (!ictxt->mp_seq && record->clock_idx) {
+        clock_advance_ms(record->clock_idx, MS_PER_INT);
+    }
 
     // Set a new value for compare
     write_generic_timer_phys_interval(record->timer_step);
@@ -114,6 +121,9 @@ static void setup(struct driver_param *param)
 
     // Register special function
     REG_SPECIAL_DRV_FUNC(cpu_power_on, param, cpu_power_on);
+
+    // Register clock source
+    record->clock_idx = clock_source_register(CLOCK_QUALITY_PERIODIC_LOW_RES);
 }
 
 static int probe(struct fw_dev_info *fw_info, struct driver_param *param)

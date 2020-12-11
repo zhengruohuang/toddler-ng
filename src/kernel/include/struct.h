@@ -7,90 +7,139 @@
 
 
 /*
- * Singly linked list
+ * Helpers
  */
-typedef struct slist_node {
-    struct slist_node *next;
-    void *node;
-} slist_node_t;
+#define offsetof(type, member) \
+    ((ulong)&((type *)0)->member)
 
-typedef struct slist {
+#define container_of(ptr, type, member) \
+    ((type *)(((ulong)ptr) - (offsetof(type, member))))
+
+
+/*
+ * List - doubly linked list
+ */
+typedef struct list_node {
+    struct list_node *prev;
+    struct list_node *next;
+} list_node_t;
+
+typedef struct {
     ulong count;
-    struct slist_node *head;
-    struct slist_node *tail;
-
+    struct list_node head;
+    struct list_node tail;
     spinlock_t lock;
-} slist_t;
+} list_t;
 
-#define slist_foreach(l, node) \
-    for (slist_node_t *node = (l)->head; node; node = node->next)
+#define list_entry(ptr, type, member) \
+    container_of(ptr, type, member)
 
-#define slist_access_exclusive(l) \
+#define list_access_exclusive(l) \
     for (spinlock_t *__lock = &(l)->lock; __lock; __lock = NULL) \
         for (spinlock_lock_int(__lock); __lock; spinlock_unlock_int(__lock), __lock = NULL) \
             for (int __term = 0; !__term; __term = 1)
 
-#define slist_foreach_exclusive(l, node) \
-    for (spinlock_t *__lock = &(l)->lock; __lock; __lock = NULL) \
+#define list_foreach(l, node) \
+    for (list_node_t *node = (l)->head.next; node != &(l)->tail; node = node->next)
+
+#define list_foreach_exclusive(l, node) \
+    list_access_exclusive(l) \
+        list_foreach(l, node)
+
+#define list_remove_in_foreach(l, n) \
+    do { \
+        list_node_t *removed_n = list_remove(l, n); \
+        if (removed_n) { \
+            n = removed_n->prev; \
+        } \
+    } while (0)
+
+// entry(a) > entry(b) ? 1 : (entry(a) < entry(b) ? -1 : 0)
+typedef int (*list_cmp_t)(list_node_t *a, list_node_t *b);
+
+extern void list_init(list_t *l);
+
+extern void list_insert(list_t *l, list_node_t *prev, list_node_t *n);
+extern void list_insert_sorted(list_t *l, list_node_t *n, list_cmp_t cmp);
+extern list_node_t *list_remove(list_t *l, list_node_t *n);
+
+extern void list_push_back(list_t *l, list_node_t *n);
+extern void list_push_front(list_t *l, list_node_t *n);
+
+extern list_node_t *list_front(list_t *l);
+extern list_node_t *list_back(list_t *l);
+
+extern list_node_t *list_pop_back(list_t *l);
+extern list_node_t *list_pop_front(list_t *l);
+
+extern void list_insert_exclusive(list_t *l, list_node_t *prev, list_node_t *n);
+extern void list_insert_sorted_exclusive(list_t *l, list_node_t *n, list_cmp_t cmp);
+extern list_node_t *list_remove_exclusive(list_t *l, list_node_t *n);
+
+extern void list_push_back_exclusive(list_t *l, list_node_t *n);
+extern void list_push_front_exclusive(list_t *l, list_node_t *n);
+
+extern list_node_t *list_pop_back_exclusive(list_t *l);
+extern list_node_t *list_pop_front_exclusive(list_t *l);
+
+
+/*
+ * Hash table
+ */
+typedef ulong (*hashtable_func_t)(int num_buckets_order, void *key);
+typedef int (*hashtable_cmp_t)(void *a, void *b);
+                            // key(a) > key(b) ? 1 : (key(a) < key(b) ? -1 : 0)
+
+typedef struct hashtable_node {
+    void *key;
+    struct hashtable_node *prev;
+    struct hashtable_node *next;
+} hashtable_node_t;
+
+typedef struct hashtable_bucket {
+    ulong count;
+    struct hashtable_node head;
+    struct hashtable_node tail;
+} hashtable_bucket_t;
+
+typedef struct hashtable {
+    ulong count;
+
+    int num_buckets_order;
+    hashtable_bucket_t *buckets;
+
+    hashtable_func_t hash_func;
+    hashtable_cmp_t key_cmp;
+
+    spinlock_t lock;
+} hashtable_t;
+
+#define hashtable_entry(ptr, type, member) \
+    container_of(ptr, type, member)
+
+#define hashtable_access_exclusive(t) \
+    for (spinlock_t *__lock = &(t)->lock; __lock; __lock = NULL) \
         for (spinlock_lock_int(__lock); __lock; spinlock_unlock_int(__lock), __lock = NULL) \
-            for (slist_node_t *node = (l)->head; node; node = node->next)
+            for (int __term = 0; !__term; __term = 1)
 
-extern void init_slist();
-extern void slist_create(slist_t *l);
+#define hashtable_foreach_bucket(t, b) \
+    for (hashtable_bucket_t *b = &(t)->buckets[0]; b < &(t)->buckets[0x1ul << (t)->num_buckets_order]; b++)
 
-extern void slist_insert(slist_t *l, slist_node_t *prev, void *n);
-extern void *slist_remove(slist_t *l, slist_node_t *prev, slist_node_t *s);
+#define hashtable_foreach_node(b, n) \
+    for (hashtable_node_t *n = (b)->head.next; n != &(b)->tail; n = n->next)
 
-extern void *slist_front(slist_t *l);
-extern void *slist_back(slist_t *l);
+extern void hashtable_init(hashtable_t *t, int num_buckets, hashtable_func_t hash, hashtable_cmp_t cmp);
+extern void hashtable_init_default(hashtable_t *t);
 
-extern void slist_push_back_exclusive(slist_t *l, void *n);
-extern void slist_push_front_exclusive(slist_t *l, void *n);
+extern void hashtable_insert(hashtable_t *t, void *key, hashtable_node_t *n);
+extern hashtable_node_t *hashtable_get(hashtable_t *t, void *key);
+extern int hashtable_contains(hashtable_t *t, void *key);
+extern hashtable_node_t *hashtable_remove(hashtable_t *t, void *key);
 
-extern void slist_push_back(slist_t *l, void *n);
-extern void slist_push_front(slist_t *l, void *n);
-
-extern void *slist_pop_back(slist_t *l);
-extern void *slist_pop_front(slist_t *l);
-
-
-
-// /*
-//  * Hash table
-//  */
-// typedef ulong (*hashtable_func_t)(ulong key, ulong size);
-// typedef int (*hashtable_cmp_t)(ulong cmp_key, ulong node_key);
-//
-// typedef struct hashtable_node {
-//     struct hashtable_node *next;
-//     ulong key;
-//     void *node;
-// } hashtable_node_t;
-//
-// typedef struct hashtable_bucket {
-//     ulong node_count;
-//     hashtable_node_t *head;
-// } hashtable_bucket_t;
-//
-// typedef struct hashtable {
-//     ulong bucket_count;
-//     ulong node_count;
-//     hashtable_bucket_t *buckets;
-//
-//     hashtable_func_t hash_func;
-//     hashtable_cmp_t hash_cmp;
-//
-//     spinlock_t lock;
-// } hashtable_t;
-//
-// extern void init_hashtable();
-// extern void hashtable_create(hashtable_t *l, ulong bucket_count, hashtable_func_t hash_func, hashtable_cmp_t hash_cmp);
-// extern hashtable_t *hashtable_new(ulong bucket_count, hashtable_func_t hash_func, hashtable_cmp_t hash_cmp);
-// extern int hashtable_contains(hashtable_t *l, ulong key);
-// extern void *hashtable_obtain(hashtable_t *l, ulong key);
-// extern void hashtable_release(hashtable_t *l, ulong key, void *n);
-// extern int hashtable_insert(hashtable_t *l, ulong key, void *n);
-// extern int hashtable_remove(hashtable_t *l, ulong key);
+extern void hashtable_insert_exlusive(hashtable_t *t, void *key, hashtable_node_t *n);
+extern hashtable_node_t *hashtable_get_exclusive(hashtable_t *t, void *key);
+extern int hashtable_contains_exclusive(hashtable_t *t, void *key);
+extern hashtable_node_t *hashtable_remove_exclusive(hashtable_t *t, void *key);
 
 
 #endif

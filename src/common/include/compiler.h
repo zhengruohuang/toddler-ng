@@ -63,5 +63,13 @@
 #endif
 
 
+#ifndef COMPILE_ASSERT
+#ifdef __COMPILE_ASSERT
+#undef __COMPILE_ASSERT
+#endif
+#define __COMPILE_ASSERT(cond, line)    typedef char __compile_assert_at_##line[(!!(cond)) * 2 - 1]
+#define COMPILE_ASSERT(cond)            __COMPILE_ASSERT(cond, __LINE__)
 #endif
 
+
+#endif

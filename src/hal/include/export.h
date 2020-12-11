@@ -47,6 +47,9 @@ typedef int (*get_cur_mp_seq_t)();
 typedef int (*disable_local_int_t)();
 typedef void (*enable_local_int_t)();
 
+// Clock
+typedef u64 (*get_ms_t)();
+
 // Mapping
 typedef int (*map_range_t)(void *page_table, ulong vaddr, paddr_t paddr,
                            size_t length, int cacheable, int exec, int write,
@@ -101,6 +104,9 @@ struct hal_exports {
     disable_local_int_t disable_local_int;
     enable_local_int_t enable_local_int;
     int (*restore_local_int)(int enabled);
+
+    // Clock
+    get_ms_t get_ms;
 
     // Mapping
     map_range_t map_range;

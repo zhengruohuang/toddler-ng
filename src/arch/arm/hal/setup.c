@@ -204,16 +204,6 @@ static void init_thread_context(struct reg_context *context, ulong entry,
     context->cpsr = psr.value;
 }
 
-static void kernel_dispatch_prep(ulong thread_id, struct kernel_dispatch *kdi)
-{
-    struct loader_args *largs = get_loader_args();
-    struct l1table *kernel_page_table = largs->page_table;
-
-    write_trans_tab_base0(kernel_page_table);
-    inv_tlb_all();
-    //TODO: atomic_membar();
-}
-
 
 /*
  * ARM HAL entry
@@ -257,7 +247,8 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.init_context = init_thread_context;
     funcs.set_context_param = set_thread_context_param;
     funcs.switch_to = switch_to;
-    funcs.kernel_dispatch_prep = kernel_dispatch_prep;
+    funcs.kernel_pre_dispatch = kernel_pre_dispatch;
+    funcs.kernel_post_dispatch = kernel_post_dispatch;
 
     funcs.invalidate_tlb = invalidate_tlb;
 

@@ -90,4 +90,22 @@ enum dev_pfn_cache_query_type {
 extern ulong get_dev_access_window(paddr_t paddr, ulong size, int cached);
 
 
+/*
+ * Clock
+ */
+enum clock_quality {
+    CLOCK_QUALITY_NO_CLOCK,
+    CLOCK_QUALITY_UNRELIABLE,
+    CLOCK_QUALITY_PERIODIC_LOW_RES,
+    CLOCK_QUALITY_PERIODIC_HIGH_RES,
+    CLOCK_QUALITY_HIGH_QUALITY,
+};
+
+extern int clock_source_register(int quality);
+
+extern u64 clock_get_ms();
+extern void clock_set_ms(int clk_idx, u64 new_ms);
+extern void clock_advance_ms(int clk_idx, ulong advance);
+
+
 #endif

@@ -32,26 +32,26 @@ ulong get_kernel_pid()
 /*
  * Process list
  */
-static slist_t processes;
+static list_t processes;
 
 struct process *acquire_process(ulong id)
 {
     struct process *p = NULL;
 
-    slist_foreach_exclusive(&processes, n) {
-        struct process *cur = n->node;
+    list_foreach_exclusive(&processes, n) {
+        struct process *cur = list_entry(n, struct process, node);
         if (cur->pid == id) {
             p = cur;
-            spinlock_lock_int(&p->lock);
+            //spinlock_lock_int(&p->lock);
             atomic_inc(&p->ref_count.value);
-            spinlock_unlock_int(&p->lock);
+            //spinlock_unlock_int(&p->lock);
             break;
         }
     }
 
-    if (p) {
-        spinlock_lock_int(&p->lock);
-    }
+    //if (p) {
+    //    spinlock_lock_int(&p->lock);
+    //}
 
     //kprintf("acquired process @ %s\n", p->name);
     return p;
@@ -62,29 +62,43 @@ void release_process(struct process *p)
     //kprintf("released process: %s, int enabled: %d\n", p->name, p->lock.int_enabled);
 
     panic_if(!p, "Inconsistent acquire/release pair\n");
-    panic_if(!p->lock.locked, "Inconsistent acquire/release pair\n");
+    //panic_if(!p->lock.locked, "Inconsistent acquire/release pair\n");
     panic_if(p->ref_count.value <= 0, "Inconsistent ref_count\n");
 
     atomic_dec(&p->ref_count.value);
-    spinlock_unlock_int(&p->lock);
+    //spinlock_unlock_int(&p->lock);
+}
+
+int process_exists(ulong pid)
+{
+    int exists = 0;
+
+    list_foreach_exclusive(&processes, n) {
+        struct process *cur = list_entry(n, struct process, node);
+        if (cur->pid == pid) {
+            exists = 1;
+            break;
+        }
+    }
+
+    return exists;
 }
 
 
 /*
  * Init
  */
-static int proc_salloc_id;
+static salloc_obj_t proc_salloc_obj;
 
 void init_process()
 {
     kprintf("Initializing process manager\n");
 
     // Create salloc obj
-    proc_salloc_id = salloc_create(sizeof(struct process), 0, 0, NULL, NULL);
+    salloc_create(&proc_salloc_obj, sizeof(struct process), 0, 0, NULL, NULL);
 
     // Init process list
-    slist_create(&processes);
-    kprintf("\tSalloc ID: %d\n", proc_salloc_id);
+    list_init(&processes);
 
     // Create the kernel process
     kernel_pid = create_process(-1, "kernel", PROCESS_TYPE_KERNEL);
@@ -106,7 +120,7 @@ ulong create_process(ulong parent_id, char *name, enum process_type type)
     struct process *p = NULL;
 
     // Allocate a process struct
-    p = (struct process *)salloc(proc_salloc_id);
+    p = (struct process *)salloc(&proc_salloc_obj);
     panic_if(!p, "Unable to allocate process struct\n");
 
     // Assign a proc id
@@ -134,32 +148,41 @@ ulong create_process(ulong parent_id, char *name, enum process_type type)
     panic_if(!p->page_table, "Unable to allocate page table");
 
     // Memory layout
-    p->memory.entry_point = 0;
+    p->vm.entry_point = 0;
 
-    p->memory.program_start = 0;
-    p->memory.program_end = 0;
+    p->vm.program.start = 0;
+    p->vm.program.end = 0;
 
-    p->memory.heap_start = 0;
-    p->memory.heap_end = 0;
+    p->vm.heap.start = 0;
+    p->vm.heap.end = 0;
 
-    p->memory.dynamic_top = 0;
-    p->memory.dynamic_bottom = 0;
+    p->vm.dynamic.top = 0;
+    p->vm.dynamic.bottom = 0;
 
-    // Dynamic area
-    //create_dalloc(p);
+    // Set VM list locks as locked so that the list functions are happy
+    list_init(&p->vm.dynamic.blocks);
+    list_init(&p->vm.dynamic.free);
+    list_init(&p->vm.dynamic.mapped);
+    spinlock_lock(&p->vm.dynamic.blocks.lock);
+    spinlock_lock(&p->vm.dynamic.free.lock);
+    spinlock_lock(&p->vm.dynamic.mapped.lock);
 
-    // Threads
-    slist_create(&p->threads);
+    // Thread list
+    list_init(&p->threads);
+
+    // Wait
+    list_init(&p->wait_objects);
 
     // Msg handlers
-    //hashtable_create(&p->msg_handlers, 0, NULL, NULL);
+    //list_init(&p->serial_msgs);
+    p->popup_msg_handler = 0;
 
     // Init lock
     spinlock_init(&p->lock);
     p->ref_count.value = 1;
 
     // Insert the process into process list
-    slist_push_back_exclusive(&processes, p);
+    list_push_back_exclusive(&processes, &p->node);
 
     // Done
     return p->pid;
@@ -183,7 +206,7 @@ typedef Elf64_Addr              elf_native_addr_t;
 
 int load_coreimg_elf(struct process *p, char *url, void *img)
 {
-    panic_if(!spinlock_is_locked(&p->lock), "process must be locked!\n");
+    //panic_if(!spinlock_is_locked(&p->lock), "process must be locked!\n");
     p->url = strdup(url);
 
     ulong vrange_start = -1ul;
@@ -252,15 +275,18 @@ int load_coreimg_elf(struct process *p, char *url, void *img)
     }
 
     // Set up address space info
-    p->memory.entry_point = elf_header->elf_entry;
-    p->memory.program_start = vrange_start;
-    p->memory.program_end = vrange_end;
+    p->vm.entry_point = elf_header->elf_entry;
+    p->vm.program.start = vrange_start;
+    p->vm.program.end = vrange_end;
 
-    kprintf("\t\tEntry @ %p\n", p->memory.entry_point);
+    kprintf("\t\tEntry @ %p\n", p->vm.entry_point);
 
     // Set up initial heap
     ulong heap_vaddr = align_up_vaddr(vrange_end + PAGE_SIZE, PAGE_SIZE);
-    p->memory.heap_start = p->memory.heap_end = heap_vaddr;
+    p->vm.heap.start = p->vm.heap.end = heap_vaddr;
+
+    // Set up dynamic VM
+    p->vm.dynamic.top = p->vm.dynamic.bottom = USER_VADDR_LIMIT;
 
     return EOK;
 }

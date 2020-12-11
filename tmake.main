@@ -2,13 +2,24 @@
 
 
 def build_libk():
-    print_info('libk', 'Building Libk')
+    print_info('libk', 'Building libk')
 
     libk_files = get_all_arch_files('libk/', [ '.c', '.S' ])
 
     lib_files(
         bin_dir + 'tdlrlibk.a',
         libk_files,
+        toolchain = get_toolchain('loader'),
+    )
+
+def build_libsys():
+    print_info('libk', 'Building libsys')
+
+    libsys_files = get_all_arch_files('libsys/', [ '.c', '.S' ])
+
+    lib_files(
+        bin_dir + 'tdlrlibsys.a',
+        libsys_files,
         toolchain = get_toolchain('loader'),
     )
 
@@ -35,17 +46,17 @@ def build_hal():
     )
 
 def build_kernel():
-    # Build kernel
     print_info('kernel', 'Building kernel')
 
     kernel_ld = find_deepest_arch_file('kernel/kernel.ld')
     kernel_files = get_all_arch_files('kernel/', [ '.c', '.S' ])
     libk = bin_dir + 'tdlrlibk.a'
+    libsys = bin_dir + 'tdlrlibsys.a'
 
     build_files(
         bin_dir + 'tdlrkrnl.elf',
         kernel_files,
-        ext_libs = [ libk ],
+        ext_libs = [ libsys, libk ],
         ext_ld_deps = [ kernel_ld ],
         ld_script = kernel_ld,
         toolchain = get_toolchain('kernel'),
@@ -57,66 +68,27 @@ def build_kernel():
         toolchain = get_toolchain('kernel'),
     )
 
-def build_klibc():
-    # Build klibc
-    print_info('klibc', 'Building klibc')
+def build_servers():
+    server_ld = find_deepest_arch_file('system/system.ld')
+    libk = bin_dir + 'tdlrlibk.a'
+    libsys = bin_dir + 'tdlrlibsys.a'
 
-    klib_files = get_all_arch_files('klibc/', [ '.c', '.S' ])
+    # System
+    print_info('system', 'Building system')
+    system_files = get_all_arch_files('system/', [ '.c', '.S' ])
 
-    lib_files(
-        bin_dir + 'tdlrklibc.a',
-
-        klib_files,
+    build_files(
+        bin_dir + 'tdlrsys.elf',
+        system_files,
+        ext_libs = [ libsys, libk ],
+        ext_ld_deps = [ server_ld ],
+        ld_script = server_ld,
         toolchain = get_toolchain('user'),
     )
 
-def build_user():
-    ## External flags for generic processes
-    #user_ld = find_deepest_arch_file('klibc/user.ld')
-    #klibc = bin_dir + 'tdlrklibc.a'
-
-    ## Build driver
-    #print_info('driver', 'Building driver')
-    #build_dir(
-        #bin_dir + 'tdlrdrv.elf',
-        #src_dir + 'driver/', [ '.c' ],
-        #ext_libs = [ klibc ],
-        #ext_ld_deps = [ user_ld ],
-        #ld_script = user_ld,
-        #toolchain = get_toolchain('user'),
-    #)
-
-    ## Build system
-    #print_info('system', 'Building system')
-    #build_dir(
-        #bin_dir + 'tdlrsys.elf',
-        #src_dir + 'system/', [ '.c' ],
-        #ext_libs = [ klibc ],
-        #ext_ld_deps = [ user_ld ],
-        #ld_script = user_ld,
-        #toolchain = get_toolchain('user'),
-    #)
-
-    ## Build shell
-    #print_info('shell', 'Building shell')
-    #build_dir(
-        #bin_dir + 'tdlrshell.elf',
-        #src_dir + 'shell/', [ '.c' ],
-        #ext_libs = [ klibc ],
-        #ext_ld_deps = [ user_ld ],
-        #ld_script = user_ld,
-        #toolchain = get_toolchain('user'),
-    #)
-
-    user_ld = find_deepest_arch_file('system/system.ld')
-
-    print_info('system', 'Building system')
-    build_dir(
+    disasm_exec(
+        disasm_dir + 'tdlrsys.S',
         bin_dir + 'tdlrsys.elf',
-        src_dir + 'system/', [ '.c' ],
-        #ext_libs = [ klibc ],
-        ext_ld_deps = [ user_ld ],
-        ld_script = user_ld,
         toolchain = get_toolchain('user'),
     )
 
@@ -216,10 +188,10 @@ def build_boot():
 
 def build_main():
     build_libk()
+    build_libsys()
     build_hal()
     build_kernel()
-    build_klibc()
-    build_user()
+    build_servers()
     build_fdt()
     build_coreimg()
     build_loader()

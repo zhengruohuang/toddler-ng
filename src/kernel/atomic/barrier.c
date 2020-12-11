@@ -49,6 +49,7 @@ void barrier_wait(barrier_t *barrier)
     }
 
     atomic_inc(&my_local->count);
+    atomic_notify();
 
     //kprintf("seq: %d, barrier @ %p, my_local @ %p, other_local @ %p, count: %ld, total: %ld, first: %d\n",
     //        hal_get_cur_mp_seq(), barrier, my_local, other_local, my_local->count, barrier->total, first);
@@ -74,6 +75,7 @@ void barrier_wait(barrier_t *barrier)
         atomic_notify();
 
         atomic_dec(&my_local->count);
+        atomic_notify();
     }
 }
 

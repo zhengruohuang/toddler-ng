@@ -12,79 +12,6 @@
 
 
 /*
- * Dispatch
- */
-static syscall_handler_t handlers[MAX_NUM_SYSCALLS];
-
-static void init_dispatch()
-{
-    memzero(handlers, sizeof(handlers));
-
-    handlers[SYSCALL_YIELD] = syscall_handler_yield;
-    handlers[SYSCALL_INTERRUPT] = syscall_handler_interrupt;
-    handlers[SYSCALL_THREAD_EXIT] = syscall_handler_thread_exit;
-}
-
-static void dispatch(ulong thread_id, struct kernel_dispatch *kdi)
-{
-    //kprintf("dispatch: %d\n", kdi->num);
-
-    int do_sched = 0;
-
-    int valid = 0;
-    thread_access_exclusive(thread_id, t) {
-        process_access_exclusive(t->pid, p) {
-            valid = 1;
-
-            // TODO: check thread/process state
-
-            syscall_handler_t handler = syscall_handler_illegal;
-            if (kdi->num < MAX_NUM_SYSCALLS && handlers[kdi->num]) {
-                handler = handlers[kdi->num];
-            }
-
-            int save_ctxt = 0;
-            int put_back = 0;
-            int handle_type = handler(p, t, kdi);
-            switch (handle_type) {
-            case SYSCALL_HANDLER_SAVE_RESCHED:
-                save_ctxt = 1;
-            case SYSCALL_HANDLER_RESCHED:
-                do_sched = 1;
-                put_back = 1;
-                break;
-
-            case SYSCALL_HANDLER_SAVE_SKIP:
-                save_ctxt = 1;
-            case SYSCALL_HANDLER_SKIP:
-                do_sched = 1;
-                break;
-
-            case SYSCALL_HANDLER_SAVE_CONTINUE:
-                save_ctxt = 1;
-            case SYSCALL_HANDLER_CONTINUE:
-            default:
-                break;
-            }
-
-            if (save_ctxt) {
-                thread_save_context(t, kdi->regs);
-            }
-
-            if (put_back) {
-                sched_put(t);
-            }
-        }
-    }
-
-    panic_if(!valid, "Invalid tid: %lx\n", kdi->tid);
-    if (do_sched) {
-        sched();
-    }
-}
-
-
-/*
  * Start
  */
 static void first_thread(ulong param)
@@ -93,7 +20,7 @@ static void first_thread(ulong param)
     kprintf("First thread on CPU #%d!\n", seq);
 
     // Terminate self
-    syscall_thread_exit_self();
+    syscall_thread_exit_self(0);
 }
 
 static void start()
@@ -102,8 +29,9 @@ static void start()
     // This is especially important for the bootstrap CPU as it safely switches
     // the BSP's stack
     struct thread *th = NULL;
-    create_kthread(tid, t, &first_thread, 0, -1) {
+    create_and_access_kernel_thread(tid, t, &first_thread, 0, NULL) {
         t->state = THREAD_STATE_NORMAL;
+        atomic_inc(&t->ref_count.value);
         th = t;
     }
 
@@ -135,6 +63,16 @@ static void init_kexp(struct hal_exports *hal_exp)
  */
 static spinlock_t kprintf_lock = SPINLOCK_INIT;
 
+void acquire_kprintf()
+{
+    spinlock_lock_int(&kprintf_lock);
+}
+
+void release_kprintf()
+{
+    spinlock_unlock_int(&kprintf_lock);
+}
+
 int kprintf(const char *fmt, ...)
 {
     int ret = 0;
@@ -142,9 +80,9 @@ int kprintf(const char *fmt, ...)
     va_list va;
     va_start(va, fmt);
 
-    spinlock_lock_int(&kprintf_lock);
+    acquire_kprintf();
     ret = __vkprintf(fmt, va);
-    spinlock_unlock_int(&kprintf_lock);
+    release_kprintf();
 
     va_end(va);
 
@@ -212,6 +150,16 @@ int hal_restore_local_int(int enabled)
     return hal->restore_local_int(enabled);
 }
 
+u64 hal_get_ms()
+{
+    return hal->get_ms();
+}
+
+void hal_set_syscall_return(struct reg_context *context, int success, ulong return0, ulong return1)
+{
+    return hal->set_syscall_return(context, success, return0, return1);
+}
+
 
 /*
  * Kernel entry
@@ -233,15 +181,15 @@ void kernel(struct hal_exports *hal_exp)
 
     init_pfndb();
     init_palloc();
-    init_salloc();
     init_malloc();
-
-    init_slist();
 
     init_dispatch();
     init_sched();
     init_process();
+    init_dynamic_vm();
     init_thread();
+    init_wait();
+    init_ipc();
     init_startup();
 
     init_test();

@@ -31,6 +31,16 @@ typedef struct {
 
 #define SPINLOCK_INIT { .value = 0 }
 
+#define spinlock_exclusive(l) \
+    for (spinlock_t *__lock = l; __lock; __lock = NULL) \
+        for (spinlock_lock(__lock); __lock; spinlock_unlock(__lock), __lock = NULL) \
+            for (int __term = 0; !__term; __term = 1)
+
+#define spinlock_exclusive_int(l) \
+    for (spinlock_t *__lock = l; __lock; __lock = NULL) \
+        for (spinlock_lock_int(__lock); __lock; spinlock_unlock_int(__lock), __lock = NULL) \
+            for (int __term = 0; !__term; __term = 1)
+
 static inline int spinlock_is_locked(spinlock_t *lock)
 {
     return lock->locked ? 1 : 0;

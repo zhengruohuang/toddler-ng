@@ -206,10 +206,17 @@ void arch_switch_to(ulong thread_id, struct reg_context *context,
     panic("Arch HAL must implement switch_to!");
 }
 
-void arch_kernel_dispatch_prep(ulong sched_id, struct kernel_dispatch *kdi)
+void arch_kernel_pre_dispatch(ulong sched_id, struct kernel_dispatch *kdi)
 {
-    if (arch_funcs.kernel_dispatch_prep) {
-        return arch_funcs.kernel_dispatch_prep(sched_id, kdi);
+    if (arch_funcs.kernel_pre_dispatch) {
+        return arch_funcs.kernel_pre_dispatch(sched_id, kdi);
+    }
+}
+
+void arch_kernel_post_dispatch(ulong sched_id, struct kernel_dispatch *kdi)
+{
+    if (arch_funcs.kernel_post_dispatch) {
+        return arch_funcs.kernel_post_dispatch(sched_id, kdi);
     }
 }
 

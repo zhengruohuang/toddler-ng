@@ -8,6 +8,7 @@
 #include "hal/include/mp.h"
 #include "hal/include/int.h"
 #include "hal/include/mem.h"
+#include "hal/include/dev.h"
 
 
 /*
@@ -37,8 +38,9 @@ int kernel_pfree_ptr(void *ptr)
 
 void kernel_dispatch(ulong sched_id, struct kernel_dispatch *kdi)
 {
-    arch_kernel_dispatch_prep(sched_id, kdi);
-    return kexp.dispatch(sched_id, kdi);
+    arch_kernel_pre_dispatch(sched_id, kdi);
+    kexp.dispatch(sched_id, kdi);
+    arch_kernel_post_dispatch(sched_id, kdi);
 }
 
 void kernel_start()
@@ -92,6 +94,9 @@ static void fill_hal_exports()
     hexp.disable_local_int = disable_local_int;
     hexp.enable_local_int = enable_local_int;
     hexp.restore_local_int = restore_local_int;
+
+    // Clock
+    hexp.get_ms = clock_get_ms;
 
     // Mapping
     hexp.map_range = kernel_map_range;

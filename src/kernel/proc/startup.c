@@ -28,11 +28,11 @@ static void start_load_and_run_process(struct startup_record *record)
 {
     record->pid = create_process(0, record->name, record->type);
 
-    process_access_exclusive(record->pid, p) {
+    access_process(record->pid, p) {
         void *elf = coreimg_find_file(record->filename);
         load_coreimg_elf(p, record->url, elf);
 
-        create_thread_and_run(tid, t, p, p->memory.entry_point, 0, -1, 0, 0) {
+        create_and_run_thread(tid, t, p, p->vm.entry_point, 0, NULL) {
             kprintf("\tSystem process ID: %x, thread ID: %x\n", record->pid, tid);
         }
     }
@@ -46,13 +46,13 @@ static void startup_worker(ulong param)
     }
 
     // Terminate self
-    syscall_thread_exit_self();
+    syscall_thread_exit_self(0);
 }
 
 
 void init_startup()
 {
-    create_krun(tid, t, &startup_worker, 0, -1) {
+    create_and_run_kernel_thread(tid, t, &startup_worker, 0, NULL) {
         kprintf("\tStartup worker created, thread ID: %p, thread block base: %p\n", tid, t->memory.block_base);
     }
 }

@@ -6,37 +6,43 @@
 #include "common/include/msr.h"
 
 
-static inline int sysenter(unsigned long num, unsigned long param1, unsigned long param2, unsigned long *out1, unsigned long *out2)
+static inline int sysenter(ulong num, ulong p1, ulong p2, ulong p3,
+                           ulong *r1, ulong *r2)
 {
-    int success = 0;
-    unsigned long value1 = 0, value2 = 0;
+    register ulong o0 __asm__ ("r0");
+    register ulong o1 __asm__ ("r1");
+    register ulong o2 __asm__ ("r2");
+
+    register ulong i0 __asm__ ("r0") = num;
+    register ulong i1 __asm__ ("r1") = p1;
+    register ulong i2 __asm__ ("r2") = p2;
+    register ulong i3 __asm__ ("r3") = p3;
 
     __asm__ __volatile__ (
-        "mov r0, %[num];"
-        "mov r1, %[p1];"
-        "mov r2, %[p2];"
         "swi 0;"
-        "mov %[suc], r0;"
-        "mov %[v1], r1;"
-        "mov %[v2], r2;"
-        : [suc] "=r" (success), [v1] "=r" (value1), [v2] "=r" (value2)
-        : [num] "r" (num), [p1] "r" (param1), [p2] "r" (param2)
-        : "r0", "r1", "r2", "memory"
+        : "=r" (o0), "=r" (o1), "=r" (o2)
+        : "r" (i0), "r" (i1), "r" (i2), "r" (i3)
+        : "memory"
     );
 
-    if (out1) *out1 = value1;
-    if (out2) *out2 = value2;
+    if (r1) *r1 = o1;
+    if (r2) *r2 = o2;
+    int success = (int)(uint)o0;
 
-    return 1;
+    return success;
 }
 
 
-static inline ulong sysenter_get_tcb()
-{
-    unsigned long tcb = 0;
-    read_software_thread_id(tcb);
+#ifdef FAST_GET_TIB
+#undef FAST_GET_TIB
+#define FAST_GET_TIB 1
+#endif
 
-    return tcb;
+static inline ulong sysenter_get_tib()
+{
+    ulong tib = 0;
+    read_software_thread_id(tib);
+    return tib;
 }
 
 

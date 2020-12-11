@@ -18,7 +18,8 @@
 int syscall_handler_none(struct process *p, struct thread *t,
                          struct kernel_dispatch *kdi)
 {
-    return SYSCALL_HANDLER_CONTINUE;
+    hal_set_syscall_return(kdi->regs, 0, 0, 0);
+    return SYSCALL_HANDLED_CONTINUE;
 }
 
 
@@ -28,30 +29,17 @@ int syscall_handler_none(struct process *p, struct thread *t,
 int syscall_handler_ping(struct process *p, struct thread *t,
                          struct kernel_dispatch *kdi)
 {
-    kdi->return0 = kdi->param0 + 1;
-    kdi->return1 = kdi->param1 + 1;
-    return SYSCALL_HANDLER_CONTINUE;
-}
+    hal_set_syscall_return(kdi->regs, 0, kdi->param0 + 1, kdi->param1 + 1);
 
+    ulong ret_type = kdi->param2;
+    switch (ret_type) {
+    case 0: return SYSCALL_HANDLED_CONTINUE;
+    case 1: return SYSCALL_HANDLED_SAVE_CONTINUE;
+    case 2: return SYSCALL_HANDLED_SAVE_RESCHED;
+    default: return SYSCALL_HANDLED_CONTINUE;
+    }
 
-/*
- * Yield
- */
-int syscall_handler_yield(struct process *p, struct thread *t,
-                          struct kernel_dispatch *kdi)
-{
-    return SYSCALL_HANDLER_SAVE_RESCHED;
-}
-
-
-/*
- * Illegal syscall
- */
-int syscall_handler_illegal(struct process *p, struct thread *t,
-                            struct kernel_dispatch *kdi)
-{
-    // TODO: start error handler
-    return SYSCALL_HANDLER_SKIP;
+    return SYSCALL_HANDLED_CONTINUE;
 }
 
 
@@ -59,25 +47,30 @@ int syscall_handler_illegal(struct process *p, struct thread *t,
  * Puts
  */
 #define PUTS_BUF_SIZE   64
-#define PUTS_MAX_LEN    2048
+#define PUTS_MAX_LEN    PAGE_SIZE
 
 int syscall_handler_puts(struct process *p, struct thread *t,
                          struct kernel_dispatch *kdi)
 {
-    char buf[PUTS_BUF_SIZE + 1];
-    memzero(buf, PUTS_BUF_SIZE + 1);
+    static char buf[PUTS_BUF_SIZE + 1];
 
     ulong len = kdi->param1;
     if (len > PUTS_MAX_LEN) {
         len = PUTS_MAX_LEN;
     }
 
-    for (ulong vaddr = kdi->param0, copy_len = 0; copy_len < len;
-         copy_len += PUTS_BUF_SIZE, vaddr += PUTS_BUF_SIZE
+    acquire_kprintf();
+
+    for (ulong vaddr = kdi->param0, copied_len = 0; copied_len < len;
+         copied_len += PUTS_BUF_SIZE, vaddr += PUTS_BUF_SIZE
     ) {
-        ulong cur_len = len - copy_len;
-        if (cur_len> PUTS_BUF_SIZE) {
-            cur_len = PUTS_BUF_SIZE;
+        ulong cur_len = copied_len + PUTS_BUF_SIZE <= len ?
+                            PUTS_BUF_SIZE : len - copied_len;
+
+        ulong vaddr_end = vaddr + cur_len;
+        ulong vaddr_page_end = align_up_vaddr(vaddr, PAGE_SIZE);
+        if (vaddr != vaddr_page_end && vaddr_page_end < vaddr_end) {
+            cur_len = vaddr_page_end - vaddr;
         }
 
         paddr_t paddr = get_hal_exports()->translate(p->page_table, vaddr);
@@ -85,10 +78,26 @@ int syscall_handler_puts(struct process *p, struct thread *t,
         memcpy(buf, kernel_ptr, cur_len);
         buf[cur_len] = '\0';
 
-        kprintf("%s", buf);
+        kprintf_unlocked("%s", buf);
     }
 
-    return SYSCALL_HANDLER_CONTINUE;
+    release_kprintf();
+
+    hal_set_syscall_return(kdi->regs, 0, len, 0);
+    return SYSCALL_HANDLED_CONTINUE;
+}
+
+
+/*
+ * Illegal
+ */
+int syscall_handler_illegal(struct process *p, struct thread *t,
+                            struct kernel_dispatch *kdi)
+{
+    kprintf("Illegal syscall: %d\n", kdi->num);
+
+    // TODO: start error handler
+    return SYSCALL_HANDLED_SKIP;
 }
 
 
@@ -98,17 +107,170 @@ int syscall_handler_puts(struct process *p, struct thread *t,
 int syscall_handler_interrupt(struct process *p, struct thread *t,
                               struct kernel_dispatch *kdi)
 {
-    return SYSCALL_HANDLER_SAVE_RESCHED;
+    return SYSCALL_HANDLED_SAVE_RESCHED;
 }
 
 
 /*
- * Thread exit
+ * VM
  */
+int syscall_handler_vm_alloc(struct process *p, struct thread *t,
+                             struct kernel_dispatch *kdi)
+{
+    ulong size = kdi->param0;
+    ulong align = kdi->param1;
+    ulong attri = kdi->param2;
+    ulong base = vm_alloc(p, size, align, attri);
+
+    hal_set_syscall_return(kdi->regs, 0, base, 0);
+    return SYSCALL_HANDLED_CONTINUE;
+}
+
+int syscall_handler_vm_free(struct process *p, struct thread *t,
+                            struct kernel_dispatch *kdi)
+{
+    ulong base = kdi->param0;
+    vm_free(p, base);
+
+    hal_set_syscall_return(kdi->regs, 0, 0, 0);
+    return SYSCALL_HANDLED_SAVE_RESCHED;
+}
+
+
+/*
+ * Thread
+ */
+int syscall_handler_create(struct process *p, struct thread *t,
+                           struct kernel_dispatch *kdi)
+{
+    ulong entry = kdi->param0;
+    ulong param = kdi->param1;
+    ulong ret_tid = 0;
+    create_and_run_thread(tid, t, p, entry, param, NULL) {
+        ret_tid = tid;
+    }
+
+    hal_set_syscall_return(kdi->regs, 0, ret_tid, 0);
+    return SYSCALL_HANDLED_SAVE_RESCHED;
+}
+
+int syscall_handler_yield(struct process *p, struct thread *t,
+                          struct kernel_dispatch *kdi)
+{
+    hal_set_syscall_return(kdi->regs, 0, 0, 0);
+    return SYSCALL_HANDLED_SAVE_RESCHED;
+}
+
 int syscall_handler_thread_exit(struct process *p, struct thread *t,
                                 struct kernel_dispatch *kdi)
 {
-    // FIXME: need to terminate thread
-    return SYSCALL_HANDLER_SKIP;
+    return SYSCALL_HANDLED_EXIT_THREAD;
 }
 
+
+/*
+ * Wait
+ */
+int syscall_handler_alloc_wait(struct process *p, struct thread *t,
+                               struct kernel_dispatch *kdi)
+{
+    int user_obj_id = kdi->param0;
+    ulong total = kdi->param1;
+    ulong global = kdi->param2;
+    ulong wait_obj_id = alloc_wait_object(p, user_obj_id, total, global);
+
+    hal_set_syscall_return(kdi->regs, 0, wait_obj_id, 0);
+    return SYSCALL_HANDLED_CONTINUE;
+}
+
+int syscall_handler_wait(struct process *p, struct thread *t,
+                         struct kernel_dispatch *kdi)
+{
+    int wait_type = kdi->param0;
+    ulong wait_obj = kdi->param1;
+    ulong timeout_ms = kdi->param2;
+
+    int err = 0;
+    switch (wait_type) {
+    case WAIT_ON_MSG_REPLY:
+    //case WAIT_ON_MSG_RECEIVE:
+        err = -2;
+        break;
+    default:
+        err = wait_on_object(p, t, wait_type, wait_obj, timeout_ms);
+        break;
+    }
+
+    hal_set_syscall_return(kdi->regs, 0, (ulong)err, 0);
+    return err ? SYSCALL_HANDLED_CONTINUE : SYSCALL_HANDLED_SAVE_SLEEP;
+}
+
+int syscall_handler_wake(struct process *p, struct thread *t,
+                         struct kernel_dispatch *kdi)
+{
+    int wait_type = kdi->param0;
+    ulong wait_obj = kdi->param1;
+    ulong max_count = kdi->param2;
+
+    ulong count = 0;
+    switch (wait_type) {
+    case WAIT_ON_TIMEOUT:
+    case WAIT_ON_SEMAPHORE:
+    case WAIT_ON_BARRIER:
+        count = wake_on_object_exclusive(p, t, wait_type, wait_obj, max_count);
+        break;
+    default:
+        break;
+    }
+
+    hal_set_syscall_return(kdi->regs, 0, count, 0);
+    return SYSCALL_HANDLED_CONTINUE;
+}
+
+
+/*
+ * IPC
+ */
+int syscall_handler_ipc_handler(struct process *p, struct thread *t,
+                                struct kernel_dispatch *kdi)
+{
+    ulong popup_entry = kdi->param0;
+    int err = ipc_reg_popup_handler(p, t, popup_entry);
+    hal_set_syscall_return(kdi->regs, err, 0, 0);
+    return SYSCALL_HANDLED_CONTINUE;
+}
+
+int syscall_handler_ipc_request(struct process *p, struct thread *t,
+                                struct kernel_dispatch *kdi)
+{
+    ulong dst_pid = kdi->param0;
+    ulong opcode = kdi->param1;
+    ulong flags = kdi->param2;
+
+    int wait = 0;
+    int err = ipc_request(p, t, dst_pid, opcode, flags, &wait);
+
+    hal_set_syscall_return(kdi->regs, err, 0, 0);
+    return wait ? SYSCALL_HANDLED_SAVE_SLEEP : SYSCALL_HANDLED_CONTINUE;
+}
+
+int syscall_handler_ipc_respond(struct process *p, struct thread *t,
+                                struct kernel_dispatch *kdi)
+{
+    int err = ipc_respond(p, t);
+    hal_set_syscall_return(kdi->regs, err, 0, 0);
+    return SYSCALL_HANDLED_CONTINUE;
+}
+
+int syscall_handler_ipc_receive(struct process *p, struct thread *t,
+                                struct kernel_dispatch *kdi)
+{
+    ulong timeout_ms = kdi->param0;
+
+    ulong opcode = 0;
+    int wait = 0;
+    int err = ipc_receive(p, t, timeout_ms, &opcode, &wait);
+
+    hal_set_syscall_return(kdi->regs, err, opcode, 0);
+    return wait ? SYSCALL_HANDLED_SAVE_SLEEP : SYSCALL_HANDLED_CONTINUE;
+}

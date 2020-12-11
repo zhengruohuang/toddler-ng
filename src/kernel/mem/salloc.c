@@ -16,7 +16,6 @@
 /*
  * Forward decls
  */
-struct salloc_obj;
 struct salloc_bucket;
 
 
@@ -45,7 +44,7 @@ struct salloc_bucket {
     enum salloc_bucket_state state;
 
     // Backlink to the obj struct
-    struct salloc_obj *obj;
+    salloc_obj_t *obj;
 
     // Total number of entries and avail entries
     int entry_count;
@@ -62,79 +61,9 @@ struct salloc_bucket_list {
 
 
 /*
- * Salloc object
- */
-struct salloc_obj {
-    int obj_id;
-
-    // Sizes
-    size_t struct_size;
-    size_t block_size;
-
-    // Alignment
-    size_t alignment;
-    ulong block_start_offset;
-
-    // Constructor/Destructor
-    void (*constructor)(void* entry);
-    void (*destructor)(void* entry);
-
-    // Bucket info
-    int bucket_page_count;
-    int bucket_block_count;
-
-    // Buckets
-    //  Note that we only have partial list since empty buckets are freed
-    //  immediately, and full buckets are dangling, they will be put back to
-    //  the partial list when they become partial
-    struct salloc_bucket_list partial;
-
-    // The spin lock that protects the entire salloc obj
-    // not very efficient, but it does the job
-    spinlock_t lock;
-};
-
-
-struct salloc_obj_page {
-    // Total number of entries and avail entries
-    int entry_count;
-    int avail_count;
-
-    // ID base
-    int obj_id_base;
-
-    struct salloc_obj_page *next;
-    struct salloc_obj *entries;
-};
-
-
-static struct salloc_obj_page *obj_page;
-static int cur_obj_id = 0;
-
-
-/*
- * Salloc object manipulation
- */
-static struct salloc_obj *get_obj(int id)
-{
-    struct salloc_obj_page *cur_page = obj_page;
-
-    while (id >= cur_page->entry_count) {
-        assert(cur_page->next);
-
-        id -= cur_page->entry_count;
-        cur_page = cur_page->next;
-    }
-
-    struct salloc_obj *obj = &cur_page->entries[id];
-    return obj;
-}
-
-
-/*
  * Bucket manipulation
  */
-static struct salloc_bucket *alloc_bucket(struct salloc_obj *obj)
+static struct salloc_bucket *alloc_bucket(salloc_obj_t *obj)
 {
     ppfn_t bucket_pfn = palloc_direct_mapped(obj->bucket_page_count);
     paddr_t bucket_paddr = ppfn_to_paddr(bucket_pfn);
@@ -183,27 +112,27 @@ static void free_bucket(struct salloc_bucket *bucket)
     //pfree(ADDR_TO_PFN(addr));
 }
 
-static void insert_bucket(struct salloc_bucket_list *list, struct salloc_bucket *bucket)
+static void insert_bucket(salloc_obj_t *obj, struct salloc_bucket *bucket)
 {
-    bucket->next = list->next;
+    bucket->next = obj->partial_buckets.next;
     bucket->prev = NULL;
 
-    if (list->next) {
-        list->next->prev = bucket;
+    if (bucket->next) {
+        bucket->next->prev = bucket;
     }
-    list->next = bucket;
+    obj->partial_buckets.next = bucket;
 
-    list->count++;
+    obj->partial_buckets.count++;
 }
 
-static void remove_bucket(struct salloc_bucket_list *list, struct salloc_bucket *bucket)
+static void remove_bucket(salloc_obj_t *obj, struct salloc_bucket *bucket)
 {
-    list->count--;
+    obj->partial_buckets.count--;
 
     if (bucket->prev) {
         bucket->prev->next = bucket->next;
     } else {
-        list->next = bucket->next;
+        obj->partial_buckets.next = bucket->next;
     }
 
     if (bucket->next) {
@@ -213,47 +142,10 @@ static void remove_bucket(struct salloc_bucket_list *list, struct salloc_bucket 
 
 
 /*
- * Initialize struct allocator
- */
-void init_salloc()
-{
-    kprintf("Initializing struct allocator\n");
-
-    // Allocate a page for obj page
-    ppfn_t obj_page_pfn = palloc_direct_mapped(1);
-    paddr_t obj_page_paddr = ppfn_to_paddr(obj_page_pfn);
-
-    obj_page = cast_paddr_to_ptr(obj_page_paddr);
-    kprintf("\tObject page allocated @ %p\n", (void *)obj_page);
-
-    // Initialize the obj page
-    obj_page->obj_id_base = 0;
-    obj_page->next = NULL;
-
-    obj_page->entries = (struct salloc_obj *)((ulong)obj_page + sizeof(struct salloc_obj_page));
-
-    // Calculate entry count
-    int entry_count = (PAGE_SIZE - sizeof(struct salloc_obj_page)) / sizeof(struct salloc_obj);
-    obj_page->entry_count = entry_count;
-    obj_page->avail_count = entry_count;
-}
-
-
-/*
  * Create a salloc object
  */
-int salloc_create(size_t size, size_t align, int count, salloc_callback_t construct, salloc_callback_t destruct)
+void salloc_create(salloc_obj_t *obj, size_t size, size_t align, int count, salloc_callback_t ctor, salloc_callback_t dtor)
 {
-    // Object ID
-    cur_obj_id++;
-
-    // Obtain the object and set obj ID
-    struct salloc_obj *obj = get_obj(cur_obj_id);
-    obj->obj_id = cur_obj_id;
-
-    // Less avail entries in obj_page
-    obj_page->avail_count--;
-
     // Calculate alignment
     if (!align) {
         align = DATA_ALIGNMENT;
@@ -291,14 +183,14 @@ int salloc_create(size_t size, size_t align, int count, salloc_callback_t constr
     obj->alignment = align;
     obj->block_start_offset = start_offset;
 
-    obj->constructor = construct;
-    obj->destructor = destruct;
+    obj->constructor = ctor;
+    obj->destructor = dtor;
 
     obj->bucket_page_count = page_count;
     obj->bucket_block_count = block_count;
 
-    obj->partial.count = 0;
-    obj->partial.next = NULL;
+    obj->partial_buckets.count = 0;
+    obj->partial_buckets.next = NULL;
 
     // Init the lock
     spinlock_init(&obj->lock);
@@ -313,28 +205,25 @@ int salloc_create(size_t size, size_t align, int count, salloc_callback_t constr
 //     kprintf("\t\tBucket block count: %d\n", obj->bucket_block_count);
 //     kprintf("\t\tConstructor: %p\n", obj->constructor);
 //     kprintf("\t\tDestructor: %p\n", obj->destructor);
-
-    // Done
-    return cur_obj_id;
 }
 
 
 /*
  * Allocate and deallocate
  */
-void *salloc(int obj_id)
+void *salloc(salloc_obj_t *obj)
 {
-    struct salloc_obj *obj = get_obj(obj_id);
+    //struct salloc_obj *obj = get_obj(obj_id);
     struct salloc_bucket *bucket = NULL;
 
     // Lock the salloc obj
     spinlock_lock_int(&obj->lock);
 
     // If there is no partial bucket avail, we need to allocate a new one
-    if (!obj->partial.count) {
+    if (!obj->partial_buckets.count) {
         bucket = alloc_bucket(obj);
     } else {
-        bucket = obj->partial.next;
+        bucket = obj->partial_buckets.next;
     }
 
     // If we were not able to obtain a usable bucket, then the fail
@@ -358,10 +247,10 @@ void *salloc(int obj_id)
     // Change the bucket state and remove it from the partial list if necessary
     if (!bucket->avail_count) {
         bucket->state = bucket_full;
-        remove_bucket(&obj->partial, bucket);
+        remove_bucket(obj, bucket);
     } else if (bucket->avail_count == bucket->entry_count - 1) {
         bucket->state = bucket_partial;
-        insert_bucket(&obj->partial, bucket);
+        insert_bucket(obj, bucket);
     }
 
     // Unlock the salloc obj
@@ -385,7 +274,7 @@ void sfree(void *ptr)
 
     // Obtain the bucket and obj
     struct salloc_bucket *bucket = block->bucket;
-    struct salloc_obj *obj = bucket->obj;
+    salloc_obj_t *obj = bucket->obj;
 
 //     kprintf("bucket @ %x, obj: %x\n", bucket, obj);
 //     return;
@@ -406,11 +295,11 @@ void sfree(void *ptr)
     // Change the block state and add it to/remove it from the partil list if necessary
     if (bucket->avail_count == bucket->entry_count) {
         bucket->state = bucket_empty;
-        remove_bucket(&obj->partial, bucket);
+        remove_bucket(obj, bucket);
         free_bucket(bucket);
     } else if (1 == bucket->avail_count) {
         bucket->state = bucket_partial;
-        insert_bucket(&obj->partial, bucket);
+        insert_bucket(obj, bucket);
     }
 
     // Unlock the salloc obj
