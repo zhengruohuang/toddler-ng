@@ -40,7 +40,7 @@ for argv in sys.argv:
         target_mach = parts[1]
         target_model = parts[2] if len(parts) >= 3 else 'generic'
 
-target_name = target_arch + '_' + target_mach + '_' + target_model
+target_name = target_arch + '-' + target_mach + '-' + target_model
 
 #-------------------------------------------------------------------------------
 

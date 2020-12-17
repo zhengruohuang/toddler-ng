@@ -57,44 +57,36 @@ void dispatch(ulong thread_id, struct kernel_dispatch *kdi)
     access_thread(thread_id, t) {
         access_process(t->pid, p) {
             valid = 1;
+            target_thread = t;
 
-            // TODO: check thread/process state
-
-            syscall_handler_t handler = syscall_handler_illegal;
-            if (kdi->num < NUM_SYSCALLS && handlers[kdi->num]) {
-                handler = handlers[kdi->num];
+            // The thread is waiting to exit
+            if (t->state == THREAD_STATE_EXIT) {
+                do_exit = 1;
             }
 
-            int handle_type = handler(p, t, kdi);
-            save_ctxt = (handle_type & SYSCALL_HANDLED_SAVE) ? 1 : 0;
-            put_back = (handle_type & SYSCALL_HANDLED_PUT_BACK) ? 1 : 0;
-            resume = (handle_type & SYSCALL_HANDLED_RESUME) ? 1 : 0;
-            do_exit = (handle_type & SYSCALL_HANDLED_EXIT_THREAD) ? 1 : 0;
-            do_sleep = (handle_type & SYSCALL_HANDLED_SLEEP_THREAD) ? 1 : 0;
-
-            if (do_exit) {
-                panic_if(put_back, "Can't put back an exiting thread back to sched queue!\n");
-                panic_if(resume, "Can't resume executing an exiting thread!\n");
-                target_thread = t;
-            } else if (do_sleep) {
-                panic_if(put_back, "Can't put back an waiting thread back to sched queue!\n");
-                panic_if(resume, "Can't resume executing an waiting thread!\n");
-                target_thread = t;
+            // The process is waiting to exit
+            else if (p->state == PROCESS_STATE_EXIT) {
+                set_thread_state(t, THREAD_STATE_EXIT);
+                do_exit = 1;
             }
 
-            if (save_ctxt) {
-                thread_save_context(t, kdi->regs);
-            }
+            // Handle the syscall
+            else {
+                syscall_handler_t handler = syscall_handler_illegal;
+                if (kdi->num < NUM_SYSCALLS && handlers[kdi->num]) {
+                    handler = handlers[kdi->num];
+                }
 
-            if (put_back) {
-                sched_put(t);
-            }
+                int handle_type = handler(p, t, kdi);
+                save_ctxt = (handle_type & SYSCALL_HANDLED_SAVE) ? 1 : 0;
+                put_back = (handle_type & SYSCALL_HANDLED_PUT_BACK) ? 1 : 0;
+                resume = (handle_type & SYSCALL_HANDLED_RESUME) ? 1 : 0;
+                do_exit = (handle_type & SYSCALL_HANDLED_EXIT_THREAD) ? 1 : 0;
+                do_sleep = (handle_type & SYSCALL_HANDLED_SLEEP_THREAD) ? 1 : 0;
 
-            // The thread will not be put back to sched queue, and it will not be resumed
-            // if (!put_back && !resume) {
-            if (do_exit) {
-                atomic_dec(&t->ref_count.value);
-                atomic_mb();
+                if (save_ctxt) {
+                    thread_save_context(t, kdi->regs);
+                }
             }
         }
     }
@@ -102,9 +94,16 @@ void dispatch(ulong thread_id, struct kernel_dispatch *kdi)
     panic_if(!valid, "Invalid tid: %lx\n", kdi->tid);
 
     if (do_exit) {
+        panic_if(put_back, "Can't put an exiting thread to sched queue!\n");
+        panic_if(resume, "Can't resume an exiting thread!\n");
+        ref_count_dec(&target_thread->ref_count);
         exit_thread(target_thread);
     } else if (do_sleep) {
+        panic_if(put_back, "Can't put an waiting thread to sched queue!\n");
+        panic_if(resume, "Can't resume an waiting thread!\n");
         sleep_thread(target_thread);
+    } else if (put_back) {
+        sched_put(target_thread);
     }
 
     if (!resume) {

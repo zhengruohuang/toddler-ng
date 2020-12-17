@@ -32,6 +32,10 @@ int kthread_create(kthread_t *kth, kthread_entry_t entry, ulong param)
     kth->ret = 0;
     atomic_mb();
 
+    mutex_init_spin(&kth->joined, 0);
+    int mutex_err = mutex_trylock(&kth->joined);
+    panic_if(mutex_err, "Unable to create thread!");
+
     kth->tid = syscall_thread_create(kthread_entry_wrapper, (ulong)kth);
     kth->init = 0;
     atomic_mb();
@@ -56,9 +60,12 @@ int kthread_join(kthread_t *kth, ulong *ret)
 
     //atomic_mb();
     while (!kth->exited) {
-        syscall_wait_on_thread(kth->tid);
-        atomic_pause();
-        atomic_mb();
+        mutex_lock(&kth->joined);
+        mutex_unlock(&kth->joined);
+
+        //syscall_wait_on_thread(kth->tid);
+        //atomic_pause();
+        //atomic_mb();
 
         //kprintf("still joining!\n");
     }
@@ -79,6 +86,8 @@ void kthread_exit(ulong ret)
 
     atomic_mb();
     atomic_notify();
+
+    mutex_unlock(&self->joined);
 
     syscall_thread_exit_self(ret);
 }

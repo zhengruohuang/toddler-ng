@@ -43,17 +43,10 @@ struct thread *acquire_thread(ulong id)
         struct thread *cur = list_entry(n, struct thread, node);
         if (cur->tid == id) {
             t = cur;
-            //spinlock_lock_int(&t->lock);
-            atomic_inc(&t->ref_count.value);
-            atomic_mb();
-            //spinlock_unlock_int(&t->lock);
+            ref_count_inc(&t->ref_count);
             break;
         }
     }
-
-    //if (t) {
-    //    spinlock_lock_int(&t->lock);
-    //}
 
     //kprintf("acquired thread @ %p\n", t);
     return t;
@@ -61,16 +54,13 @@ struct thread *acquire_thread(ulong id)
 
 void release_thread(struct thread *t)
 {
-    //kprintf("release thread @ %p, int enabled: %d\n", t, t->lock.int_enabled);
-
     panic_if(!t, "Inconsistent acquire/release pair\n");
-    //panic_if(!t->lock.locked, "Inconsistent acquire/release pair\n");
     panic_if(t->ref_count.value <= 0, "Inconsistent ref_count: %ld, tid: %lx\n",
              t->ref_count.value, t->tid);
 
-    atomic_mb();
-    atomic_dec(&t->ref_count.value);
-    //spinlock_unlock_int(&t->lock);
+    ref_count_dec(&t->ref_count);
+
+    //kprintf("release thread @ %p, int enabled: %d\n", t, t->lock.int_enabled);
 }
 
 int thread_exists(ulong tid)
@@ -220,12 +210,12 @@ static struct thread *create_exec_context(struct process *p,
 
     // Init lock
     spinlock_init(&t->lock);
-    t->ref_count.value = 1;
+    ref_count_init(&t->ref_count, 1);
+    ref_count_inc(&p->ref_count);
 
     // Insert the thread into global and the process local thread lists
     list_push_back_exclusive(&threads, &t->node);
     list_push_back_exclusive(&p->threads, &t->node_proc);
-    atomic_inc(&p->ref_count.value);
 
     // Done
     return t;
@@ -255,9 +245,6 @@ void exit_thread(struct thread *t)
 {
     kprintf("Exiting thread @ %p\n", t);
 
-    panic_if(t->ref_count.value != 1, "Inconsistent ref count: %ld, tid @ %lx\n",
-             t->ref_count.value, t->tid);
-
     access_process(t->pid, proc) {
         // TODO: check thread state
 
@@ -271,15 +258,19 @@ void exit_thread(struct thread *t)
             list_remove_exclusive(&threads, &t->node);
             list_remove_exclusive(&proc->threads, &t->node_proc);
 
-            wake_on_object(proc, t, WAIT_ON_THREAD, t->tid, 0);
+            wake_on_object(proc, t, WAIT_ON_THREAD, t->tid, 0, 0);
             if (t->is_main) {
-                wake_on_object(proc, t, WAIT_ON_MAIN_THREAD, t->tid, 0);
+                wake_on_object(proc, t, WAIT_ON_MAIN_THREAD, t->tid, 0, 0);
             }
         }
 
+        ref_count_dec(&t->ref_count);
+        panic_if(!ref_count_is_zero(&t->ref_count),
+                 "Inconsistent ref count: %ld, tid @ %lx\n",
+                 t->ref_count.value, t->tid);
+
         sfree(t);
-        atomic_dec(&proc->ref_count.value);
-        atomic_mb();
+        ref_count_dec(&proc->ref_count);
     }
 }
 
@@ -416,8 +407,7 @@ void set_thread_state(struct thread *t, int state)
 
 void run_thread(struct thread *t)
 {
-    atomic_inc(&t->ref_count.value);
-    atomic_mb();
+    ref_count_inc(&t->ref_count);
 
     set_thread_state(t, THREAD_STATE_NORMAL);
     sched_put(t);

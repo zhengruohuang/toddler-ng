@@ -164,6 +164,7 @@ int syscall_handler_yield(struct process *p, struct thread *t,
 int syscall_handler_thread_exit(struct process *p, struct thread *t,
                                 struct kernel_dispatch *kdi)
 {
+    hal_set_syscall_return(kdi->regs, 0, 0, 0);
     return SYSCALL_HANDLED_EXIT_THREAD;
 }
 
@@ -188,6 +189,7 @@ int syscall_handler_wait(struct process *p, struct thread *t,
 {
     int wait_type = kdi->param0;
     ulong wait_obj = kdi->param1;
+    ulong wait_value = kdi->param2;
     ulong timeout_ms = kdi->param2;
 
     int err = 0;
@@ -196,8 +198,11 @@ int syscall_handler_wait(struct process *p, struct thread *t,
     //case WAIT_ON_MSG_RECEIVE:
         err = -2;
         break;
+    case WAIT_ON_FUTEX:
+        err = wait_on_object(p, t, wait_type, wait_obj, wait_value, 0);
+        break;
     default:
-        err = wait_on_object(p, t, wait_type, wait_obj, timeout_ms);
+        err = wait_on_object(p, t, wait_type, wait_obj, 0, timeout_ms);
         break;
     }
 
@@ -210,14 +215,16 @@ int syscall_handler_wake(struct process *p, struct thread *t,
 {
     int wait_type = kdi->param0;
     ulong wait_obj = kdi->param1;
+    ulong wait_value = kdi->param2;
     ulong max_count = kdi->param2;
 
     ulong count = 0;
     switch (wait_type) {
     case WAIT_ON_TIMEOUT:
-    case WAIT_ON_SEMAPHORE:
-    case WAIT_ON_BARRIER:
-        count = wake_on_object_exclusive(p, t, wait_type, wait_obj, max_count);
+        count = wake_on_object_exclusive(p, t, wait_type, wait_obj, 0, max_count);
+        break;
+    case WAIT_ON_FUTEX:
+        count = wake_on_object_exclusive(p, t, wait_type, wait_obj, wait_value, 0);
         break;
     default:
         break;

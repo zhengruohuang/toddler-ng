@@ -42,16 +42,10 @@ struct process *acquire_process(ulong id)
         struct process *cur = list_entry(n, struct process, node);
         if (cur->pid == id) {
             p = cur;
-            //spinlock_lock_int(&p->lock);
-            atomic_inc(&p->ref_count.value);
-            //spinlock_unlock_int(&p->lock);
+            ref_count_inc(&p->ref_count);
             break;
         }
     }
-
-    //if (p) {
-    //    spinlock_lock_int(&p->lock);
-    //}
 
     //kprintf("acquired process @ %s\n", p->name);
     return p;
@@ -59,14 +53,17 @@ struct process *acquire_process(ulong id)
 
 void release_process(struct process *p)
 {
-    //kprintf("released process: %s, int enabled: %d\n", p->name, p->lock.int_enabled);
-
     panic_if(!p, "Inconsistent acquire/release pair\n");
-    //panic_if(!p->lock.locked, "Inconsistent acquire/release pair\n");
     panic_if(p->ref_count.value <= 0, "Inconsistent ref_count\n");
 
-    atomic_dec(&p->ref_count.value);
-    //spinlock_unlock_int(&p->lock);
+    ref_count_dec(&p->ref_count);
+
+    //kprintf("released process: %s, int enabled: %d\n", p->name, p->lock.int_enabled);
+}
+
+struct thread *acquire_main_thread(ulong pid)
+{
+    return NULL;
 }
 
 int process_exists(ulong pid)
@@ -124,7 +121,8 @@ ulong create_process(ulong parent_id, char *name, enum process_type type)
     panic_if(!p, "Unable to allocate process struct\n");
 
     // Assign a proc id
-    p->pid = alloc_process_id(p);
+    ulong pid = alloc_process_id(p);
+    p->pid = pid;
     p->parent_pid = parent_id;
 
     // ASID
@@ -132,8 +130,6 @@ ulong create_process(ulong parent_id, char *name, enum process_type type)
 
     // Setup the process
     p->name = strdup(name);
-    p->url = NULL;
-
     p->type = type;
     p->user_mode = type != PROCESS_TYPE_KERNEL;
     p->state = PROCESS_STATE_ENTER;
@@ -179,13 +175,13 @@ ulong create_process(ulong parent_id, char *name, enum process_type type)
 
     // Init lock
     spinlock_init(&p->lock);
-    p->ref_count.value = 1;
+    ref_count_init(&p->ref_count, 1);
 
     // Insert the process into process list
     list_push_back_exclusive(&processes, &p->node);
 
     // Done
-    return p->pid;
+    return pid;
 }
 
 
@@ -204,11 +200,8 @@ typedef struct elf64_section    elf_native_section_t;
 typedef Elf64_Addr              elf_native_addr_t;
 #endif
 
-int load_coreimg_elf(struct process *p, char *url, void *img)
+int load_coreimg_elf(struct process *p, void *img)
 {
-    //panic_if(!spinlock_is_locked(&p->lock), "process must be locked!\n");
-    p->url = strdup(url);
-
     ulong vrange_start = -1ul;
     ulong vrange_end = 0;
 

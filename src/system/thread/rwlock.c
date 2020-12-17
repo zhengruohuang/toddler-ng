@@ -6,14 +6,16 @@
 #include "libk/include/debug.h"
 
 
-#define FAST_RWLOCK_MAX_SPIN_COUNT 100
+#define FAST_RWLOCK_MAX_SPIN_COUNT 0
 
 
 void fast_rwlock_init(fast_rwlock_t *lock)
 {
     lock->state.value = 0;
-    lock->rd_wait_obj_id = syscall_wait_obj_alloc((void *)lock, 1, 0);
-    lock->wr_wait_obj_id = syscall_wait_obj_alloc((void *)lock, 1, 0);
+    //lock->rd_wait_obj_id = syscall_wait_obj_alloc((void *)lock, 1, 0);
+    //lock->wr_wait_obj_id = syscall_wait_obj_alloc((void *)lock, 1, 0);
+    lock->rd_wait_obj_id = 0;
+    lock->wr_wait_obj_id = 0;
     atomic_mb();
 
     kprintf_unlocked("rwlock wait obj id, rd: %lx, wr: %lx\n",
@@ -46,7 +48,7 @@ void fast_rwlock_rdlock(fast_rwlock_t *lock)
         if (!old_val.num_readers) {
             atomic_notify();
             if (FAST_RWLOCK_MAX_SPIN_COUNT && lock->wr_wait_obj_id) {
-                syscall_wake_on_semaphore(lock->wr_wait_obj_id, 0);
+                //syscall_wake_on_semaphore(lock->wr_wait_obj_id, 0);
             }
         }
 
@@ -60,7 +62,7 @@ void fast_rwlock_rdlock(fast_rwlock_t *lock)
                 old_val.locked && ++num_spins >= FAST_RWLOCK_MAX_SPIN_COUNT
             ) {
                 num_spins = 0;
-                syscall_wait_on_semaphore(lock->rd_wait_obj_id);
+                //syscall_wait_on_semaphore(lock->rd_wait_obj_id);
                 old_val.value = lock->state.value;
             }
         }
@@ -113,7 +115,7 @@ void fast_rwlock_rdunlock(fast_rwlock_t *lock)
     if (FAST_RWLOCK_MAX_SPIN_COUNT && lock->wr_wait_obj_id &&
         !new_val.num_readers
     ) {
-        syscall_wake_on_semaphore(lock->wr_wait_obj_id, 0);
+        //syscall_wake_on_semaphore(lock->wr_wait_obj_id, 0);
     }
 }
 
@@ -141,7 +143,7 @@ static inline void fast_rwlock_set_locked(fast_rwlock_t *lock)
                 old_val.locked && ++num_spins >= FAST_RWLOCK_MAX_SPIN_COUNT
             ) {
                 num_spins = 0;
-                syscall_wait_on_semaphore(lock->wr_wait_obj_id);
+                //syscall_wait_on_semaphore(lock->wr_wait_obj_id);
                 old_val.value = lock->state.value;
             }
         }
@@ -172,7 +174,7 @@ static inline void fast_rwlock_wait_for_readers(fast_rwlock_t *lock)
             old_val.locked && ++num_spins >= FAST_RWLOCK_MAX_SPIN_COUNT
         ) {
             num_spins = 0;
-            syscall_wait_on_semaphore(lock->wr_wait_obj_id);
+            //syscall_wait_on_semaphore(lock->wr_wait_obj_id);
             old_val.value = lock->state.value;
         }
     }
@@ -223,10 +225,10 @@ void fast_rwlock_wrunlock(fast_rwlock_t *lock)
 
     if (FAST_RWLOCK_MAX_SPIN_COUNT) {
         if (lock->rd_wait_obj_id) {
-            syscall_wake_on_semaphore(lock->rd_wait_obj_id, 0);
+            //syscall_wake_on_semaphore(lock->rd_wait_obj_id, 0);
         }
         if (lock->wr_wait_obj_id) {
-            syscall_wake_on_semaphore(lock->wr_wait_obj_id, 0);
+            //syscall_wake_on_semaphore(lock->wr_wait_obj_id, 0);
         }
     }
 }

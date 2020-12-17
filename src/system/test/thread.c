@@ -2,6 +2,7 @@
 #include "system/include/kprintf.h"
 #include "system/include/thread.h"
 #include "libsys/include/syscall.h"
+#include "libsys/include/futex.h"
 
 
 /*
@@ -13,10 +14,75 @@ static void random_delay(u32 *rand_state, int order)
 
 
 /*
+ * Futex
+ */
+#define MAX_NUM_FUTEX_THREADS   16
+#define NUM_FUTEX_LOOPS         163840
+
+static kthread_t futex_threads[MAX_NUM_FUTEX_THREADS];
+static futex_t futex = FUTEX_INITIALIZER;
+static volatile ulong futex_counter = 0;
+
+static ulong test_futex_worker(ulong param)
+{
+    ulong tid = syscall_get_tib()->tid;
+
+    u32 rand_state = tid;
+    ulong count = param;
+
+    for (ulong i = 0; i < count; i++) {
+        futex_exclusive(&futex) {
+            futex_counter++;
+            atomic_mb();
+            random_delay(&rand_state, 10);
+        }
+    }
+
+    return 0;
+}
+
+static void test_futex()
+{
+    kprintf("Testing Futex\n");
+    futex_init(&futex);
+
+    int fail_count = 0;
+
+    for (int num_threads = 1; num_threads <= MAX_NUM_FUTEX_THREADS; num_threads <<= 1) {
+        kprintf("num_threads: %d\n", num_threads);
+
+        ulong loop_count = NUM_FUTEX_LOOPS;
+
+        futex_counter = 0;
+        atomic_mb();
+
+        for (int i = 0; i < num_threads; i++) {
+            kthread_create(&futex_threads[i], test_futex_worker, loop_count);
+        }
+        for (int i = 0; i < num_threads; i++) {
+            kthread_join(&futex_threads[i], NULL);
+        }
+
+        ulong check_counter = num_threads * NUM_FUTEX_LOOPS;
+        if (futex_counter != check_counter) {
+            kprintf_unlocked("Bad counter!\n");
+            fail_count++;
+        }
+    }
+
+    if (!fail_count) {
+        kprintf("Passed Futex tests!\n");
+    } else {
+        kprintf("Failed %d Futex tests!\n", fail_count);
+    }
+}
+
+
+/*
  * Mutex
  */
-#define MAX_NUM_MUTEX_THREADS   64
-#define NUM_MUTEX_LOOPS         4096
+#define MAX_NUM_MUTEX_THREADS   16
+#define NUM_MUTEX_LOOPS         163840
 
 static kthread_t mutex_threads[MAX_NUM_MUTEX_THREADS];
 static mutex_t mutex = MUTEX_INITIALIZER;
@@ -42,8 +108,10 @@ static ulong test_mutex_worker(ulong param)
 
 static void test_mutex()
 {
-    kprintf("Testing mutex\n");
+    kprintf("Testing Mutex\n");
     mutex_init(&mutex);
+
+    int fail_count = 0;
 
     for (int num_threads = 1; num_threads <= MAX_NUM_MUTEX_THREADS; num_threads <<= 1) {
         kprintf("num_threads: %d\n", num_threads);
@@ -63,10 +131,15 @@ static void test_mutex()
         ulong check_counter = num_threads * NUM_MUTEX_LOOPS;
         if (mutex_counter != check_counter) {
             kprintf_unlocked("Bad counter!\n");
+            fail_count++;
         }
     }
 
-    kprintf("Passed mutex test!\n");
+    if (!fail_count) {
+        kprintf("Passed Mutex tests!\n");
+    } else {
+        kprintf("Failed %d Mutex tests!\n", fail_count);
+    }
 }
 
 
@@ -142,6 +215,7 @@ static void test_rwlock()
  */
 void test_thread()
 {
+    test_futex();
     test_mutex();
-    test_rwlock();
+    //test_rwlock();
 }

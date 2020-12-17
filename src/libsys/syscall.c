@@ -76,34 +76,29 @@ void syscall_wait_on_timeout(ulong timeout_ms)
     sysenter(SYSCALL_EVENT_WAIT, WAIT_ON_TIMEOUT, 0, timeout_ms, NULL, NULL);
 }
 
-void syscall_wait_on_barrier(ulong kernel_obj_id)
+void syscall_wait_on_futex(futex_t *f, ulong skip)
 {
-    sysenter(SYSCALL_EVENT_WAIT, WAIT_ON_BARRIER, kernel_obj_id, 0, NULL, NULL);
+    sysenter(SYSCALL_EVENT_WAIT, WAIT_ON_FUTEX, (ulong)f, skip, NULL, NULL);
 }
 
-void syscall_wait_on_semaphore(ulong kernel_obj_id)
-{
-    sysenter(SYSCALL_EVENT_WAIT, WAIT_ON_SEMAPHORE, kernel_obj_id, 0, NULL, NULL);
-}
+// void syscall_wait_on_thread(ulong target_tid)
+// {
+//     //sysenter(SYSCALL_EVENT_WAIT, WAIT_ON_THREAD, target_tid, 0, NULL, NULL);
+// }
+//
+// void syscall_wait_on_main_thread(ulong target_pid)
+// {
+//     //sysenter(SYSCALL_EVENT_WAIT, WAIT_ON_MAIN_THREAD, target_pid, 0, NULL, NULL);
+// }
+//
+// void syscall_wait_on_process(ulong target_pid)
+// {
+//     //sysenter(SYSCALL_EVENT_WAIT, WAIT_ON_PROCESS, target_pid, 0, NULL, NULL);
+// }
 
-void syscall_wait_on_thread(ulong target_tid)
+void syscall_wake_on_futex(futex_t *f, ulong skip)
 {
-    sysenter(SYSCALL_EVENT_WAIT, WAIT_ON_THREAD, target_tid, 0, NULL, NULL);
-}
-
-void syscall_wait_on_main_thread(ulong target_pid)
-{
-    sysenter(SYSCALL_EVENT_WAIT, WAIT_ON_MAIN_THREAD, target_pid, 0, NULL, NULL);
-}
-
-void syscall_wait_on_process(ulong target_pid)
-{
-    sysenter(SYSCALL_EVENT_WAIT, WAIT_ON_PROCESS, target_pid, 0, NULL, NULL);
-}
-
-void syscall_wake_on_semaphore(ulong kernel_obj_id, int count)
-{
-    sysenter(SYSCALL_EVENT_WAKE, WAIT_ON_SEMAPHORE, kernel_obj_id, count, NULL, NULL);
+    sysenter(SYSCALL_EVENT_WAKE, WAIT_ON_FUTEX, (ulong)f, skip, NULL, NULL);
 }
 
 

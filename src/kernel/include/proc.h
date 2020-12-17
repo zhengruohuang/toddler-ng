@@ -9,32 +9,6 @@
 #include "kernel/include/struct.h"
 
 
-// /*
-//  * IPC
-//  */
-// struct msg_node {
-//     struct {
-//         ulong mailbox_id;
-//         struct process *proc;
-//         struct thread *thread;
-//     } src;
-//
-//     struct {
-//         ulong mailbox_id;
-//         struct process *proc;
-//         struct thread *thread;
-//     } dest;
-//
-//     int sender_blocked;
-//     msg_t *msg;
-// };
-//
-// struct msg_handler {
-//     ulong msg_num;
-//     ulong vaddr;
-// };
-
-
 /*
  * Thread
  */
@@ -115,7 +89,7 @@ struct thread {
 
     // Lock
     spinlock_t lock;
-    atomic_t ref_count;
+    ref_count_t ref_count;
 };
 
 #define access_thread(tid, t) \
@@ -144,7 +118,6 @@ extern void init_thread();
 
 extern struct thread *acquire_thread(ulong id);
 extern void release_thread(struct thread *t);
-extern int thread_exists(ulong tid);
 
 extern ulong create_thread(struct process *p, ulong entry_point, ulong param,
                            struct thread_attri *attri);
@@ -224,9 +197,8 @@ struct process {
     ulong pid;
     ulong parent_pid;
 
-    // Name and URL
+    // Name
     char *name;
-    char *url;
 
     // Type and state
     enum process_type type;
@@ -244,8 +216,8 @@ struct process {
 
     // Threads
     list_t threads;
-    atomic_t thread_create_count;
-    atomic_t thread_exit_count;
+    ref_count_t thread_create_count;
+    ref_count_t thread_exit_count;
 
     // Wait objects
     list_t wait_objects;
@@ -258,7 +230,7 @@ struct process {
 
     // Lock
     spinlock_t lock;
-    atomic_t ref_count;
+    ref_count_t ref_count;
 };
 
 
@@ -284,10 +256,10 @@ extern ulong get_kernel_pid();
 
 extern struct process *acquire_process(ulong id);
 extern void release_process(struct process *p);
-extern int process_exists(ulong pid);
+extern struct thread *acquire_main_thread(ulong pid);
 
 extern ulong create_process(ulong parent_id, char *name, enum process_type type);
-extern int load_coreimg_elf(struct process *p, char *url, void *img);
+extern int load_coreimg_elf(struct process *p, void *img);
 
 
 /*
@@ -321,9 +293,9 @@ extern void release_wait_queue();
 extern void sleep_thread(struct thread *t);
 
 extern ulong alloc_wait_object(struct process *p, ulong user_obj_id, ulong total, int global);
-extern int wait_on_object(struct process *p, struct thread *t, int wait_type, ulong obj_id, ulong timeout_ms);
-extern ulong wake_on_object(struct process *p, struct thread *t, int wait_type, ulong obj_id, ulong max_wakeup_count);
-extern ulong wake_on_object_exclusive(struct process *p, struct thread *t, int wait_type, ulong wait_obj, ulong max_wakeup_count);
+extern int wait_on_object(struct process *p, struct thread *t, int wait_type, ulong wait_obj, ulong wait_value, ulong timeout_ms);
+extern ulong wake_on_object(struct process *p, struct thread *t, int wait_type, ulong wait_obj, ulong wait_value, ulong max_wakeup_count);
+extern ulong wake_on_object_exclusive(struct process *p, struct thread *t, int wait_type, ulong wait_obj, ulong wait_value, ulong max_wakeup_count);
 
 extern void purge_wait_queue(struct process *p);
 

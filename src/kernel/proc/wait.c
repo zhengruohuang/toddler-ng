@@ -127,7 +127,7 @@ ulong alloc_wait_object(struct process *p, ulong user_obj_id,
 /*
  * Wait
  */
-int wait_on_object(struct process *p, struct thread *t, int wait_type, ulong wait_obj, ulong timeout_ms)
+int wait_on_object(struct process *p, struct thread *t, int wait_type, ulong wait_obj, ulong wait_value, ulong timeout_ms)
 {
     int do_wait = 0;
     int err = 0;
@@ -139,34 +139,31 @@ int wait_on_object(struct process *p, struct thread *t, int wait_type, ulong wai
         do_wait = 1;
         wait_obj = t->tid;
         break;
-    case WAIT_ON_SEMAPHORE:
-        err = -1;
-        access_wait_object_exclusive(obj, p, wait_obj) {
-            if (!obj->count) {
+    case WAIT_ON_FUTEX: {
+        paddr_t paddr = get_hal_exports()->translate(p->page_table, wait_obj);
+        if (paddr) {
+            futex_t *futex = cast_paddr_to_ptr(paddr);
+            futex_t futex_val;
+            futex_val.value = futex->value;
+
+            if (futex_val.valid && futex_val.kernel && futex->locked != wait_value) {
                 do_wait = 1;
-            } else {
-                obj->count--;
             }
-            err = 0;
+        } else {
+            err = -1;
         }
         break;
-    case WAIT_ON_BARRIER:
-        break;
+    }
     case WAIT_ON_MSG_REPLY:
         do_wait = 1;
         break;
     case WAIT_ON_THREAD:
-        do_wait = thread_exists(wait_obj) && t->tid != wait_obj;
+        do_wait = t->tid != wait_obj && acquire_thread(wait_obj);
         break;
     case WAIT_ON_MAIN_THREAD:
-        do_wait = process_exists(wait_obj) && t->pid != wait_obj;
+        do_wait = t->pid != wait_obj && acquire_main_thread(wait_obj);
         if (do_wait)
             kprintf("wait on main thread: %lx, %lx, %d\n", wait_obj, t->tid, do_wait);
-        break;
-    case WAIT_ON_PROCESS:
-        do_wait = process_exists(wait_obj) && t->pid != wait_obj;
-        if (do_wait)
-            kprintf("wait on process: %lx, %lx, %d\n", wait_obj, t->pid, do_wait);
         break;
     default:
         err = -1;
@@ -242,46 +239,53 @@ static void timeout_wakeup_worker(ulong param)
     }
 }
 
-ulong wake_on_object(struct process *p, struct thread *t, int wait_type, ulong wait_obj, ulong max_wakeup_count)
+ulong wake_on_object(struct process *p, struct thread *t, int wait_type, ulong wait_obj, ulong wait_value, ulong max_wakeup_count)
 {
     panic_if(!spinlock_is_locked(&wait_queue.lock), "wait queue must be locked!\n");
 
+    int do_wakeup = 0;
     int global_wait = 0;
+
     switch (wait_type) {
-    case WAIT_ON_SEMAPHORE:
-        access_wait_object_exclusive(obj, p, wait_obj) {
-            global_wait = obj->global;
-            obj->count++;
-            if (obj->count > obj->total) {
-                obj->count = obj->total;
+    case WAIT_ON_FUTEX: {
+        paddr_t paddr = get_hal_exports()->translate(p->page_table, wait_obj);
+        if (paddr) {
+            futex_t *futex = cast_paddr_to_ptr(paddr);
+            futex_t futex_val;
+            futex_val.value = futex->value;
+
+            if (futex_val.valid && !futex_val.kernel && futex->locked != wait_value) {
+                do_wakeup = 1;
             }
         }
         break;
+    }
     case WAIT_ON_MSG_REPLY:
         global_wait = 1;
+        do_wakeup = 1;
         break;
     case WAIT_ON_MAIN_THREAD:
         global_wait = 1;
-        break;
-    case WAIT_ON_PROCESS:
-        global_wait = 1;
+        do_wakeup = 1;
         break;
     default:
         break;
     }
 
     ulong count = 0;
-    list_foreach(&wait_queue, node) {
-        struct thread *wait_t = list_entry(node, struct thread, node_wait);
-        if (wait_t->wait_type == wait_type && wait_t->wait_obj == wait_obj &&
-            (global_wait || p->pid == wait_t->pid)
-        ) {
-            list_remove_in_foreach(&wait_queue, node);
-            wakeup_thread(wait_t);
+    if (do_wakeup) {
+        list_foreach(&wait_queue, node) {
+            struct thread *wait_t = list_entry(node, struct thread, node_wait);
+            if (wait_t->wait_type == wait_type && wait_t->wait_obj == wait_obj &&
+                (global_wait || p->pid == wait_t->pid)
+            ) {
+                list_remove_in_foreach(&wait_queue, node);
+                wakeup_thread(wait_t);
 
-            count++;
-            if (max_wakeup_count && count >= max_wakeup_count) {
-                break;
+                count++;
+                if (max_wakeup_count && count >= max_wakeup_count) {
+                    break;
+                }
             }
         }
     }
@@ -289,11 +293,11 @@ ulong wake_on_object(struct process *p, struct thread *t, int wait_type, ulong w
     return count;
 }
 
-ulong wake_on_object_exclusive(struct process *p, struct thread *t, int wait_type, ulong wait_obj, ulong max_wakeup_count)
+ulong wake_on_object_exclusive(struct process *p, struct thread *t, int wait_type, ulong wait_obj, ulong wait_value, ulong max_wakeup_count)
 {
     ulong count = 0;
     list_access_exclusive(&wait_queue) {
-        count = wake_on_object(p, t, wait_type, wait_obj, max_wakeup_count);
+        count = wake_on_object(p, t, wait_type, wait_obj, wait_value, max_wakeup_count);
     }
     return count;
 }

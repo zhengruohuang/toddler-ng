@@ -26,44 +26,15 @@ extern void *access_tls_var(ulong *offset, size_t size);
 
 
 /*
- * Thread control
- */
-typedef ulong (*kthread_entry_t)(ulong param);
-
-typedef volatile struct {
-    kthread_entry_t entry;
-    ulong param;
-    ulong tid;
-
-    int init;
-    int exited;
-    ulong ret;
-} kthread_t;
-
-extern int kthread_create(kthread_t *kth, kthread_entry_t entry, ulong param);
-extern kthread_t *kthread_self();
-extern int kthread_join(kthread_t *kth, ulong *ret);
-extern void kthread_exit(ulong retval);
-
-
-/*
  * Mutex
  */
-typedef volatile struct {
-    union {
-        ulong value;
-        struct {
-            ulong locked : 1;
-        };
-    };
-} mutex_state_t;
-
-typedef volatile struct {
-    mutex_state_t state;
-    ulong wait_obj_id;
+typedef struct {
+    futex_t futex;
+    int max_spin;
 } mutex_t;
 
-#define MUTEX_INITIALIZER { .state.value = 0, .wait_obj_id = 0 }
+#define MUTEX_MAX_SPIN 100
+#define MUTEX_INITIALIZER { .futex = FUTEX_INITIALIZER, .max_spin = MUTEX_MAX_SPIN }
 
 #define mutex_exclusive(l) \
     for (mutex_t *__m = l; __m; __m = NULL) \
@@ -72,10 +43,11 @@ typedef volatile struct {
 
 static inline int mutex_is_locked(mutex_t *lock)
 {
-    return lock->state.locked ? 1 : 0;
+    return lock->futex.locked ? 1 : 0;
 }
 
 extern void mutex_init(mutex_t *lock);
+extern void mutex_init_spin(mutex_t *lock, int spin);
 extern void mutex_destroy(mutex_t *lock);
 
 extern void mutex_lock(mutex_t *lock);
@@ -129,6 +101,29 @@ typedef struct {
     ulong total;
     ulong wait_obj_id;
 } barrier_t;
+
+
+/*
+ * Thread control
+ */
+typedef ulong (*kthread_entry_t)(ulong param);
+
+typedef struct {
+    kthread_entry_t entry;
+    ulong param;
+    ulong tid;
+
+    volatile int init;
+    volatile int exited;
+    volatile ulong ret;
+
+    mutex_t joined;
+} kthread_t;
+
+extern int kthread_create(kthread_t *kth, kthread_entry_t entry, ulong param);
+extern kthread_t *kthread_self();
+extern int kthread_join(kthread_t *kth, ulong *ret);
+extern void kthread_exit(ulong retval);
 
 
 /*

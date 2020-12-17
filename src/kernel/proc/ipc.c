@@ -90,7 +90,7 @@ int ipc_request(struct process *p, struct thread *t, ulong dst_pid, ulong opcode
         if ((flags & IPC_SEND_POPUP) && popup_entry) {
             if (flags & IPC_SEND_WAIT_FOR_REPLY) {
                 *wait = 1;
-                wait_on_object(p, t, WAIT_ON_MSG_REPLY, t->tid, 0);
+                wait_on_object(p, t, WAIT_ON_MSG_REPLY, t->tid, 0, 0);
             }
 
             create_and_run_thread(dst_tid, dst_t, dst_proc, popup_entry, opcode, NULL) {
@@ -123,7 +123,7 @@ int ipc_respond(struct process *p, struct thread *t)
         access_thread(dst_tid, dst_t) {
             err = 0;
             copy_msg(dst_t, t);
-            ulong count = wake_on_object_exclusive(p, t, WAIT_ON_MSG_REPLY, dst_tid, 0);
+            ulong count = wake_on_object_exclusive(p, t, WAIT_ON_MSG_REPLY, dst_tid, 0, 0);
             panic_if(count != 1, "There must one and only one thread waiting on a msg!\n");
         }
     }
