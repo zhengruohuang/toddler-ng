@@ -103,6 +103,18 @@ list_node_t *list_pop_back(list_t *l)
     return list_remove(l, l->tail.prev);
 }
 
+void list_display(list_t *l, list_node_display_t d)
+{
+    panic_if(!spinlock_is_locked(&l->lock), "list must be locked!\n");
+
+    int idx = 0;
+    list_foreach(l, n) {
+        if (d) {
+            d(idx++, n);
+        }
+    }
+}
+
 
 /*
  * Exclusive
@@ -160,4 +172,95 @@ list_node_t *list_pop_back_exclusive(list_t *l)
     spinlock_unlock_int(&l->lock);
 
     return n;
+}
+
+void list_display_exclusive(list_t *l, list_node_display_t d)
+{
+    spinlock_lock_int(&l->lock);
+    list_display(l, d);
+    spinlock_unlock_int(&l->lock);
+}
+
+
+/*
+ * Test
+ */
+struct test_list_node {
+    list_node_t node;
+    int num;
+};
+
+static list_t list_for_test;
+static struct test_list_node nodes_for_test[16];
+
+static int test_list_compare(list_node_t *a, list_node_t *b)
+{
+    struct test_list_node *ba = list_entry(a, struct test_list_node, node);
+    struct test_list_node *bb = list_entry(b, struct test_list_node, node);
+    if (ba->num > bb->num) {
+        return 1;
+    } else if (ba->num < bb->num) {
+        return -1;
+    } else {
+        return 0;
+    }
+}
+
+static void test_list_node_display(int idx, list_node_t *n)
+{
+    struct test_list_node *node = list_entry(n, struct test_list_node, node);
+    kprintf("#%d: %d\n", idx, node->num);
+}
+
+static struct test_list_node *test_list_insert(int num)
+{
+    static int alloc_idx = 0;
+    struct test_list_node *node = &nodes_for_test[alloc_idx++];
+    node->num = num;
+    list_insert_sorted_exclusive(&list_for_test, &node->node, test_list_compare);
+    return node;
+}
+
+void test_list()
+{
+    kprintf("Testing list\n");
+
+    list_init(&list_for_test);
+    struct test_list_node *node1 = test_list_insert(1);
+    struct test_list_node *node2 = test_list_insert(2);
+    struct test_list_node *node3 = test_list_insert(3);
+    struct test_list_node *node0 = test_list_insert(0);
+    struct test_list_node *node4 = test_list_insert(4);
+    struct test_list_node *node32 = test_list_insert(3);
+    struct test_list_node *node42 = test_list_insert(4);
+    struct test_list_node *node02 = test_list_insert(0);
+    list_display_exclusive(&list_for_test, test_list_node_display);
+
+    kprintf("Test\n");
+    list_remove_exclusive(&list_for_test, &node3->node);
+    list_display_exclusive(&list_for_test, test_list_node_display);
+
+    kprintf("Test\n");
+    list_insert_sorted_exclusive(&list_for_test, &node3->node, test_list_compare);
+    list_display_exclusive(&list_for_test, test_list_node_display);
+
+    kprintf("Test\n");
+    list_access_exclusive(&list_for_test) {
+        while (list_for_test.count) {
+            list_pop_front(&list_for_test);
+        }
+    }
+    list_display_exclusive(&list_for_test, test_list_node_display);
+
+    kprintf("Test\n");
+    list_insert_sorted_exclusive(&list_for_test, &node3->node, test_list_compare);
+    list_insert_sorted_exclusive(&list_for_test, &node4->node, test_list_compare);
+    list_insert_sorted_exclusive(&list_for_test, &node0->node, test_list_compare);
+    list_insert_sorted_exclusive(&list_for_test, &node2->node, test_list_compare);
+    list_insert_sorted_exclusive(&list_for_test, &node1->node, test_list_compare);
+    list_insert_sorted_exclusive(&list_for_test, &node42->node, test_list_compare);
+    list_insert_sorted_exclusive(&list_for_test, &node02->node, test_list_compare);
+    list_display_exclusive(&list_for_test, test_list_node_display);
+
+    kprintf("List test done!\n");
 }

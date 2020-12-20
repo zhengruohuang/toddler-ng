@@ -188,6 +188,9 @@ void kernel(struct hal_exports *hal_exp)
     init_palloc();
     init_malloc();
 
+//     test_list();
+//     while (1);
+
     init_dispatch();
     init_sched();
     init_process();

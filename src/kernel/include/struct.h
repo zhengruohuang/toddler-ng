@@ -57,6 +57,8 @@ typedef struct {
 // entry(a) > entry(b) ? 1 : (entry(a) < entry(b) ? -1 : 0)
 typedef int (*list_cmp_t)(list_node_t *a, list_node_t *b);
 
+typedef void (*list_node_display_t)(int idx, list_node_t *n);
+
 extern void list_init(list_t *l);
 
 extern void list_insert(list_t *l, list_node_t *prev, list_node_t *n);
@@ -72,6 +74,8 @@ extern list_node_t *list_back(list_t *l);
 extern list_node_t *list_pop_back(list_t *l);
 extern list_node_t *list_pop_front(list_t *l);
 
+extern void list_display(list_t *l, list_node_display_t d);
+
 extern void list_insert_exclusive(list_t *l, list_node_t *prev, list_node_t *n);
 extern void list_insert_sorted_exclusive(list_t *l, list_node_t *n, list_cmp_t cmp);
 extern list_node_t *list_remove_exclusive(list_t *l, list_node_t *n);
@@ -81,6 +85,10 @@ extern void list_push_front_exclusive(list_t *l, list_node_t *n);
 
 extern list_node_t *list_pop_back_exclusive(list_t *l);
 extern list_node_t *list_pop_front_exclusive(list_t *l);
+
+extern void list_display_exclusive(list_t *l, list_node_display_t d);
+
+extern void test_list();
 
 
 /*
