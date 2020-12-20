@@ -15,50 +15,22 @@
 /*
  * Init
  */
-static salloc_obj_t dalloc_salloc_obj;
+static salloc_obj_t vm_salloc_obj;
 
-void init_dynamic_vm()
+void init_vm()
 {
     kprintf("Initializing dynamic VM allocator\n");
-
-    // Create salloc obj
-    salloc_create(&dalloc_salloc_obj, sizeof(struct dynamic_block), 0, 0, NULL, NULL);
+    salloc_create(&vm_salloc_obj, sizeof(struct vm_block), 0, 0, NULL, NULL);
 }
 
 
 /*
  * Sort compare
  */
-static int blocks_list_compare(list_node_t *a, list_node_t *b)
+static int list_compare(list_node_t *a, list_node_t *b)
 {
-    struct dynamic_block *ba = list_entry(a, struct dynamic_block, node);
-    struct dynamic_block *bb = list_entry(b, struct dynamic_block, node);
-    if (ba->base > bb->base) {
-        return 1;
-    } else if (ba->base < bb->base) {
-        return -1;
-    } else {
-        return 0;
-    }
-}
-
-static int free_list_compare(list_node_t *a, list_node_t *b)
-{
-    struct dynamic_block *ba = list_entry(a, struct dynamic_block, node_free);
-    struct dynamic_block *bb = list_entry(b, struct dynamic_block, node_free);
-    if (ba->base > bb->base) {
-        return 1;
-    } else if (ba->base < bb->base) {
-        return -1;
-    } else {
-        return 0;
-    }
-}
-
-static int mapped_list_compare(list_node_t *a, list_node_t *b)
-{
-    struct dynamic_block *ba = list_entry(a, struct dynamic_block, node_mapped);
-    struct dynamic_block *bb = list_entry(b, struct dynamic_block, node_mapped);
+    struct vm_block *ba = list_entry(a, struct vm_block, node);
+    struct vm_block *bb = list_entry(b, struct vm_block, node);
     if (ba->base > bb->base) {
         return 1;
     } else if (ba->base < bb->base) {
@@ -70,89 +42,230 @@ static int mapped_list_compare(list_node_t *a, list_node_t *b)
 
 
 /*
- * Alloc
+ * Create
  */
-static struct dynamic_block *alloc_new_block(struct process *p, ulong size)
+int vm_create(struct process *p)
 {
-    if (p->vm.dynamic.bottom - size <= p->vm.heap.end + PAGE_SIZE) {
-        return NULL;
-    }
+    struct vm_block *b = salloc(&vm_salloc_obj);
+    panic_if(!b, "Unable to allocate VM block!\n");
 
-    struct dynamic_block *block = (struct dynamic_block *)salloc(&dalloc_salloc_obj);
+    b->proc = p;
+    b->base = p->vm.dynamic.start;
+    b->size = p->vm.dynamic.end - p->vm.dynamic.start;
+    b->type = VM_TYPE_AVAIL;
 
-    p->vm.dynamic.bottom -= size;
-    block->base = p->vm.dynamic.bottom;
-    block->size = size;
-    block->state = VM_STATE_INUSE;
+    list_push_back_exclusive(&p->vm.avail_unmapped, &b->node);
+    ref_count_inc(&p->ref_count);
 
-    list_insert_sorted(&p->vm.dynamic.blocks, &block->node, blocks_list_compare);
-    return block;
+    return 0;
 }
 
-ulong vm_alloc(struct process *p, ulong size, ulong align, ulong attri)
+
+/*
+ * Allocate
+ */
+struct vm_block *vm_alloc_thread(struct process *p, struct thread *t, vm_block_thread_mapper_t mapper)
 {
-    panic_if(align != PAGE_SIZE, "align must be PAGE_SIZE!\n");
-    panic_if(size % PAGE_SIZE, "size must be multiple of PAGE_SIZE!\n");
-
-    struct dynamic_block *block = NULL;
-
-    // Find a block from free unmapped list
-    list_node_t *n = list_pop_back(&p->vm.dynamic.free);
+    // Try reuse first
+    list_node_t *n = list_pop_back_exclusive(&p->vm.reuse_mapped);
     if (n) {
-        block = list_entry(n, struct dynamic_block, node_free);
-    } else {
-        block = alloc_new_block(p, size);
+        struct vm_block *b = list_entry(n, struct vm_block, node);
+        panic_if(b->size != t->memory.block_size, "Thread VM block size mismatch!\n");
+        return b;
     }
 
-    return block ? block->base : 0;
+    // Allocate a new block
+    struct vm_block *b = salloc(&vm_salloc_obj);
+    panic_if(!b, "Unable to allocate VM block!\n");
+
+    ulong base = 0;
+    struct vm_block *delete_block = NULL;
+
+    list_access_exclusive(&p->vm.avail_unmapped) {
+        list_node_t *n = list_back(&p->vm.avail_unmapped);
+        if (!n) {
+            break;
+        }
+
+        struct vm_block *last = list_entry(n, struct vm_block, node);
+        if (last->size < t->memory.block_size) {
+            break;
+        }
+
+        last->size -= t->memory.block_size;
+        base = last->base + last->size;
+
+        if (!last->size) {
+            delete_block = last;
+            list_remove(&p->vm.avail_unmapped, &last->node);
+        }
+    }
+
+    if (base) {
+        b->proc = p;
+        b->base = base;
+        b->size = t->memory.block_size;
+        b->type = VM_TYPE_THREAD;
+
+        if (mapper) {
+            mapper(p, t, b);
+        }
+
+        ref_count_inc(&p->ref_count);
+        list_insert_sorted_exclusive(&p->vm.inuse_mapped, &b->node, list_compare);
+    } else {
+        sfree(b);
+        b = NULL;
+    }
+
+    if (delete_block) {
+        sfree(delete_block);
+        delete_block = NULL;
+        ref_count_dec(&p->ref_count);
+    }
+
+    return b;
+}
+
+struct vm_block *vm_alloc(struct process *p, ulong base, ulong size, ulong attri)
+{
+    ulong end = align_up_vaddr(base + size, PAGE_SIZE);
+    base = align_down_vsize(base, PAGE_SIZE);
+    size = end - base;
+
+    // Allocate a new block
+    struct vm_block *b = salloc(&vm_salloc_obj);
+    panic_if(!b, "Unable to allocate VM block!\n");
+
+    struct vm_block *extra_b = salloc(&vm_salloc_obj);
+    panic_if(!b, "Unable to allocate VM block!\n");
+
+    int found = 0, extra_used = 0;
+    struct vm_block *delete_block = NULL;
+
+    list_access_exclusive(&p->vm.avail_unmapped) {
+        struct vm_block *target_block = NULL;
+        list_foreach(&p->vm.avail_unmapped, n) {
+            struct vm_block *cur_block = list_entry(n, struct vm_block, node);
+            if (base) {
+                ulong cur_end = cur_block->base + cur_block->size;
+                if (cur_block->base <= base && cur_end >= end) {
+                    target_block = cur_block;
+                    break;
+                }
+            } else if (cur_block->size >= size) {
+                target_block = cur_block;
+                break;
+            }
+        }
+
+        if (!target_block) {
+            break;
+        }
+
+        found = 1;
+        if (base) {
+            ulong target_end = target_block->base + target_block->size;
+            if (target_block->base == base) {
+                if (target_end == end) {
+                    delete_block = target_block;
+                    list_remove(&p->vm.avail_unmapped, &target_block->node);
+                } else {
+                    target_block->base += size;
+                }
+            } else if (target_end == end) {
+                target_block->size -= size;
+            } else {
+                target_block->size = base - target_block->base;
+                extra_b->base = end;
+                extra_b->size = target_end - end;
+
+                ref_count_inc(&p->ref_count);
+                list_insert(&p->vm.avail_unmapped, &target_block->node, &extra_b->node);
+                extra_used = 1;
+            }
+        } else {
+            target_block->size -= size;
+            if (!target_block->size) {
+                delete_block = target_block;
+                list_remove(&p->vm.avail_unmapped, &target_block->node);
+            }
+        }
+    }
+
+    if (found) {
+        b->proc = p;
+        b->base = base;
+        b->size = size;
+        b->type = VM_TYPE_GENERIC;
+
+        ref_count_inc(&p->ref_count);
+        list_insert_sorted_exclusive(&p->vm.inuse_mapped, &b->node, list_compare);
+    } else {
+        sfree(b);
+        b = NULL;
+    }
+
+    if (delete_block) {
+        sfree(delete_block);
+        delete_block = NULL;
+        ref_count_dec(&p->ref_count);
+    }
+    if (!extra_used) {
+        sfree(extra_b);
+        extra_b = NULL;
+    }
+
+    return b;
 }
 
 
 /*
  * Free
  */
-static struct dynamic_block *find_inuse_block(struct process *p, ulong base)
+int vm_free_block(struct process *p, struct vm_block *b)
 {
-    struct dynamic_block *block = NULL;
+    struct vm_block *b_sanit = NULL;
+    list_remove_exclusive(&p->vm.inuse_mapped, &b->node);
 
-    list_foreach(&p->vm.dynamic.blocks, n) {
-        struct dynamic_block *b = list_entry(n, struct dynamic_block, node);
+    if (b->type == VM_TYPE_THREAD) {
+        list_access_exclusive(&p->vm.reuse_mapped) {
+            list_insert_sorted(&p->vm.reuse_mapped, &b->node, list_compare);
+            if (p->vm.reuse_mapped.count > hal_get_num_cpus()) {
+                list_node_t *n = list_pop_front(&p->vm.reuse_mapped);
+                b_sanit = list_entry(n, struct vm_block, node);
+            }
+        }
+    } else {
+        b_sanit = b;
+    }
+
+    if (b_sanit) {
+        list_insert_sorted_exclusive(&p->vm.sanit_mapped, &b_sanit->node, list_compare);
+        ulong wait_acks = request_tlb_shootdown(p, b_sanit);
+        if (!wait_acks) {
+            // TODO: merge
+        }
+    }
+
+    return 0;
+}
+
+int vm_free(struct process *p, ulong base)
+{
+    struct vm_block *b_free = NULL;
+
+    list_foreach_exclusive(&p->vm.inuse_mapped, n) {
+        struct vm_block *b = list_entry(n, struct vm_block, node);
         if (b->base == base) {
-            panic_if(b->state != VM_STATE_INUSE, "Inconsistent VM block state!\n");
-            block = b;
+            b_free = b;
             break;
         }
     }
 
-    return block;
+    return b_free ? vm_free_block(p, b_free) : -1;
 }
 
-void vm_free(struct process *p, ulong base)
-{
-    // FIXME: Not impelemented
-    return;
-
-//     struct dynamic_block *block = find_inuse_block(p, base);
-//     panic_if(!block, "Unable to find VM block @ %lx\n", base);
-//
-//     block->state = VM_STATE_FREE_MAPPED;
-//     list_insert_sorted(&p->vm.dynamic.mapped, &block->node_mapped, mapped_list_compare);
-//
-//     vm_cleanup(p);
-}
-
-
-/*
- * Clean up
- */
-void vm_cleanup(struct process *p)
-{
-}
-
-
-/*
- * Purge
- */
-void vm_purge(struct process *p)
+void vm_move_to_sanit_unmapped(struct process *p, struct vm_block *b)
 {
 }

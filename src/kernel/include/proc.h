@@ -12,6 +12,7 @@
 /*
  * Thread
  */
+struct vm_block;
 struct process;
 
 enum thread_state {
@@ -25,6 +26,7 @@ struct thread_memory {
     // Virtual base
     ulong block_base;
     ulong block_size;
+    struct vm_block *block;
 
     // Stack
     struct {
@@ -149,20 +151,23 @@ enum process_state {
     PROCESS_STATE_EXIT,
 };
 
-enum process_vm_block_state {
-    VM_STATE_FREE_UNMAPPED,
-    VM_STATE_FREE_MAPPED,
-    VM_STATE_INUSE,
+enum process_vm_type {
+    VM_TYPE_AVAIL,
+    VM_TYPE_GENERIC,
+    VM_TYPE_THREAD,
 };
 
-struct dynamic_block {
+struct vm_block {
     list_node_t node;
-    list_node_t node_free;
-    list_node_t node_mapped;
+    list_node_t node_tlb_shootdown;
 
-    enum process_vm_block_state state;
+    struct process *proc;
     ulong base;
     ulong size;
+    enum process_vm_type type;
+
+    ulong tlb_shootdown_seq;
+    volatile ulong wait_acks;
 };
 
 struct process_memory {
@@ -178,16 +183,14 @@ struct process_memory {
     struct {
         ulong start;
         ulong end;
-    } heap;
-
-    struct {
-        ulong top;
-        ulong bottom;
-
-        list_t blocks;  // All blocks
-        list_t free;    // Free and unmapped
-        list_t mapped;  // Free but mapped
     } dynamic;
+
+    list_t avail_unmapped;  // Available blocks, unmapped
+    list_t sanit_unmapped;  // Blocks waiting to be freed, unmapped
+    list_t sanit_mapped;    // Blocks waiting to be unmapped, mapped
+    list_t reuse_mapped;    // Blocks ready for reuse, mapped
+                            // Only thread blocks can be reused
+    list_t inuse_mapped;    // Blocks inuse, mapped
 };
 
 struct process {
@@ -237,11 +240,17 @@ struct process {
 /*
  * Dynamic VM
  */
-extern void init_dynamic_vm();
-extern ulong vm_alloc(struct process *p, ulong size, ulong align, ulong attri);
-extern void vm_free(struct process *p, ulong base);
-extern void vm_cleanup(struct process *p);
-extern void vm_purge(struct process *p);
+typedef int (*vm_block_thread_mapper_t)(struct process *p, struct thread *t, struct vm_block *b);
+
+extern void init_vm();
+extern int vm_create(struct process *p);
+
+extern struct vm_block *vm_alloc_thread(struct process *p, struct thread *t, vm_block_thread_mapper_t mapper);
+extern struct vm_block *vm_alloc(struct process *p, ulong base, ulong size, ulong attri);
+
+extern int vm_free_block(struct process *p, struct vm_block *b);
+extern int vm_free(struct process *p, ulong base);
+extern void vm_move_to_sanit_unmapped(struct process *p, struct vm_block *b);
 
 
 /*
@@ -312,9 +321,11 @@ extern int ipc_respond(struct process *p, struct thread *t);
 extern int ipc_receive(struct process *p, struct thread *t, ulong timeout_ms, ulong *opcode, int *wait);
 
 
-// /*
-//  * TLB management
-//  */
+/*
+ * TLB management
+ */
+extern int request_tlb_shootdown(struct process *p, struct vm_block *b);
+
 // extern void init_tlb_mgmt();
 // extern void trigger_tlb_shootdown(ulong asid, ulong addr, size_t size);
 // extern void service_tlb_shootdown();

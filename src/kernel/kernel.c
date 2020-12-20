@@ -186,7 +186,7 @@ void kernel(struct hal_exports *hal_exp)
     init_dispatch();
     init_sched();
     init_process();
-    init_dynamic_vm();
+    init_vm();
     init_thread();
     init_wait();
     init_ipc();

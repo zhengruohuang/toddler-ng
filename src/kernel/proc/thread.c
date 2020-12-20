@@ -118,6 +118,24 @@ static ulong alloc_thread_id(struct thread *t)
     return id;
 }
 
+static int thread_block_mapper(struct process *p, struct thread *t, struct vm_block *b)
+{
+    // Map virtual to physical
+    get_hal_exports()->map_range(p->page_table,
+                                 b->base + t->memory.tls.start_offset,
+                                 cast_ptr_to_paddr(t->memory.tls.start_paddr_ptr),
+                                 PAGE_SIZE, //t->memory.tls.size,
+                                 1, 1, 1, 0, 0);
+
+    get_hal_exports()->map_range(p->page_table,
+                                 b->base + t->memory.stack.top_offset - PAGE_SIZE,
+                                 cast_ptr_to_paddr(t->memory.stack.top_paddr_ptr - PAGE_SIZE),
+                                 PAGE_SIZE,
+                                 1, 1, 1, 0, 0);
+
+    return 0;
+}
+
 static struct thread *create_exec_context(struct process *p,
                                           struct thread_attri *attri)
 {
@@ -156,31 +174,33 @@ static struct thread *create_exec_context(struct process *p,
 
     // Allocate memory
     if (p->type == PROCESS_TYPE_KERNEL) {
-        t->memory.block_base = (ulong)palloc_ptr(t->memory.block_size / PAGE_SIZE);
+        t->memory.block = palloc_ptr(t->memory.block_size / PAGE_SIZE);
+        t->memory.block_base = (ulong)t->memory.block;
         //kprintf("Kernel thread block allocated paddr @ %p\n", (void *)t->memory.block_base);
 
         t->memory.tls.start_paddr_ptr = (void *)(t->memory.block_base + t->memory.tls.start_offset);
         t->memory.stack.top_paddr_ptr = (void *)(t->memory.block_base + t->memory.stack.top_offset);
     } else {
-        // Allocate a dynamic block
-        t->memory.block_base = vm_alloc(p, t->memory.block_size, PAGE_SIZE, VM_ATTRI_DATA);
-
         // Allocate physical memory
         t->memory.tls.start_paddr_ptr = palloc_ptr(1);
         void *initial_stack_paddr_ptr = palloc_ptr(1);
         t->memory.stack.top_paddr_ptr = initial_stack_paddr_ptr + PAGE_SIZE;
 
-        // Map virtual to physical
-        get_hal_exports()->map_range(p->page_table,
-                                     t->memory.block_base + t->memory.tls.start_offset,
-                                     cast_ptr_to_paddr(t->memory.tls.start_paddr_ptr),
-                                     t->memory.tls.size,
-                                     1, 1, 1, 0, 0);
-        get_hal_exports()->map_range(p->page_table,
-                                     t->memory.block_base + t->memory.stack.top_offset - PAGE_SIZE,
-                                     cast_ptr_to_paddr(initial_stack_paddr_ptr),
-                                     PAGE_SIZE,
-                                     1, 1, 1, 0, 0);
+        // Allocate and map a dynamic block
+        t->memory.block = vm_alloc_thread(p, t, thread_block_mapper);
+        t->memory.block_base = t->memory.block->base;
+
+//         // Map virtual to physical
+//         get_hal_exports()->map_range(p->page_table,
+//                                      t->memory.block_base + t->memory.tls.start_offset,
+//                                      cast_ptr_to_paddr(t->memory.tls.start_paddr_ptr),
+//                                      t->memory.tls.size,
+//                                      1, 1, 1, 0, 0);
+//         get_hal_exports()->map_range(p->page_table,
+//                                      t->memory.block_base + t->memory.stack.top_offset - PAGE_SIZE,
+//                                      cast_ptr_to_paddr(initial_stack_paddr_ptr),
+//                                      PAGE_SIZE,
+//                                      1, 1, 1, 0, 0);
     }
 
     // Adjust stack top to make some room for msg block
@@ -252,6 +272,7 @@ void exit_thread(struct thread *t)
         if (proc->type == PROCESS_TYPE_KERNEL) {
             pfree_ptr((void *)t->memory.block_base);
         } else {
+            vm_free_block(proc, t->memory.block);
         }
 
         access_wait_queue_exclusive(wait_queue) {

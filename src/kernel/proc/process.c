@@ -149,19 +149,36 @@ ulong create_process(ulong parent_id, char *name, enum process_type type)
     p->vm.program.start = 0;
     p->vm.program.end = 0;
 
-    p->vm.heap.start = 0;
-    p->vm.heap.end = 0;
+    p->vm.dynamic.start = 0x100000ul;   // 1MB
+    p->vm.dynamic.end = USER_VADDR_LIMIT;
 
-    p->vm.dynamic.top = 0;
-    p->vm.dynamic.bottom = 0;
+    list_init(&p->vm.avail_unmapped);
+    list_init(&p->vm.inuse_mapped);
+    list_init(&p->vm.sanit_unmapped);
+    list_init(&p->vm.sanit_mapped);
+    list_init(&p->vm.reuse_mapped);
 
-    // Set VM list locks as locked so that the list functions are happy
-    list_init(&p->vm.dynamic.blocks);
-    list_init(&p->vm.dynamic.free);
-    list_init(&p->vm.dynamic.mapped);
-    spinlock_lock(&p->vm.dynamic.blocks.lock);
-    spinlock_lock(&p->vm.dynamic.free.lock);
-    spinlock_lock(&p->vm.dynamic.mapped.lock);
+    vm_create(p);
+
+//     // Memory layout
+//     p->vm.entry_point = 0;
+//
+//     p->vm.program.start = 0;
+//     p->vm.program.end = 0;
+//
+//     p->vm.heap.start = 0;
+//     p->vm.heap.end = 0;
+//
+//     p->vm.dynamic.top = 0;
+//     p->vm.dynamic.bottom = 0;
+//
+//     // Set VM list locks as locked so that the list functions are happy
+//     list_init(&p->vm.dynamic.blocks);
+//     list_init(&p->vm.dynamic.free);
+//     list_init(&p->vm.dynamic.mapped);
+//     spinlock_lock(&p->vm.dynamic.blocks.lock);
+//     spinlock_lock(&p->vm.dynamic.free.lock);
+//     spinlock_lock(&p->vm.dynamic.mapped.lock);
 
     // Thread list
     list_init(&p->threads);
@@ -274,12 +291,15 @@ int load_coreimg_elf(struct process *p, void *img)
 
     kprintf("\t\tEntry @ %p\n", p->vm.entry_point);
 
-    // Set up initial heap
-    ulong heap_vaddr = align_up_vaddr(vrange_end + PAGE_SIZE, PAGE_SIZE);
-    p->vm.heap.start = p->vm.heap.end = heap_vaddr;
+    struct vm_block *b = vm_alloc(p, vrange_start, vrange_end - vrange_start, 0);
+    panic_if(!b, "Unable to allocate VM block for program code!\n");
 
-    // Set up dynamic VM
-    p->vm.dynamic.top = p->vm.dynamic.bottom = USER_VADDR_LIMIT;
+//     // Set up initial heap
+//     ulong heap_vaddr = align_up_vaddr(vrange_end + PAGE_SIZE, PAGE_SIZE);
+//     p->vm.heap.start = p->vm.heap.end = heap_vaddr;
+//
+//     // Set up dynamic VM
+//     p->vm.dynamic.top = p->vm.dynamic.bottom = USER_VADDR_LIMIT;
 
     return EOK;
 }

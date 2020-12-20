@@ -35,6 +35,7 @@ static int wait_queue_compare(list_node_t *a, list_node_t *b)
 list_t *acquire_wait_queue_exclusive()
 {
     spinlock_lock_int(&wait_queue.lock);
+    return &wait_queue;
 }
 
 void release_wait_queue()
@@ -194,6 +195,7 @@ int wait_on_object(struct process *p, struct thread *t, int wait_type, ulong wai
 void sleep_thread(struct thread *t)
 {
     //kprintf("Sleep: %x\n", t->tid);
+    panic_if(!spinlock_is_locked(&wait_queue.lock), "wait queue must be locked!\n");
 
     set_thread_state(t, THREAD_STATE_WAIT);
     list_insert_sorted(&wait_queue, &t->node_wait, wait_queue_compare);

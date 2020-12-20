@@ -120,7 +120,8 @@ int syscall_handler_vm_alloc(struct process *p, struct thread *t,
     ulong size = kdi->param0;
     ulong align = kdi->param1;
     ulong attri = kdi->param2;
-    ulong base = vm_alloc(p, size, align, attri);
+    struct vm_block *b = vm_alloc(p, size, align, attri);
+    ulong base = b ? b->base : 0;
 
     hal_set_syscall_return(kdi->regs, 0, base, 0);
     return SYSCALL_HANDLED_CONTINUE;
