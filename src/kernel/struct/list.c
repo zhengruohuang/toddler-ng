@@ -13,6 +13,11 @@ void list_init(list_t *l)
     l->tail.prev = &l->head;
     l->tail.next = NULL;
 
+#if (defined(LIST_CHECK_OWNER) && LIST_CHECK_OWNER)
+    l->head.owner = l;
+    l->tail.owner = l;
+#endif
+
     spinlock_init(&l->lock);
 }
 
@@ -27,6 +32,10 @@ void list_insert(list_t *l, list_node_t *prev, list_node_t *n)
     n->next = next;
 
     l->count++;
+
+#if (defined(LIST_CHECK_OWNER) && LIST_CHECK_OWNER)
+    n->owner = l;
+#endif
 }
 
 void list_insert_sorted(list_t *l, list_node_t *n, list_cmp_t cmp)
@@ -51,6 +60,10 @@ void list_insert_sorted(list_t *l, list_node_t *n, list_cmp_t cmp)
     }
 
     panic_if(!inserted, "Unable to insert!\n");
+
+#if (defined(LIST_CHECK_OWNER) && LIST_CHECK_OWNER)
+    n->owner = l;
+#endif
 }
 
 list_node_t *list_remove(list_t *l, list_node_t *n)
@@ -59,6 +72,11 @@ list_node_t *list_remove(list_t *l, list_node_t *n)
     if (!n || n == &l->head || n == &l->tail) {
         return NULL;
     }
+
+#if (defined(LIST_CHECK_OWNER) && LIST_CHECK_OWNER)
+    panic_if(n->owner != l, "List node owner mismatch, list @ %p, owner @ %p\n",
+             l, n->owner);
+#endif
 
     list_node_t *prev = n->prev;
     list_node_t *next = n->next;
@@ -260,6 +278,7 @@ void test_list()
     list_insert_sorted_exclusive(&list_for_test, &node1->node, test_list_compare);
     list_insert_sorted_exclusive(&list_for_test, &node42->node, test_list_compare);
     list_insert_sorted_exclusive(&list_for_test, &node02->node, test_list_compare);
+    list_insert_sorted_exclusive(&list_for_test, &node32->node, test_list_compare);
     list_display_exclusive(&list_for_test, test_list_node_display);
 
     kprintf("List test done!\n");

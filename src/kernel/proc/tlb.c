@@ -99,7 +99,7 @@ void service_tlb_shootdown_requests()
                 break;
             }
 
-            kprintf("VM block unmapped @ %lx, seq: %lu, awaiting: %d\n", b->base, b->tlb_shootdown_seq, tlb_shootdown_reqs.count);
+            //kprintf("VM block unmapped @ %lx, seq: %lu, awaiting: %d\n", b->base, b->tlb_shootdown_seq, tlb_shootdown_reqs.count);
 
             list_pop_front(&tlb_shootdown_reqs);
             vm_move_to_sanit_unmapped(b->proc, b);

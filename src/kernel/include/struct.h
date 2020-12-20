@@ -19,12 +19,17 @@
 /*
  * List - doubly linked list
  */
+#define LIST_CHECK_OWNER    1
+
 typedef struct list_node {
     struct list_node *prev;
     struct list_node *next;
+#if (defined(LIST_CHECK_OWNER) && LIST_CHECK_OWNER)
+    struct list *owner;
+#endif
 } list_node_t;
 
-typedef struct {
+typedef struct list {
     ulong count;
     struct list_node head;
     struct list_node tail;

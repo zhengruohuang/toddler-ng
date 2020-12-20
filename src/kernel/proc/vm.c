@@ -272,4 +272,6 @@ int vm_free(struct process *p, ulong base)
 
 void vm_move_to_sanit_unmapped(struct process *p, struct vm_block *b)
 {
+    list_remove_exclusive(&p->vm.sanit_mapped, &b->node);
+    list_insert_sorted_exclusive(&p->vm.sanit_unmapped, &b->node, list_compare);
 }
