@@ -31,7 +31,7 @@ void mutex_lock(mutex_t *lock)
 
 int mutex_trylock(mutex_t *lock)
 {
-    futex_trylock(&lock->futex);
+    return futex_trylock(&lock->futex);
 }
 
 void mutex_unlock(mutex_t *lock)

@@ -160,6 +160,11 @@ void hal_set_syscall_return(struct reg_context *context, int success, ulong retu
     return hal->set_syscall_return(context, success, return0, return1);
 }
 
+void *hal_access_per_cpu_var(int *offset, size_t size)
+{
+    return hal->access_per_cpu_var(offset, size);
+}
+
 
 /*
  * Kernel entry
@@ -187,6 +192,7 @@ void kernel(struct hal_exports *hal_exp)
     init_sched();
     init_process();
     init_vm();
+    init_tlb_shootdown();
     init_thread();
     init_wait();
     init_ipc();

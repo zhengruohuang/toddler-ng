@@ -70,7 +70,9 @@ struct vm_block *vm_alloc_thread(struct process *p, struct thread *t, vm_block_t
     list_node_t *n = list_pop_back_exclusive(&p->vm.reuse_mapped);
     if (n) {
         struct vm_block *b = list_entry(n, struct vm_block, node);
-        panic_if(b->size != t->memory.block_size, "Thread VM block size mismatch!\n");
+        panic_if(b->size != t->memory.block_size,
+                 "Thread VM block size mismatch, b->size: %lu, t->memory.block_size: %lu!\n",
+                 b->size, t->memory.block_size);
         return b;
     }
 

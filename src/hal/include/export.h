@@ -42,6 +42,7 @@ typedef void (*halt_t)(int count, ...);
 // MP
 typedef ulong (*get_cur_mp_id_t)();
 typedef int (*get_cur_mp_seq_t)();
+typedef void *(*access_per_cpu_var_t)(int *offset, size_t size);
 
 // Interrupts
 typedef int (*disable_local_int_t)();
@@ -95,6 +96,7 @@ struct hal_exports {
     int num_cpus;
     get_cur_mp_id_t get_cur_mp_id;
     get_cur_mp_seq_t get_cur_mp_seq;
+    access_per_cpu_var_t access_per_cpu_var;
 
     // Physical memory info
     int memmap_count;

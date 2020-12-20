@@ -46,6 +46,8 @@ void dispatch(ulong thread_id, struct kernel_dispatch *kdi)
 {
     //kprintf("dispatch: %d, MP: %d\n", kdi->num, hal_get_cur_mp_seq());
 
+    service_tlb_shootdown_requests();
+
     struct thread *target_thread = NULL;
     int resume = 0;
     int save_ctxt = 0;

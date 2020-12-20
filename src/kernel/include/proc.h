@@ -324,7 +324,11 @@ extern int ipc_receive(struct process *p, struct thread *t, ulong timeout_ms, ul
 /*
  * TLB management
  */
+extern void init_tlb_shootdown();
+
 extern int request_tlb_shootdown(struct process *p, struct vm_block *b);
+extern void service_tlb_shootdown_requests();
+
 
 // extern void init_tlb_mgmt();
 // extern void trigger_tlb_shootdown(ulong asid, ulong addr, size_t size);

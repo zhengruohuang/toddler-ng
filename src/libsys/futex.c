@@ -101,4 +101,5 @@ int futex_unlock(futex_t *f)
 
 int futex_arrive(futex_t *f, ulong total, int spin)
 {
+    return -1;
 }
