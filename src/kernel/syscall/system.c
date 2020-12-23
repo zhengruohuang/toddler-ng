@@ -112,16 +112,29 @@ int syscall_handler_interrupt(struct process *p, struct thread *t,
 
 
 /*
+ * Fault
+ */
+int syscall_handler_fault_page(struct process *p, struct thread *t,
+                               struct kernel_dispatch *kdi)
+{
+    kprintf("Page fault @ %lx\n", kdi->param0);
+    int err = vm_map(p, kdi->param0, 0);
+
+    return err ? SYSCALL_HANDLED_SAVE_RESCHED : SYSCALL_HANDLED_CONTINUE;
+}
+
+
+/*
  * VM
  */
 int syscall_handler_vm_alloc(struct process *p, struct thread *t,
                              struct kernel_dispatch *kdi)
 {
-    ulong size = kdi->param0;
-    ulong align = kdi->param1;
+    ulong base = kdi->param0;
+    ulong size = kdi->param1;
     ulong attri = kdi->param2;
-    struct vm_block *b = vm_alloc(p, size, align, attri);
-    ulong base = b ? b->base : 0;
+    struct vm_block *b = vm_alloc(p, base, size, attri);
+    base = b ? b->base : 0;
 
     hal_set_syscall_return(kdi->regs, 0, base, 0);
     return SYSCALL_HANDLED_CONTINUE;

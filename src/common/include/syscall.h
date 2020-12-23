@@ -23,6 +23,11 @@ enum syscall_nums {
     // Interrupt
     SYSCALL_INTERRUPT,
 
+    // Fault
+    SYSCALL_FAULT_PAGE,
+    SYSCALL_FAULT_UNALIGN,
+    SYSCALL_FAULT_INSTR,
+
     // VM
     SYSCALL_VM_ALLOC,
     SYSCALL_VM_FREE,

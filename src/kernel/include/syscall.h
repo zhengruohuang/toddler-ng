@@ -55,6 +55,8 @@ extern int syscall_handler_puts(struct process *p, struct thread *t, struct kern
 
 extern int syscall_handler_interrupt(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 
+extern int syscall_handler_fault_page(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
+
 extern int syscall_handler_vm_alloc(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 extern int syscall_handler_vm_free(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 

@@ -23,12 +23,13 @@ void int_handler_entry(int except, struct reg_context *regs)
     //kprintf("Interrupt!\n");
     //while (1);
 
-//     kprintf("General exception!\n");
-//     kprintf("Interrupt, Except: %d, PC: %x, SP: %x, CPSR: %x\n",
-//             except, context->pc, context->sp, context->cpsr);
+    //kprintf("General exception!\n");
+    //kprintf("Interrupt, Except: %d, PC: %x, SP: %x, CPSR: %x\n",
+    //        except, regs->pc, regs->sp, regs->cpsr);
 
     // Figure out the real vector number
     int seq = 0;
+    ulong error_code = except;
 
     switch (except) {
     // System call
@@ -38,8 +39,13 @@ void int_handler_entry(int except, struct reg_context *regs)
 
     // Page fault
     case INT_VECTOR_FETCH:
+        seq = INT_SEQ_PAGE_FAULT;
+        read_instr_fault_addr(error_code);
+        break;
+
     case INT_VECTOR_DATA:
-        seq = INT_SEQ_PANIC;
+        seq = INT_SEQ_PAGE_FAULT;
+        read_data_fault_addr(error_code);
         break;
 
     // Interrupt
@@ -76,7 +82,7 @@ void int_handler_entry(int except, struct reg_context *regs)
     // Go to the generic handler!
     struct int_context intc;
     intc.vector = seq;
-    intc.error_code = except;
+    intc.error_code = error_code;
     intc.regs = regs;
 
     int_handler(seq, &intc);

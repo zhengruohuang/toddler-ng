@@ -48,10 +48,10 @@ void syscall_thread_exit_self(ulong status)
 /*
  * VM
  */
-ulong syscall_vm_alloc(ulong size, ulong align, uint attri)
+ulong syscall_vm_alloc(ulong size, uint attri)
 {
     ulong base = 0;
-    sysenter(SYSCALL_VM_ALLOC, size, align, attri, &base, NULL);
+    sysenter(SYSCALL_VM_ALLOC, 0, size, attri, &base, NULL);
     return base;
 }
 

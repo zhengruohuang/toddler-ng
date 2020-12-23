@@ -137,7 +137,6 @@ struct vm_block *vm_alloc(struct process *p, ulong base, ulong size, ulong attri
     base = align_down_vsize(base, PAGE_SIZE);
     size = end - base;
 
-    // Allocate a new block
     struct vm_block *b = salloc(&vm_salloc_obj);
     panic_if(!b, "Unable to allocate VM block!\n");
 
@@ -169,6 +168,8 @@ struct vm_block *vm_alloc(struct process *p, ulong base, ulong size, ulong attri
 
         found = 1;
         if (base) {
+            b->base = base;
+
             ulong target_end = target_block->base + target_block->size;
             if (target_block->base == base) {
                 if (target_end == end) {
@@ -189,7 +190,11 @@ struct vm_block *vm_alloc(struct process *p, ulong base, ulong size, ulong attri
                 extra_used = 1;
             }
         } else {
+            b->base = target_block->base;
+
             target_block->size -= size;
+            target_block->base += size;
+
             if (!target_block->size) {
                 delete_block = target_block;
                 list_remove(&p->vm.avail_unmapped, &target_block->node);
@@ -199,7 +204,6 @@ struct vm_block *vm_alloc(struct process *p, ulong base, ulong size, ulong attri
 
     if (found) {
         b->proc = p;
-        b->base = base;
         b->size = size;
         b->type = VM_TYPE_GENERIC;
 
@@ -274,4 +278,31 @@ void vm_move_to_sanit_unmapped(struct process *p, struct vm_block *b)
 {
     list_remove_exclusive(&p->vm.sanit_mapped, &b->node);
     list_insert_sorted_exclusive(&p->vm.sanit_unmapped, &b->node, list_compare);
+}
+
+
+/*
+ * Map
+ */
+int vm_map(struct process *p, ulong addr, ulong prot)
+{
+    int err = -1;
+
+    list_foreach_exclusive(&p->vm.inuse_mapped, n) {
+        struct vm_block *b = list_entry(n, struct vm_block, node);
+        ulong end = b->base + b->size;
+        if (addr >= b->base && addr < end) {
+            ulong page_base = align_down_ulong(addr, PAGE_SIZE);
+            paddr_t paddr = palloc_paddr(1);
+            get_hal_exports()->map_range(p->page_table,
+                                         page_base,
+                                         paddr,
+                                         PAGE_SIZE,
+                                         1, 1, 1, 0, 0);
+            err = 0;
+            break;
+        }
+    }
+
+    return err;
 }

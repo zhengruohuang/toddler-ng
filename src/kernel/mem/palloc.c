@@ -469,6 +469,19 @@ int pfree(ppfn_t pfn)
     return order_count;
 }
 
+paddr_t palloc_paddr(int count)
+{
+    ppfn_t ppfn = palloc(count);
+    paddr_t paddr = ppfn_to_paddr(ppfn);
+    return paddr;
+}
+
+int pfree_paddr(paddr_t paddr)
+{
+    ppfn_t ppfn = paddr_to_ppfn(paddr);
+    return pfree(ppfn);
+}
+
 void *palloc_ptr(int count)
 {
     ppfn_t ppfn = palloc_direct_mapped(count);

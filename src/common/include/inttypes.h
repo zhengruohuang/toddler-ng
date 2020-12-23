@@ -24,6 +24,16 @@ typedef unsigned long long  ulonglong;
 #endif
 
 
+/*
+ * Generic atomic type
+ */
+typedef struct {
+    volatile ulong value;
+} atomic_t;
+
+#define ATOMIC_ZERO { .value = 0 }
+
+
 #ifndef AVOID_LIBC_CONFLICT
 
 typedef unsigned long       size_t;

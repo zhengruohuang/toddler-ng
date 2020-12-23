@@ -1,6 +1,7 @@
 #include "common/include/inttypes.h"
 #include "common/include/context.h"
 #include "common/include/syscall.h"
+#include "common/include/msr.h"
 #include "hal/include/kprintf.h"
 #include "hal/include/kernel.h"
 #include "hal/include/hal.h"
@@ -28,8 +29,18 @@ static int int_handler_dev(struct int_context *context, struct kernel_dispatch *
     return handle_dev_int(context, kdi);
 }
 
+static int int_handler_page_fault(struct int_context *ictxt, struct kernel_dispatch *kdi)
+{
+    kdi->num = SYSCALL_FAULT_PAGE;
+    kdi->param0 = ictxt->error_code;
+
+    return INT_HANDLE_CALL_KERNEL;
+}
 
 
+/*
+ * Generic handler entry
+ */
 void int_handler(int seq, struct int_context *ictxt)
 {
     //kprintf("Interrupt, seq: %d\n", seq);
@@ -69,4 +80,5 @@ void init_int_handler()
 {
     set_int_handler(INT_SEQ_DUMMY, int_handler_dummy);
     set_int_handler(INT_SEQ_DEV, int_handler_dev);
+    set_int_handler(INT_SEQ_PAGE_FAULT, int_handler_page_fault);
 }

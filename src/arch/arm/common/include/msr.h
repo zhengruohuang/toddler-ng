@@ -172,6 +172,12 @@ struct domain_access_ctrl_reg {
 #define read_domain_access_ctrl(value)  __mrc(value, p15, 0, 0, c3, c0)
 #define write_domain_access_ctrl(value) __mcr(value, p15, 0, 0, c3, c0)
 
+#define read_instr_fault_status(value)  __mrc(value, p15, 0, 1, c5, c0)
+#define read_instr_fault_addr(value)    __mrc(value, p15, 0, 1, c6, c0)
+
+#define read_data_fault_status(value)   __mrc(value, p15, 0, 0, c5, c0)
+#define read_data_fault_addr(value)     __mrc(value, p15, 0, 0, c6, c0)
+
 
 /*
  * System control

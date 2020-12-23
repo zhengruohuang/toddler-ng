@@ -252,6 +252,8 @@ extern int vm_free_block(struct process *p, struct vm_block *b);
 extern int vm_free(struct process *p, ulong base);
 extern void vm_move_to_sanit_unmapped(struct process *p, struct vm_block *b);
 
+extern int vm_map(struct process *p, ulong base, ulong prot);
+
 
 /*
  * Process
