@@ -24,6 +24,7 @@ enum syscall_handler_result {
     SYSCALL_HANDLED_RESUME = 0x4,           // Resume current thread without scheduling a new thread
     SYSCALL_HANDLED_EXIT_THREAD = 0x8,      // Exit current thread
     SYSCALL_HANDLED_SLEEP_THREAD = 0x10,    // Put thread to wait queue
+    SYSCALL_HANDLED_SLEEP_IPC = 0x20,       // Put thread to IPC wait queue
 
     // Continue executing current thread
     SYSCALL_HANDLED_CONTINUE = SYSCALL_HANDLED_RESUME,
@@ -38,11 +39,16 @@ enum syscall_handler_result {
     // And do a new schedule
     SYSCALL_HANDLED_SLEEP = SYSCALL_HANDLED_SLEEP_THREAD,
 
+    // Don't put current thread to sched queue, but rather put it in IPC wait
+    // queue. And do a new schedule
+    SYSCALL_HANDLED_IPC = SYSCALL_HANDLED_SLEEP_IPC,
+
     // Save current thread context as well
     SYSCALL_HANDLED_SAVE_CONTINUE = SYSCALL_HANDLED_SAVE | SYSCALL_HANDLED_RESUME,
     SYSCALL_HANDLED_SAVE_RESCHED = SYSCALL_HANDLED_SAVE | SYSCALL_HANDLED_PUT_BACK,
     SYSCALL_HANDLED_SAVE_SKIP = SYSCALL_HANDLED_SAVE,
     SYSCALL_HANDLED_SAVE_SLEEP = SYSCALL_HANDLED_SAVE | SYSCALL_HANDLED_SLEEP_THREAD,
+    SYSCALL_HANDLED_SAVE_IPC = SYSCALL_HANDLED_SAVE | SYSCALL_HANDLED_IPC,
 };
 
 typedef int (*syscall_handler_t)(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
@@ -68,7 +74,7 @@ extern int syscall_handler_alloc_wait(struct process *p, struct thread *t, struc
 extern int syscall_handler_wait(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 extern int syscall_handler_wake(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 
-extern int syscall_handler_ipc_handler(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
+extern int syscall_handler_ipc_register(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 extern int syscall_handler_ipc_request(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 extern int syscall_handler_ipc_respond(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 extern int syscall_handler_ipc_receive(struct process *p, struct thread *t, struct kernel_dispatch *kdi);

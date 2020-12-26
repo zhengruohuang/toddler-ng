@@ -6,7 +6,7 @@
 #include "libk/include/rand.h"
 
 
-#define MAX_MALLOC_SIZE 256 //0x400000ul - 128  // 4 MB - 128
+#define MAX_MALLOC_SIZE 128 //0x400000ul - 128  // 4 MB - 128
 #define NUM_SLOTS       8192
 #define NUM_ALLOCS      (NUM_SLOTS * 4)
 
@@ -23,12 +23,24 @@ static ulong malloc_worker(ulong param)
         int idx = rand_r(&seed) % NUM_SLOTS;
         size_t size = rand_r(&seed) % MAX_MALLOC_SIZE;
 
+        // Already allocated
         if (ptrs[idx]) {
-            free(ptrs[idx]);
+            int do_realloc = rand_r(&seed) % 2;
+            if (do_realloc) {
+                ptrs[idx] = realloc(ptrs[idx], size);
+            } else {
+                free(ptrs[idx]);
+                ptrs[idx] = malloc(size);
+            }
         }
-        ptrs[idx] = malloc(size);
+
+        // First time allocation
+        else {
+            ptrs[idx] = malloc(size);
+        }
     }
 
+    // Free all
     for (int idx = 0; idx < NUM_SLOTS; idx++) {
         if (ptrs[idx]) {
             free(ptrs[idx]);
@@ -62,13 +74,15 @@ static void multi_thread_malloc()
 }
 
 
-
-
 /*
  * Entry
  */
 void test_malloc()
 {
+    kprintf("Testing malloc\n");
+
     single_thread_malloc();
     multi_thread_malloc();
+
+    kprintf("Passed malloc tests!\n");
 }

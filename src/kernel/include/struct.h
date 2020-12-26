@@ -30,7 +30,7 @@ typedef struct list_node {
 } list_node_t;
 
 typedef struct list {
-    ulong count;
+    volatile ulong count;
     struct list_node head;
     struct list_node tail;
     spinlock_t lock;
@@ -62,13 +62,18 @@ typedef struct list {
 // entry(a) > entry(b) ? 1 : (entry(a) < entry(b) ? -1 : 0)
 typedef int (*list_cmp_t)(list_node_t *a, list_node_t *b);
 
+// 0 == merge
+typedef int (*list_merge_t)(list_node_t *a, list_node_t *b);
+typedef void (*list_free_t)(list_node_t *n);
 typedef void (*list_node_display_t)(int idx, list_node_t *n);
 
 extern void list_init(list_t *l);
 
+extern list_node_t *list_remove(list_t *l, list_node_t *n);
 extern void list_insert(list_t *l, list_node_t *prev, list_node_t *n);
 extern void list_insert_sorted(list_t *l, list_node_t *n, list_cmp_t cmp);
-extern list_node_t *list_remove(list_t *l, list_node_t *n);
+extern void list_insert_merge_sorted(list_t *l, list_node_t *n, list_cmp_t cmp,
+                                     list_merge_t merger, list_free_t freer);
 
 extern void list_push_back(list_t *l, list_node_t *n);
 extern void list_push_front(list_t *l, list_node_t *n);
@@ -81,9 +86,11 @@ extern list_node_t *list_pop_front(list_t *l);
 
 extern void list_display(list_t *l, list_node_display_t d);
 
+extern list_node_t *list_remove_exclusive(list_t *l, list_node_t *n);
 extern void list_insert_exclusive(list_t *l, list_node_t *prev, list_node_t *n);
 extern void list_insert_sorted_exclusive(list_t *l, list_node_t *n, list_cmp_t cmp);
-extern list_node_t *list_remove_exclusive(list_t *l, list_node_t *n);
+extern void list_insert_merge_sorted_exclusive(list_t *l, list_node_t *n, list_cmp_t cmp,
+                                               list_merge_t merger, list_free_t freer);
 
 extern void list_push_back_exclusive(list_t *l, list_node_t *n);
 extern void list_push_front_exclusive(list_t *l, list_node_t *n);

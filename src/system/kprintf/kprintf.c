@@ -12,13 +12,22 @@
 static int puts_buf_idx = 0;
 static char puts_buf[PUTS_BUF_SIZE + 1];
 
+static int flush_puts_buf()
+{
+    int ret = puts_buf_idx;
+
+    puts_buf[puts_buf_idx] = '\0';
+    syscall_puts(puts_buf, puts_buf_idx + 1);
+    puts_buf_idx = 0;
+
+    return ret;
+}
+
 static int kputchar(int ch)
 {
     puts_buf[puts_buf_idx++] = ch;
     if (ch == '\n' || puts_buf_idx == PUTS_BUF_SIZE) {
-        puts_buf[puts_buf_idx] = '\0';
-        syscall_puts(puts_buf, puts_buf_idx + 1);
-        puts_buf_idx = 0;
+        flush_puts_buf();
     }
 
     return 1;
@@ -39,6 +48,7 @@ int kprintf(const char *fmt, ...)
     mutex_lock(&kprintf_mutex);
     puts_buf_idx = 0;
     ret = __vkprintf(fmt, va);
+    ret += flush_puts_buf();
     mutex_unlock(&kprintf_mutex);
 
     va_end(va);

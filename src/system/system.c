@@ -11,8 +11,8 @@ static void test_worker(ulong param)
     kprintf("Testing\n");
     //test_syscall();
     //test_thread();
-    //test_ipc();
-    test_malloc();
+    test_ipc();
+    //test_malloc();
     kprintf("Passed all tests!\n");
 
     syscall_thread_exit_self(0);

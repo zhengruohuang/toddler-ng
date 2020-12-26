@@ -110,19 +110,24 @@ void syscall_ipc_handler(thread_entry_t entry)
     sysenter(SYSCALL_IPC_HANDLER, (ulong)entry, 0, 0, NULL, NULL);
 }
 
-void syscall_ipc_send(ulong mailbox_id, ulong opcode)
+void syscall_ipc_serial_request(ulong pid, ulong opcode)
 {
-    sysenter(SYSCALL_IPC_REQUEST, mailbox_id, opcode, IPC_SEND_WAIT_FOR_REPLY | IPC_SEND_SERIAL, NULL, NULL);
+    sysenter(SYSCALL_IPC_REQUEST, pid, opcode, IPC_SEND_WAIT_FOR_REPLY | IPC_SEND_SERIAL, NULL, NULL);
 }
 
-void syscall_ipc_request(ulong mailbox_id, ulong opcode)
+void syscall_ipc_serial_notify(ulong pid, ulong opcode)
 {
-    sysenter(SYSCALL_IPC_REQUEST, mailbox_id, opcode, IPC_SEND_WAIT_FOR_REPLY | IPC_SEND_SERIAL_POPUP, NULL, NULL);
+    sysenter(SYSCALL_IPC_REQUEST, pid, opcode, IPC_SEND_SERIAL, NULL, NULL);
 }
 
-void syscall_ipc_notify(ulong mailbox_id, ulong opcode)
+void syscall_ipc_popup_request(ulong pid, ulong opcode)
 {
-    sysenter(SYSCALL_IPC_REQUEST, mailbox_id, opcode, IPC_SEND_SERIAL_POPUP, NULL, NULL);
+    sysenter(SYSCALL_IPC_REQUEST, pid, opcode, IPC_SEND_WAIT_FOR_REPLY | IPC_SEND_SERIAL_POPUP, NULL, NULL);
+}
+
+void syscall_ipc_popup_notify(ulong pid, ulong opcode)
+{
+    sysenter(SYSCALL_IPC_REQUEST, pid, opcode, IPC_SEND_SERIAL_POPUP, NULL, NULL);
 }
 
 void syscall_ipc_respond()
@@ -130,7 +135,7 @@ void syscall_ipc_respond()
     sysenter(SYSCALL_IPC_RESPOND, 0, 0, 0, NULL, NULL);
 }
 
-void syscall_ipc_recv(ulong *opcode)
+void syscall_ipc_receive(ulong *opcode)
 {
     sysenter(SYSCALL_IPC_RECEIVE, 0, 0, 0, opcode, NULL);
 }

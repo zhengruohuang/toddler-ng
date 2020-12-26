@@ -92,7 +92,7 @@ void service_tlb_shootdown_requests()
     }
 
     list_access_exclusive(&tlb_shootdown_reqs) {
-        while (tlb_shootdown_reqs.count) {
+        while (tlb_shootdown_reqs.count) {  // FIXME: volatile?
             list_node_t *n = list_front(&tlb_shootdown_reqs);
             struct vm_block *b = list_entry(n, struct vm_block, node_tlb_shootdown);
             if (b->wait_acks) {

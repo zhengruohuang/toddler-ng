@@ -47,7 +47,7 @@ int syscall_handler_ping(struct process *p, struct thread *t,
  * Puts
  */
 #define PUTS_BUF_SIZE   64
-#define PUTS_MAX_LEN    PAGE_SIZE
+#define PUTS_MAX_LEN    8192
 
 int syscall_handler_puts(struct process *p, struct thread *t,
                          struct kernel_dispatch *kdi)
@@ -64,21 +64,40 @@ int syscall_handler_puts(struct process *p, struct thread *t,
     for (ulong vaddr = kdi->param0, copied_len = 0; copied_len < len;
          copied_len += PUTS_BUF_SIZE, vaddr += PUTS_BUF_SIZE
     ) {
-        ulong cur_len = copied_len + PUTS_BUF_SIZE <= len ?
+        ulong cur_len = (copied_len + PUTS_BUF_SIZE) <= len ?
                             PUTS_BUF_SIZE : len - copied_len;
 
-        ulong vaddr_end = vaddr + cur_len;
-        ulong vaddr_page_end = align_up_vaddr(vaddr, PAGE_SIZE);
-        if (vaddr != vaddr_page_end && vaddr_page_end < vaddr_end) {
-            cur_len = vaddr_page_end - vaddr;
+        ulong vaddr_last_byte = vaddr + cur_len - 1;
+
+        // String fit in one page
+        if (align_down_vaddr(vaddr, PAGE_SIZE) ==
+            align_down_vaddr(vaddr_last_byte, PAGE_SIZE)
+        ) {
+            paddr_t paddr = get_hal_exports()->translate(p->page_table, vaddr);
+            void *paddr_ptr = cast_paddr_to_ptr(paddr);
+            memcpy(buf, paddr_ptr, cur_len);
+            buf[cur_len] = '\0';
+            kprintf_unlocked("%s", buf);
         }
 
-        paddr_t paddr = get_hal_exports()->translate(p->page_table, vaddr);
-        void *kernel_ptr = cast_paddr_to_ptr(paddr);
-        memcpy(buf, kernel_ptr, cur_len);
-        buf[cur_len] = '\0';
+        // Cross page boundary
+        else {
+            ulong part_len = align_up_vaddr(vaddr, PAGE_SIZE) - vaddr;
+            paddr_t paddr = get_hal_exports()->translate(p->page_table, vaddr);
+            void *paddr_ptr = cast_paddr_to_ptr(paddr);
+            memcpy(buf, paddr_ptr, part_len);
+            buf[part_len] = '\0';
+            kprintf_unlocked("%s", buf);
 
-        kprintf_unlocked("%s", buf);
+            vaddr += part_len;
+            part_len = cur_len - part_len;
+            paddr = get_hal_exports()->translate(p->page_table, vaddr);
+            paddr_ptr = cast_paddr_to_ptr(paddr);
+            memcpy(buf, paddr_ptr, part_len);
+            buf[part_len] = '\0';
+            kprintf_unlocked("%s", buf);
+
+        }
     }
 
     release_kprintf();
@@ -252,8 +271,8 @@ int syscall_handler_wake(struct process *p, struct thread *t,
 /*
  * IPC
  */
-int syscall_handler_ipc_handler(struct process *p, struct thread *t,
-                                struct kernel_dispatch *kdi)
+int syscall_handler_ipc_register(struct process *p, struct thread *t,
+                                 struct kernel_dispatch *kdi)
 {
     ulong popup_entry = kdi->param0;
     int err = ipc_reg_popup_handler(p, t, popup_entry);
@@ -272,7 +291,7 @@ int syscall_handler_ipc_request(struct process *p, struct thread *t,
     int err = ipc_request(p, t, dst_pid, opcode, flags, &wait);
 
     hal_set_syscall_return(kdi->regs, err, 0, 0);
-    return wait ? SYSCALL_HANDLED_SAVE_SLEEP : SYSCALL_HANDLED_CONTINUE;
+    return wait ? SYSCALL_HANDLED_SAVE_IPC : SYSCALL_HANDLED_CONTINUE;
 }
 
 int syscall_handler_ipc_respond(struct process *p, struct thread *t,
@@ -293,5 +312,5 @@ int syscall_handler_ipc_receive(struct process *p, struct thread *t,
     int err = ipc_receive(p, t, timeout_ms, &opcode, &wait);
 
     hal_set_syscall_return(kdi->regs, err, opcode, 0);
-    return wait ? SYSCALL_HANDLED_SAVE_SLEEP : SYSCALL_HANDLED_CONTINUE;
+    return wait ? SYSCALL_HANDLED_SAVE_IPC : SYSCALL_HANDLED_CONTINUE;
 }

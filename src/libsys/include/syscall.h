@@ -49,11 +49,12 @@ extern void syscall_wake_on_futex(futex_t *f, ulong skip);
  * IPC
  */
 extern void syscall_ipc_handler(thread_entry_t entry);
-extern void syscall_ipc_send(ulong mailbox_id, ulong opcode);
-extern void syscall_ipc_request(ulong mailbox_id, ulong opcode);
-extern void syscall_ipc_notify(ulong mailbox_id, ulong opcode);
+extern void syscall_ipc_serial_request(ulong pid, ulong opcode);
+extern void syscall_ipc_serial_notify(ulong pid, ulong opcode);
+extern void syscall_ipc_popup_request(ulong pid, ulong opcode);
+extern void syscall_ipc_popup_notify(ulong pid, ulong opcode);
 extern void syscall_ipc_respond();
-extern void syscall_ipc_recv(ulong *opcode);
+extern void syscall_ipc_receive(ulong *opcode);
 
 
 #endif

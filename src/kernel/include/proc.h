@@ -79,7 +79,7 @@ struct thread {
     struct reg_context context;
 
     // Wait
-    enum thread_wait_type wait_type;
+    int wait_type;
     ulong wait_obj;
     u64 wait_timeout_ms;
 
@@ -87,7 +87,19 @@ struct thread {
     int pin_cpu_id;
 
     // IPC
-    ulong reply_msg_to_tid;
+    union {
+        struct {
+            ulong pid;
+            ulong tid;
+            ulong opcode;
+            int need_response;
+        } ipc_wait;
+
+        struct {
+            ulong pid;
+            ulong tid;
+        } ipc_reply_to;
+    };
 
     // Lock
     spinlock_t lock;
@@ -165,6 +177,11 @@ struct vm_block {
     ulong base;
     ulong size;
     enum process_vm_type type;
+
+    struct {
+        void *tls_start_ptr;
+        void *stack_top_ptr;
+    } thread_map;
 
     ulong tlb_shootdown_seq;
     volatile ulong wait_acks;
@@ -245,7 +262,9 @@ typedef int (*vm_block_thread_mapper_t)(struct process *p, struct thread *t, str
 extern void init_vm();
 extern int vm_create(struct process *p);
 
-extern struct vm_block *vm_alloc_thread(struct process *p, struct thread *t, vm_block_thread_mapper_t mapper);
+extern struct vm_block *vm_alloc_thread(struct process *p, struct thread *t,
+                                        vm_block_thread_mapper_t mapper,
+                                        vm_block_thread_mapper_t reuser);
 extern struct vm_block *vm_alloc(struct process *p, ulong base, ulong size, ulong attri);
 
 extern int vm_free_block(struct process *p, struct vm_block *b);
@@ -314,6 +333,8 @@ extern void purge_wait_queue(struct process *p);
 /*
  * IPC
  */
+extern void sleep_ipc_thread(struct thread *t);
+
 extern void init_ipc();
 
 extern int ipc_reg_popup_handler(struct process *p, struct thread *t, ulong entry);

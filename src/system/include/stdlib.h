@@ -22,14 +22,19 @@ extern void *realloc(void *ptr, size_t new_size);
  */
 typedef void (*salloc_callback_t)(void *entry);
 
-struct salloc_obj {
+typedef struct salloc_obj {
     size_t size;
     size_t align;
 
-    salloc_callback_t constructor;
-    salloc_callback_t destructor;
-};
+    salloc_callback_t ctor;
+    salloc_callback_t dtor;
+} salloc_obj_t;
 
+#define SALLOC_CREATE(s, a, c, d) \
+            { .size = (s), .align = (a), .ctor = (c), .dtor = (d) }
+
+extern void salloc_create(salloc_obj_t *obj, size_t size, size_t align,
+                          salloc_callback_t ctor, salloc_callback_t dtor);
 extern void *salloc(struct salloc_obj *obj);
 extern void sfree(void *ptr);
 

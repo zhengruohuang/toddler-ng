@@ -17,19 +17,27 @@ enum ipc_flags {
 
 
 #define MAX_MSG_SIZE        2048
-#define MAX_MSG_DATA_SIZE   (MAX_MSG_SIZE - sizeof(ulong))
+#define MAX_MSG_PARAMS      16
+#define MAX_MSG_DATA_WORDS  (MAX_MSG_SIZE / sizeof(ulong) - 3 - MAX_MSG_PARAMS)
 
 
 typedef volatile struct {
     union {
         ulong size;
         struct {
-            ulong num_params : 9;
-            ulong has_data   : 1;
-            ulong data_bytes : 20;
+            ulong param_type_map    : 16;   // bitmap[1 << idx] = data ? 1 : 0
+            ulong num_params        : 4;
+            ulong num_data_words    : 12;
         };
     };
-    ulong params[MAX_MSG_DATA_SIZE / sizeof(ulong)];
+
+    struct {
+        ulong pid;
+        ulong tid;
+    } sender;
+
+    ulong params[MAX_MSG_PARAMS];
+    ulong data[MAX_MSG_DATA_WORDS];
 } natural_struct msg_t;
 
 

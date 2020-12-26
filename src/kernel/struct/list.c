@@ -21,9 +21,30 @@ void list_init(list_t *l)
     spinlock_init(&l->lock);
 }
 
+list_node_t *list_remove(list_t *l, list_node_t *n)
+{
+    panic_if(!spinlock_is_locked(&l->lock), "List must be locked!\n");
+    if (!n || n == &l->head || n == &l->tail) {
+        return NULL;
+    }
+
+#if (defined(LIST_CHECK_OWNER) && LIST_CHECK_OWNER)
+    panic_if(n->owner != l, "List node owner mismatch, list @ %p, owner @ %p\n",
+             l, n->owner);
+#endif
+
+    list_node_t *prev = n->prev;
+    list_node_t *next = n->next;
+    prev->next = next;
+    next->prev = prev;
+
+    l->count--;
+    return n;
+}
+
 void list_insert(list_t *l, list_node_t *prev, list_node_t *n)
 {
-    panic_if(!spinlock_is_locked(&l->lock), "list must be locked!\n");
+    panic_if(!spinlock_is_locked(&l->lock), "List must be locked!\n");
 
     list_node_t *next = prev->next;
     next->prev = n;
@@ -40,7 +61,7 @@ void list_insert(list_t *l, list_node_t *prev, list_node_t *n)
 
 void list_insert_sorted(list_t *l, list_node_t *n, list_cmp_t cmp)
 {
-    panic_if(!spinlock_is_locked(&l->lock), "list must be locked!\n");
+    panic_if(!spinlock_is_locked(&l->lock), "List must be locked!\n");
 
     int inserted = 0;
     for (list_node_t *left = &l->head, *right = l->head.next; left != &l->tail;
@@ -66,37 +87,49 @@ void list_insert_sorted(list_t *l, list_node_t *n, list_cmp_t cmp)
 #endif
 }
 
-list_node_t *list_remove(list_t *l, list_node_t *n)
+static void list_merge(list_t *l, list_node_t *n, list_merge_t merger,
+                       list_node_t **free1, list_node_t **free2)
 {
-    panic_if(!spinlock_is_locked(&l->lock), "list must be locked!\n");
-    if (!n || n == &l->head || n == &l->tail) {
-        return NULL;
+    // Merge with prev
+    if (n->prev != &l->head && !merger(n->prev, n)) {
+        if (free1) *free1 = n;
+        list_remove(l, n);
+        n = n->prev;
     }
 
-#if (defined(LIST_CHECK_OWNER) && LIST_CHECK_OWNER)
-    panic_if(n->owner != l, "List node owner mismatch, list @ %p, owner @ %p\n",
-             l, n->owner);
-#endif
+    // Merge with next
+    if (n->next != &l->tail && !merger(n, n->next)) {
+        list_node_t *nn = n->next;
+        list_remove(l, nn);
+        if (free2) *free2 = nn;
+    }
+}
 
-    list_node_t *prev = n->prev;
-    list_node_t *next = n->next;
-    prev->next = next;
-    next->prev = prev;
+void list_insert_merge_sorted(list_t *l, list_node_t *n, list_cmp_t cmp,
+                              list_merge_t merger, list_free_t freer)
+{
+    // Insert
+    list_insert_sorted(l, n, cmp);
 
-    l->count--;
-    return n;
+    // Merge
+    list_node_t *free1 = NULL, *free2 = NULL;
+    list_merge(l, n, merger, &free1, &free2);
+
+    // Free
+    if (free1) freer(free1);
+    if (free2) freer(free2);
 }
 
 list_node_t *list_front(list_t *l)
 {
-    panic_if(!spinlock_is_locked(&l->lock), "list must be locked!\n");
+    panic_if(!spinlock_is_locked(&l->lock), "List must be locked!\n");
     list_node_t *n = l->head.next;
     return n == &l->tail ? NULL : n;
 }
 
 list_node_t *list_back(list_t *l)
 {
-    panic_if(!spinlock_is_locked(&l->lock), "list must be locked!\n");
+    panic_if(!spinlock_is_locked(&l->lock), "List must be locked!\n");
     list_node_t *n = l->tail.prev;
     return n == &l->head ? NULL : n;
 }
@@ -123,7 +156,7 @@ list_node_t *list_pop_back(list_t *l)
 
 void list_display(list_t *l, list_node_display_t d)
 {
-    panic_if(!spinlock_is_locked(&l->lock), "list must be locked!\n");
+    panic_if(!spinlock_is_locked(&l->lock), "List must be locked!\n");
 
     int idx = 0;
     list_foreach(l, n) {
@@ -137,6 +170,15 @@ void list_display(list_t *l, list_node_display_t d)
 /*
  * Exclusive
  */
+list_node_t *list_remove_exclusive(list_t *l, list_node_t *n)
+{
+    spinlock_lock_int(&l->lock);
+    list_node_t *r = list_remove(l, n);
+    spinlock_unlock_int(&l->lock);
+
+    return r;
+}
+
 void list_insert_exclusive(list_t *l, list_node_t *prev, list_node_t *n)
 {
     spinlock_lock_int(&l->lock);
@@ -151,13 +193,18 @@ void list_insert_sorted_exclusive(list_t *l, list_node_t *n, list_cmp_t cmp)
     spinlock_unlock_int(&l->lock);
 }
 
-list_node_t *list_remove_exclusive(list_t *l, list_node_t *n)
+void list_insert_merge_sorted_exclusive(list_t *l, list_node_t *n, list_cmp_t cmp,
+                                        list_merge_t merger, list_free_t freer)
 {
+    list_node_t *free1 = NULL, *free2 = NULL;
+
     spinlock_lock_int(&l->lock);
-    list_node_t *r = list_remove(l, n);
+    list_insert_sorted(l, n, cmp);
+    list_merge(l, n, merger, &free1, &free2);
     spinlock_unlock_int(&l->lock);
 
-    return r;
+    if (free1) freer(free1);
+    if (free2) freer(free2);
 }
 
 void list_push_front_exclusive(list_t *l, list_node_t *n)

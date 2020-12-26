@@ -37,7 +37,7 @@ void init_dispatch()
     handlers[SYSCALL_EVENT_WAIT] = syscall_handler_wait;
     handlers[SYSCALL_EVENT_WAKE] = syscall_handler_wake;
 
-    handlers[SYSCALL_IPC_HANDLER] = syscall_handler_ipc_handler;
+    handlers[SYSCALL_IPC_HANDLER] = syscall_handler_ipc_register;
     handlers[SYSCALL_IPC_REQUEST] = syscall_handler_ipc_request;
     handlers[SYSCALL_IPC_RESPOND] = syscall_handler_ipc_respond;
     handlers[SYSCALL_IPC_RECEIVE] = syscall_handler_ipc_receive;
@@ -56,6 +56,7 @@ void dispatch(ulong thread_id, struct kernel_dispatch *kdi)
     int put_back = 0;
     int do_exit = 0;
     int do_sleep = 0;
+    int do_ipc = 0;
 
     int valid = 0;
     access_thread(thread_id, t) {
@@ -87,6 +88,7 @@ void dispatch(ulong thread_id, struct kernel_dispatch *kdi)
                 resume = (handle_type & SYSCALL_HANDLED_RESUME) ? 1 : 0;
                 do_exit = (handle_type & SYSCALL_HANDLED_EXIT_THREAD) ? 1 : 0;
                 do_sleep = (handle_type & SYSCALL_HANDLED_SLEEP_THREAD) ? 1 : 0;
+                do_ipc = (handle_type & SYSCALL_HANDLED_SLEEP_IPC) ? 1 : 0;
 
                 if (save_ctxt) {
                     thread_save_context(t, kdi->regs);
@@ -106,6 +108,10 @@ void dispatch(ulong thread_id, struct kernel_dispatch *kdi)
         panic_if(put_back, "Can't put an waiting thread to sched queue!\n");
         panic_if(resume, "Can't resume an waiting thread!\n");
         sleep_thread(target_thread);
+    } else if (do_ipc) {
+        panic_if(put_back, "Can't put an IPC thread to sched queue!\n");
+        panic_if(resume, "Can't resume an IPC thread!\n");
+        sleep_ipc_thread(target_thread);
     } else if (put_back) {
         sched_put(target_thread);
     }

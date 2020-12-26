@@ -8,11 +8,23 @@
 
 
 struct salloc_magic {
-    struct salloc_obj *obj;
+    salloc_obj_t *obj;
 };
 
 
-void *salloc(struct salloc_obj *obj)
+void salloc_create(salloc_obj_t *obj, size_t size, size_t align, salloc_callback_t ctor, salloc_callback_t dtor)
+{
+    if (!obj) {
+        return;
+    }
+
+    obj->size = size;
+    obj->align = align;
+    obj->ctor = ctor;
+    obj->dtor = dtor;
+}
+
+void *salloc(salloc_obj_t *obj)
 {
     if (!obj) {
         return NULL;
@@ -26,8 +38,8 @@ void *salloc(struct salloc_obj *obj)
 
     block->obj = obj;
     void *ptr = (void *)block + sizeof(struct salloc_magic);
-    if (obj->constructor) {
-        obj->constructor(ptr);
+    if (obj->ctor) {
+        obj->ctor(ptr);
     }
 
     return ptr;
@@ -40,9 +52,9 @@ void sfree(void *ptr)
     }
 
     struct salloc_magic *block = ptr - sizeof(struct salloc_magic);
-    struct salloc_obj *obj = block->obj;
-    if (obj->destructor) {
-        obj->destructor(ptr);
+    salloc_obj_t *obj = block->obj;
+    if (obj->dtor) {
+        obj->dtor(ptr);
     }
 
     free(block);

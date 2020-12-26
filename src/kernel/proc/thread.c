@@ -120,6 +120,14 @@ static ulong alloc_thread_id(struct thread *t)
 
 static int thread_block_mapper(struct process *p, struct thread *t, struct vm_block *b)
 {
+    // Allocate physical memory
+    t->memory.tls.start_paddr_ptr = palloc_ptr(1);
+    void *initial_stack_paddr_ptr = palloc_ptr(1);
+    t->memory.stack.top_paddr_ptr = initial_stack_paddr_ptr + PAGE_SIZE;
+
+    b->thread_map.tls_start_ptr = t->memory.tls.start_paddr_ptr;
+    b->thread_map.stack_top_ptr = t->memory.stack.top_paddr_ptr;
+
     // Map virtual to physical
     get_hal_exports()->map_range(p->page_table,
                                  b->base + t->memory.tls.start_offset,
@@ -132,6 +140,14 @@ static int thread_block_mapper(struct process *p, struct thread *t, struct vm_bl
                                  cast_ptr_to_paddr(t->memory.stack.top_paddr_ptr - PAGE_SIZE),
                                  PAGE_SIZE,
                                  1, 1, 1, 0, 0);
+
+    return 0;
+}
+
+static int thread_block_reuse(struct process *p, struct thread *t, struct vm_block *b)
+{
+    t->memory.tls.start_paddr_ptr = b->thread_map.tls_start_ptr;
+    t->memory.stack.top_paddr_ptr = b->thread_map.stack_top_ptr;
 
     return 0;
 }
@@ -181,13 +197,13 @@ static struct thread *create_exec_context(struct process *p,
         t->memory.tls.start_paddr_ptr = (void *)(t->memory.block_base + t->memory.tls.start_offset);
         t->memory.stack.top_paddr_ptr = (void *)(t->memory.block_base + t->memory.stack.top_offset);
     } else {
-        // Allocate physical memory
-        t->memory.tls.start_paddr_ptr = palloc_ptr(1);
-        void *initial_stack_paddr_ptr = palloc_ptr(1);
-        t->memory.stack.top_paddr_ptr = initial_stack_paddr_ptr + PAGE_SIZE;
+//         // Allocate physical memory
+//         t->memory.tls.start_paddr_ptr = palloc_ptr(1);
+//         void *initial_stack_paddr_ptr = palloc_ptr(1);
+//         t->memory.stack.top_paddr_ptr = initial_stack_paddr_ptr + PAGE_SIZE;
 
         // Allocate and map a dynamic block
-        t->memory.block = vm_alloc_thread(p, t, thread_block_mapper);
+        t->memory.block = vm_alloc_thread(p, t, thread_block_mapper, thread_block_reuse);
         t->memory.block_base = t->memory.block->base;
 
 //         // Map virtual to physical
@@ -203,13 +219,21 @@ static struct thread *create_exec_context(struct process *p,
 //                                      1, 1, 1, 0, 0);
     }
 
+//     // Adjust stack top to make some room for msg block
+//     const ulong msg_block_size = align_up_ulong(sizeof(msg_t), 16);
+//     t->memory.msg.size = msg_block_size;
+//     t->memory.stack.top_offset -= msg_block_size;
+//     t->memory.stack.top_paddr_ptr -= msg_block_size;
+//     t->memory.msg.start_offset = t->memory.stack.top_offset;
+//     t->memory.msg.start_paddr_ptr = t->memory.stack.top_paddr_ptr;
+
     // Adjust stack top to make some room for msg block
-    const ulong msg_block_size = align_up_ulong(sizeof(msg_t), 16);
+    const ulong msg_block_size = MAX_MSG_SIZE;
     t->memory.msg.size = msg_block_size;
-    t->memory.stack.top_offset -= msg_block_size;
-    t->memory.stack.top_paddr_ptr -= msg_block_size;
-    t->memory.msg.start_offset = t->memory.stack.top_offset;
-    t->memory.msg.start_paddr_ptr = t->memory.stack.top_paddr_ptr;
+    t->memory.msg.start_offset = t->memory.tls.start_offset;
+    t->memory.msg.start_paddr_ptr = t->memory.tls.start_paddr_ptr;
+    t->memory.tls.start_offset += msg_block_size;
+    t->memory.tls.start_paddr_ptr += msg_block_size;
 
     // Add some extra room to separate stack and msg proxy
     // Not something necessary, just to be extra safe
@@ -252,6 +276,8 @@ ulong create_thread(struct process *p, ulong entry_point, ulong param,
         &t->context, entry_point, param,
         t->memory.block_base + t->memory.stack.top_offset,
         t->user_mode);
+
+    //kprintf("Stack top @ %lx\n", t->memory.block_base + t->memory.stack.top_offset);
 
     // Done
     return t->tid;

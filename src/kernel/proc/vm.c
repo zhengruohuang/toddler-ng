@@ -25,7 +25,7 @@ void init_vm()
 
 
 /*
- * Sort compare
+ * Sort ops
  */
 static int list_compare(list_node_t *a, list_node_t *b)
 {
@@ -38,6 +38,26 @@ static int list_compare(list_node_t *a, list_node_t *b)
     } else {
         return 0;
     }
+}
+
+static int avail_list_merge(list_node_t *a, list_node_t *b)
+{
+    struct vm_block *ba = list_entry(a, struct vm_block, node);
+    struct vm_block *bb = list_entry(b, struct vm_block, node);
+
+    if (ba->base + ba->size == bb->base) {
+        ba->size += bb->size;
+        return 0;
+    } else {
+        return -1;
+    }
+}
+
+static void avail_list_free(list_node_t *n)
+{
+    struct vm_block *b = list_entry(n, struct vm_block, node);
+    ref_count_dec(&b->proc->ref_count);
+    sfree(b);
 }
 
 
@@ -64,7 +84,9 @@ int vm_create(struct process *p)
 /*
  * Allocate
  */
-struct vm_block *vm_alloc_thread(struct process *p, struct thread *t, vm_block_thread_mapper_t mapper)
+struct vm_block *vm_alloc_thread(struct process *p, struct thread *t,
+                                 vm_block_thread_mapper_t mapper,
+                                 vm_block_thread_mapper_t reuser)
 {
     // Try reuse first
     list_node_t *n = list_pop_back_exclusive(&p->vm.reuse_mapped);
@@ -74,6 +96,7 @@ struct vm_block *vm_alloc_thread(struct process *p, struct thread *t, vm_block_t
                  "Thread VM block size mismatch, b->size: %lu, t->memory.block_size: %lu!\n",
                  b->size, t->memory.block_size);
 
+        reuser(p, t, b);
         list_insert_sorted_exclusive(&p->vm.inuse_mapped, &b->node, list_compare);
         return b;
     }
@@ -242,6 +265,7 @@ int vm_free_block(struct process *p, struct vm_block *b)
             if (p->vm.reuse_mapped.count > hal_get_num_cpus()) {
                 list_node_t *n = list_pop_front(&p->vm.reuse_mapped);
                 b_sanit = list_entry(n, struct vm_block, node);
+                break;
             }
         }
     } else {
@@ -249,6 +273,7 @@ int vm_free_block(struct process *p, struct vm_block *b)
     }
 
     if (b_sanit) {
+        kprintf("To sanitize block @ %lx\n", b_sanit->base);
         list_insert_sorted_exclusive(&p->vm.sanit_mapped, &b_sanit->node, list_compare);
         ulong wait_acks = request_tlb_shootdown(p, b_sanit);
         if (!wait_acks) {
@@ -278,6 +303,38 @@ void vm_move_to_sanit_unmapped(struct process *p, struct vm_block *b)
 {
     list_remove_exclusive(&p->vm.sanit_mapped, &b->node);
     list_insert_sorted_exclusive(&p->vm.sanit_unmapped, &b->node, list_compare);
+}
+
+
+/*
+ * Merge
+ */
+void vm_move_block_to_avail(struct process *p, struct vm_block *b)
+{
+    list_insert_merge_sorted_exclusive(
+        &p->vm.avail_unmapped, &b->node,
+        list_compare, avail_list_merge, avail_list_free
+    );
+}
+
+void vm_move_sanit_block_to_avail(struct process *p, struct vm_block *b)
+{
+    list_remove_exclusive(&p->vm.sanit_unmapped, &b->node);
+    vm_move_block_to_avail(p, b);
+}
+
+void vm_move_sanit_to_avail(struct process *p)
+{
+    list_access_exclusive(&p->vm.sanit_unmapped) {
+        while (p->vm.sanit_unmapped.count) {
+            list_node_t *n = list_pop_front(&p->vm.sanit_unmapped);
+
+            list_insert_merge_sorted_exclusive(
+                &p->vm.avail_unmapped, n,
+                list_compare, avail_list_merge, avail_list_free
+            );
+        }
+    }
 }
 
 

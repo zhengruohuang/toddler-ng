@@ -64,6 +64,8 @@ static void release_handler(ulong port)
 
 static void dispatch(ulong opcode)
 {
+    //kprintf("IPC dispatch, opcode: %lu\n", opcode);
+
     ulong port = get_port(opcode);
     ulong ret = 0;
 
