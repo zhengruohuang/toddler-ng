@@ -39,7 +39,11 @@ void *salloc(salloc_obj_t *obj)
     block->obj = obj;
     void *ptr = (void *)block + sizeof(struct salloc_magic);
     if (obj->ctor) {
-        obj->ctor(ptr);
+        int err = obj->ctor(ptr, obj->size);
+        if (err) {
+            free(block);
+            return NULL;
+        }
     }
 
     return ptr;
@@ -54,8 +58,14 @@ void sfree(void *ptr)
     struct salloc_magic *block = ptr - sizeof(struct salloc_magic);
     salloc_obj_t *obj = block->obj;
     if (obj->dtor) {
-        obj->dtor(ptr);
+        obj->dtor(ptr, obj->size);
     }
 
     free(block);
+}
+
+int salloc_zero_ctor(void *obj, size_t size)
+{
+    memzero(obj, size);
+    return 0;
 }

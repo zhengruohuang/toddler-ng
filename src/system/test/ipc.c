@@ -5,9 +5,6 @@
 #include "libsys/include/ipc.h"
 
 
-
-
-
 /*
  * Test setup
  */

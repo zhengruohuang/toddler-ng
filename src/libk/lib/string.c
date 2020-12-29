@@ -22,10 +22,13 @@ char *strncpy(char *dest, const char *src, size_t n)
     char *ori = dest;
 
     size_t i = 0;
-    for (char ch = *src; ch && i < n - 1; ch = *++src, dest++, i++) {
+    for (char ch = *src; ch && i < n; ch = *++src, dest++, i++) {
         *dest = ch;
     }
-    *dest = '\0';
+
+    if (i < n) {
+        *dest = '\0';
+    }
 
     return ori;
 }

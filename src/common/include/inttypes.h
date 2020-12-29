@@ -37,6 +37,7 @@ typedef struct {
 #ifndef AVOID_LIBC_CONFLICT
 
 typedef unsigned long       size_t;
+typedef long                ssize_t;
 
 typedef unsigned int        bool;
 #define true                1

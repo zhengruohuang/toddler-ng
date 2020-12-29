@@ -136,7 +136,7 @@ int syscall_handler_interrupt(struct process *p, struct thread *t,
 int syscall_handler_fault_page(struct process *p, struct thread *t,
                                struct kernel_dispatch *kdi)
 {
-    kprintf("Page fault @ %lx\n", kdi->param0);
+    //kprintf("Page fault @ %lx\n", kdi->param0);
     int err = vm_map(p, kdi->param0, 0);
 
     return err ? SYSCALL_HANDLED_SAVE_RESCHED : SYSCALL_HANDLED_CONTINUE;
