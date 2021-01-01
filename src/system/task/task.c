@@ -1,7 +1,4 @@
 #include "common/include/inttypes.h"
-#include "system/include/kprintf.h"
-#include "system/include/thread.h"
-#include "libsys/include/syscall.h"
 
 
 struct task_file {
@@ -20,7 +17,7 @@ struct task {
 };
 
 
-static struct task tasks[128];
+// static struct task tasks[128];
 
 
 void init_task()
@@ -30,4 +27,5 @@ void init_task()
 
 ulong create_task()
 {
+    return 0;
 }

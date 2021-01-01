@@ -87,19 +87,17 @@ struct thread {
     int pin_cpu_id;
 
     // IPC
-    union {
-        struct {
-            ulong pid;
-            ulong tid;
-            ulong opcode;
-            int need_response;
-        } ipc_wait;
+    struct {
+        ulong pid;
+        ulong tid;
+        ulong opcode;
+        int need_response;
+    } ipc_wait;
 
-        struct {
-            ulong pid;
-            ulong tid;
-        } ipc_reply_to;
-    };
+    struct {
+        ulong pid;
+        ulong tid;
+    } ipc_reply_to;
 
     // Lock
     spinlock_t lock;
@@ -295,6 +293,7 @@ extern int load_coreimg_elf(struct process *p, void *img);
 /*
  * Start up
  */
+extern ulong get_system_pid();
 extern void init_startup();
 
 

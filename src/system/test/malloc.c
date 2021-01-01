@@ -1,9 +1,6 @@
-#include "common/include/inttypes.h"
-#include "system/include/kprintf.h"
-#include "system/include/thread.h"
-#include "system/include/stdlib.h"
-#include "libk/include/string.h"
-#include "libk/include/rand.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <kth.h>
 
 
 #define MAX_MALLOC_SIZE 128 //0x400000ul - 128  // 4 MB - 128
@@ -13,7 +10,7 @@
 #define NUM_THREADS     16
 
 
-static ulong malloc_worker(ulong param)
+static unsigned long malloc_worker(unsigned long param)
 {
     void **ptrs = calloc(NUM_SLOTS, sizeof(void *));
     memzero(ptrs, NUM_SLOTS * sizeof(void *));
@@ -59,14 +56,14 @@ static void single_thread_malloc()
 
 static void multi_thread_malloc()
 {
-    kthread_t *threads = calloc(NUM_THREADS, sizeof(kthread_t));
+    kth_t *threads = calloc(NUM_THREADS, sizeof(kth_t));
 
     for (int i = 0; i < NUM_THREADS; i++) {
-        kthread_create(&threads[i], malloc_worker, i + 1);
+        kth_create(&threads[i], malloc_worker, i + 1);
     }
 
     for (int i = 0; i < NUM_THREADS; i++) {
-        kthread_join(&threads[i], NULL);
+        kth_join(&threads[i], NULL);
     }
 
     free(threads);

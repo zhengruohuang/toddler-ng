@@ -48,6 +48,10 @@ static void startup_worker(ulong param)
     syscall_thread_exit_self(0);
 }
 
+ulong get_system_pid()
+{
+    return records[0].pid;
+}
 
 void init_startup()
 {

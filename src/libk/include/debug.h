@@ -17,23 +17,6 @@ extern int kprintf(const char *fmt, ...);
 /*
  * Debug
  */
-#define abort()                                                 \
-    do {                                                        \
-        kprintf("!!! ABORT !!!\n");                             \
-        kprintf("File: %s, line %d\n", __FILE__, __LINE__);     \
-        __stop();                                               \
-    } while (0)
-
-#define abort_if(cond)                                          \
-    do {                                                        \
-        if (cond) {                                             \
-            kprintf("!!! ABORT !!!\n");                         \
-            kprintf("File: %s, line %d\n", __FILE__, __LINE__); \
-            kprintf("Condition: %s\n", #cond);                  \
-            __stop();                                           \
-        }                                                       \
-    } while (0)
-
 #define warn(...)                                               \
     do {                                                        \
         kprintf("!!! WARN !!!\n");                              \

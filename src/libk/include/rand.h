@@ -9,8 +9,8 @@
  * Rand
  */
 extern int rand();
-extern int rand_r(u32 *seedp);
-extern void srand(u32 seed);
+extern int rand_r(unsigned int *seedp);
+extern void srand(unsigned int seed);
 
 
 #endif

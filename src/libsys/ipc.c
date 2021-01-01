@@ -117,6 +117,9 @@ char *msg_append_str(msg_t *msg, const char *str, size_t size)
 {
     panic_if(msg->num_params >= MAX_MSG_PARAMS, "Too many params in msg!\n");
 
+    if (!size) {
+        size = strlen(str);
+    }
     size_t new_data_words = align_up_vsize(size + 1, sizeof(ulong)) / sizeof(ulong);
     panic_if(msg->num_data_words + new_data_words > MAX_MSG_DATA_WORDS,
              "Data does not fit in msg!\n");

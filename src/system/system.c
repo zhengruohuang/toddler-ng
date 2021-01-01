@@ -1,12 +1,15 @@
-#include "common/include/inttypes.h"
-#include "libsys/include/syscall.h"
-#include "system/include/kprintf.h"
-#include "system/include/thread.h"
-#include "system/include/stdlib.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <kth.h>
+#include <sys.h>
+
 #include "system/include/vfs.h"
 #include "system/include/test.h"
 
 
+/*
+ * Test
+ */
 static void test_worker(ulong param)
 {
     kprintf("Testing\n");
@@ -20,14 +23,27 @@ static void test_worker(ulong param)
     syscall_thread_exit_self(0);
 }
 
-void _start()
+static void test_system()
 {
-    init_kprintf();
-    init_ipc();
-    init_malloc();
-    init_vfs();
-    init_rootfs();
     syscall_thread_create(test_worker, 0);
+}
+
+
+/*
+ * Init
+ */
+static void init_system()
+{
+    init_ipc();
+    init_vfs();
+    init_vfs_api();
+    init_rootfs();
+}
+
+int main(int argc, char **argv)
+{
+    init_system();
+    test_system();
 
     ulong seconds = 0;
     while (1) {
@@ -36,4 +52,5 @@ void _start()
     }
 
     while (1);
+    return 0;
 }

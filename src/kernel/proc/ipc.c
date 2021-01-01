@@ -118,6 +118,11 @@ int ipc_request(struct process *p, struct thread *t,
     //msg_t *msg = t->memory.msg.start_paddr_ptr;
     //kprintf("request, msg @ %p, num params: %lu\n", msg, msg->num_params);
 
+    if (!dst_pid) {
+        dst_pid = get_system_pid();
+    }
+    panic_if(!dst_pid, "Unknown PID: %lu\n", dst_pid);
+
     access_process(dst_pid, dst_proc) {
         ulong popup_entry = 0;
         if (flags & IPC_SEND_POPUP) {

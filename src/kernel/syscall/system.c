@@ -61,11 +61,12 @@ int syscall_handler_puts(struct process *p, struct thread *t,
 
     acquire_kprintf();
 
+    int pass = 0;
     for (ulong vaddr = kdi->param0, copied_len = 0; copied_len < len;
          copied_len += PUTS_BUF_SIZE, vaddr += PUTS_BUF_SIZE
     ) {
         ulong cur_len = (copied_len + PUTS_BUF_SIZE) <= len ?
-                            PUTS_BUF_SIZE : len - copied_len;
+                            PUTS_BUF_SIZE : (len - copied_len);
 
         ulong vaddr_last_byte = vaddr + cur_len - 1;
 
@@ -89,14 +90,13 @@ int syscall_handler_puts(struct process *p, struct thread *t,
             buf[part_len] = '\0';
             kprintf_unlocked("%s", buf);
 
-            vaddr += part_len;
+            ulong vaddr2 = vaddr + part_len;
             part_len = cur_len - part_len;
-            paddr = get_hal_exports()->translate(p->page_table, vaddr);
+            paddr = get_hal_exports()->translate(p->page_table, vaddr2);
             paddr_ptr = cast_paddr_to_ptr(paddr);
             memcpy(buf, paddr_ptr, part_len);
             buf[part_len] = '\0';
             kprintf_unlocked("%s", buf);
-
         }
     }
 

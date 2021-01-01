@@ -1,8 +1,8 @@
+#include <stdio.h>
+#include <kth.h>
+#include <sys.h>
+
 #include "common/include/inttypes.h"
-#include "system/include/kprintf.h"
-#include "system/include/thread.h"
-#include "libsys/include/syscall.h"
-#include "libsys/include/ipc.h"
 
 
 /*
@@ -212,15 +212,15 @@ static void test_ipc_serial(int type, const char *name)
 {
     kprintf("Testing serial IPC: %s\n", name);
 
-    kthread_t sender;
+    kth_t sender;
     struct send_param info = {
         .type = type, .repeat = SEND_REPEAT,
         .opcode_min = 1, .opcode_max = 2
     };
 
-    kthread_create(&sender, test_ipc_send_worker, (ulong)&info);
+    kth_create(&sender, test_ipc_send_worker, (ulong)&info);
     test_ipc_recv_serial(&info);
-    kthread_join(&sender, NULL);
+    kth_join(&sender, NULL);
 
     int err = test_ipc_validate(&info);
     kprintf("%s serial IPC tests: %s!\n", err ? "Failed" : "Passed", name);

@@ -2,11 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-
-#ifndef AVOID_LIBC_CONFLICT
-#define AVOID_LIBC_CONFLICT
-#endif
-
+#define __USE_HOST_LIBC
 #include "common/include/abi.h"
 #include "common/include/compiler.h"
 #include "common/include/coreimg.h"

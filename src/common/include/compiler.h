@@ -34,6 +34,10 @@
 #define no_inline           __attribute__((noinline))
 #endif
 
+#ifndef noreturn
+#define noreturn            __attribute__((noreturn))
+#endif
+
 #ifndef no_opt
 #ifdef __clang__
 #define no_opt              __attribute__((optnone))

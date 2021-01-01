@@ -1,7 +1,7 @@
+#include <stdio.h>
+#include <sys.h>
+
 #include "common/include/inttypes.h"
-#include "system/include/kprintf.h"
-#include "system/include/thread.h"
-#include "libsys/include/syscall.h"
 
 
 static void test(const char *name, ulong num, ulong in, ulong ref_out, ulong flag)

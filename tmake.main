@@ -9,7 +9,7 @@ def build_libk():
     lib_files(
         bin_dir + 'tdlrlibk.a',
         libk_files,
-        toolchain = get_toolchain('loader'),
+        toolchain = get_toolchain('default'),
     )
 
 def build_libsys():
@@ -20,7 +20,21 @@ def build_libsys():
     lib_files(
         bin_dir + 'tdlrlibsys.a',
         libsys_files,
-        toolchain = get_toolchain('loader'),
+        toolchain = get_toolchain('default'),
+    )
+
+def build_libc():
+    print_info('libk', 'Building libc')
+
+    libk_files = get_all_arch_files('libk/', [ '.c', '.S' ])
+    libsys_files = get_all_arch_files('libsys/', [ '.c', '.S' ])
+    libc_files = get_all_arch_files('libc/', [ '.c', '.S' ])
+
+    lib_files(
+        bin_dir + 'tdlrlibc.a',
+        libk_files + libsys_files + libc_files,
+        toolchain = get_toolchain('default'),
+        includes = [ src_dir + 'libc/include' ],
     )
 
 def build_hal():
@@ -36,13 +50,13 @@ def build_hal():
         ext_libs = [ libk ],
         ext_ld_deps = [ hal_ld ],
         ld_script = hal_ld,
-        toolchain = get_toolchain('hal'),
+        toolchain = get_toolchain('default'),
     )
 
     disasm_exec(
         disasm_dir + 'tdlrhal.S',
         bin_dir + 'tdlrhal.elf',
-        toolchain = get_toolchain('hal'),
+        toolchain = get_toolchain('default'),
     )
 
 def build_kernel():
@@ -59,19 +73,18 @@ def build_kernel():
         ext_libs = [ libsys, libk ],
         ext_ld_deps = [ kernel_ld ],
         ld_script = kernel_ld,
-        toolchain = get_toolchain('kernel'),
+        toolchain = get_toolchain('default'),
     )
 
     disasm_exec(
         disasm_dir + 'tdlrkrnl.S',
         bin_dir + 'tdlrkrnl.elf',
-        toolchain = get_toolchain('kernel'),
+        toolchain = get_toolchain('default'),
     )
 
 def build_servers():
-    server_ld = find_deepest_arch_file('system/system.ld')
-    libk = bin_dir + 'tdlrlibk.a'
-    libsys = bin_dir + 'tdlrlibsys.a'
+    server_ld = find_deepest_arch_file('libc/user.ld')
+    libc = bin_dir + 'tdlrlibc.a'
 
     # System
     print_info('system', 'Building system')
@@ -80,16 +93,17 @@ def build_servers():
     build_files(
         bin_dir + 'tdlrsys.elf',
         system_files,
-        ext_libs = [ libsys, libk ],
+        ext_libs = [ libc ],
         ext_ld_deps = [ server_ld ],
         ld_script = server_ld,
-        toolchain = get_toolchain('user'),
+        toolchain = get_toolchain('default'),
+        includes = [ src_dir + 'libc/include' ],
     )
 
     disasm_exec(
         disasm_dir + 'tdlrsys.S',
         bin_dir + 'tdlrsys.elf',
-        toolchain = get_toolchain('user'),
+        toolchain = get_toolchain('default'),
     )
 
 def build_fdt():
@@ -152,8 +166,6 @@ def build_loader():
         gen_embed_c(coreimg_c, coreimg, 'embedded_coreimg', 8)
         loader_files.append(coreimg_c)
 
-    print(loader_files)
-
     # Build loader
     build_files(
         bin_dir + 'tdlrldr.elf',
@@ -161,14 +173,14 @@ def build_loader():
         ext_libs = [ libk ],
         ext_ld_deps = [ loader_ld ],
         ld_script = loader_ld,
-        toolchain = get_toolchain('loader'),
+        toolchain = get_toolchain('default'),
     )
 
     # Disasm
     disasm_exec(
         disasm_dir + 'tdlrldr.S',
         bin_dir + 'tdlrldr.elf',
-        toolchain = get_toolchain('loader'),
+        toolchain = get_toolchain('default'),
     )
 
 def build_boot():
@@ -189,6 +201,7 @@ def build_boot():
 def build_main():
     build_libk()
     build_libsys()
+    build_libc()
     build_hal()
     build_kernel()
     build_servers()

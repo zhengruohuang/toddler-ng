@@ -1,7 +1,7 @@
 #include "common/include/inttypes.h"
 
 
-static u32 rand_state = 0;
+static unsigned int rand_state = 0;
 
 
 int rand()
@@ -10,19 +10,19 @@ int rand()
     return rand_state & 0x7fffffff;
 }
 
-int rand_r(u32 *seedp)
+int rand_r(unsigned int *seedp)
 {
     if (!seedp) {
         return 0;
     }
 
-    u32 r = *seedp;
+    unsigned int r = *seedp;
     r = (r * 1103515245u) + 12345u;
     *seedp = r;
     return r & 0x7fffffff;
 }
 
-void srand(u32 seed)
+void srand(unsigned int seed)
 {
     rand_state = seed;
 }

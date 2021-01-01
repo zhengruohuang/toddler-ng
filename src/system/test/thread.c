@@ -1,8 +1,9 @@
+#include <stdio.h>
+#include <futex.h>
+#include <sys.h>
+#include <kth.h>
+
 #include "common/include/inttypes.h"
-#include "system/include/kprintf.h"
-#include "system/include/thread.h"
-#include "libsys/include/syscall.h"
-#include "libsys/include/futex.h"
 
 
 /*
@@ -19,7 +20,7 @@ static void random_delay(u32 *rand_state, int order)
 #define MAX_NUM_FUTEX_THREADS   16
 #define NUM_FUTEX_LOOPS         163840
 
-static kthread_t futex_threads[MAX_NUM_FUTEX_THREADS];
+static kth_t futex_threads[MAX_NUM_FUTEX_THREADS];
 static futex_t futex = FUTEX_INITIALIZER;
 static volatile ulong futex_counter = 0;
 
@@ -57,10 +58,10 @@ static void test_futex()
         atomic_mb();
 
         for (int i = 0; i < num_threads; i++) {
-            kthread_create(&futex_threads[i], test_futex_worker, loop_count);
+            kth_create(&futex_threads[i], test_futex_worker, loop_count);
         }
         for (int i = 0; i < num_threads; i++) {
-            kthread_join(&futex_threads[i], NULL);
+            kth_join(&futex_threads[i], NULL);
         }
 
         ulong check_counter = num_threads * NUM_FUTEX_LOOPS;
@@ -84,7 +85,7 @@ static void test_futex()
 #define MAX_NUM_MUTEX_THREADS   16
 #define NUM_MUTEX_LOOPS         163840
 
-static kthread_t mutex_threads[MAX_NUM_MUTEX_THREADS];
+static kth_t mutex_threads[MAX_NUM_MUTEX_THREADS];
 static mutex_t mutex = MUTEX_INITIALIZER;
 static volatile ulong mutex_counter = 0;
 
@@ -122,10 +123,10 @@ static void test_mutex()
         atomic_mb();
 
         for (int i = 0; i < num_threads; i++) {
-            kthread_create(&mutex_threads[i], test_mutex_worker, loop_count);
+            kth_create(&mutex_threads[i], test_mutex_worker, loop_count);
         }
         for (int i = 0; i < num_threads; i++) {
-            kthread_join(&mutex_threads[i], NULL);
+            kth_join(&mutex_threads[i], NULL);
         }
 
         ulong check_counter = num_threads * NUM_MUTEX_LOOPS;
@@ -150,7 +151,7 @@ static void test_mutex()
 #define RWLOCK_WR_THREAD_MOD    2
 #define NUM_RWLOCK_LOOPS        4096
 
-static kthread_t rwlock_threads[NUM_RWLOCK_THREADS];
+static kth_t rwlock_threads[NUM_RWLOCK_THREADS];
 static fast_rwlock_t rwlock = FAST_RWLOCK_INITIALIZER;
 static volatile ulong rwlock_counter = 0;
 
@@ -189,15 +190,15 @@ static void test_rwlock()
     ulong num_wr_threads = 0;
     for (int i = 0; i < NUM_RWLOCK_THREADS; i++) {
         if (!(i % RWLOCK_WR_THREAD_MOD)) {
-            kthread_create(&rwlock_threads[i], test_rwlock_worker, 1);
+            kth_create(&rwlock_threads[i], test_rwlock_worker, 1);
             num_wr_threads++;
         } else {
-            kthread_create(&rwlock_threads[i], test_rwlock_worker, 0);
+            kth_create(&rwlock_threads[i], test_rwlock_worker, 0);
         }
     }
 
     for (int i = 0; i < NUM_RWLOCK_THREADS; i++) {
-        kthread_join(&rwlock_threads[i], NULL);
+        kth_join(&rwlock_threads[i], NULL);
     }
 
     ulong check_counter = num_wr_threads * NUM_RWLOCK_LOOPS;
