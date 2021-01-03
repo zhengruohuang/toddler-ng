@@ -58,12 +58,21 @@ ulong get_my_cpu_init_stack_top_vaddr()
 #endif
 }
 
+// FIXME: this function must be run in serial mode
 static void init_per_cpu_var(int *offset, size_t size)
 {
-    assert(cur_per_cpu_offset + size < PAGE_SIZE);
+    if (!is_single_cpu()) {
+        while (1);
+    }
+
+    panic_if(!is_single_cpu(),
+             "Per-CPU var must be initialized in single-CPU phase!\n");
+
+    panic_if(cur_per_cpu_offset + size >= PAGE_SIZE,
+             "Per-CPU var out of space!\n");
 
     *offset = cur_per_cpu_offset;
-    cur_per_cpu_offset += ALIGN_UP(size, sizeof(ulong));
+    cur_per_cpu_offset += align_up_vsize(size, sizeof(ulong));
 }
 
 void *access_per_cpu_var(int *offset, size_t size)

@@ -12,10 +12,26 @@ static volatile ulong start_working_lock = 1;
 
 
 /*
+ * Single-CPU
+ */
+static volatile int single_cpu = 1;
+
+int is_single_cpu()
+{
+    return single_cpu;
+}
+
+
+/*
  * Bring up all secondary CPUs
  */
 void bringup_all_secondary_cpus()
 {
+    int num_cpus = get_num_cpus();
+    if (num_cpus > 1) {
+        single_cpu = 0;
+    }
+
     struct hal_arch_funcs *funcs = get_hal_arch_funcs();
     ulong entry = funcs->mp_entry;
 
@@ -24,7 +40,6 @@ void bringup_all_secondary_cpus()
     atomic_write(&start_working_lock, 1);
 
     // Bring up all processors
-    int num_cpus = get_num_cpus();
     for (int i = 0; i < num_cpus; i++) {
         if (i != get_cur_mp_seq()) {
             ulong mp_id = get_mp_id_by_seq(i);

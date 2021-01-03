@@ -46,17 +46,17 @@ enum thread_wait_type {
 /*
  * Futex
  */
-typedef struct futex {
+typedef volatile struct futex {
     union {
         ulong value;
 
         struct {
             ulong valid         : 1;
             ulong kernel        : 1;
-            ulong locked        : sizeof(ulong) - 2;
+            ulong locked        : sizeof(ulong) * 8 - 2;
         };
     };
-} futex_t;
+} natural_struct futex_t;
 
 #define FUTEX_INITIALIZER   { .valid = 1 }
 

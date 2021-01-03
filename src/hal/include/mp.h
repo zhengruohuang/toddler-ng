@@ -49,6 +49,8 @@ extern void init_topo();
 /*
  * Secondary CPUs
  */
+extern int is_single_cpu();
+
 extern void bringup_all_secondary_cpus();
 extern void release_secondary_cpu_lock();
 extern void secondary_cpu_init_done();

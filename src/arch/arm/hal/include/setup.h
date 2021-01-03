@@ -23,6 +23,8 @@ extern void restore_context_gpr();
  */
 extern void switch_to(ulong thread_id, struct reg_context *context,
                       void *page_table, int user_mode, ulong asid, ulong tcb);
+extern void init_switch_mp();
+extern void init_switch();
 
 extern void kernel_pre_dispatch(ulong thread_id, struct kernel_dispatch *kdi);
 extern void kernel_post_dispatch(ulong thread_id, struct kernel_dispatch *kdi);

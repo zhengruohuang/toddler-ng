@@ -2,8 +2,9 @@
 #define __SYSTEM_INCLUDE_VFS_H__
 
 
+#include <atomic.h>
+#include <kth.h>
 #include "common/include/inttypes.h"
-#include "common/include/refcount.h"
 
 
 enum vfs_ops {
@@ -111,6 +112,7 @@ struct ventry {
     struct vnode *vnode;
 
     ref_count_t ref_count;
+    mutex_t mutex;
 };
 
 

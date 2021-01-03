@@ -52,6 +52,11 @@ static inline void shootdown(ulong asid, ulong base, ulong size)
  */
 void init_tlb_shootdown()
 {
+    // Only initialize this on the bootstrap CPU,
+    // since all we need is allocating some space in the per-cpu buffer
+    ulong *my_seq_ptr = get_per_cpu(ulong, local_tlb_shootdown_seq);
+    *my_seq_ptr = 0;
+
     list_init(&tlb_shootdown_reqs);
 }
 

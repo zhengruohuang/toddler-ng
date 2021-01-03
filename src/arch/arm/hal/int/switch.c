@@ -44,6 +44,17 @@ void switch_to(ulong thread_id, struct reg_context *context,
     restore_context_gpr(*cur_stack_top);
 }
 
+void init_switch_mp()
+{
+    struct l1table **pl1tab = get_per_cpu(struct l1table *, cur_page_dir);
+    *pl1tab = NULL; // TODO: set to kernel page table
+}
+
+void init_switch()
+{
+    init_switch_mp();
+}
+
 
 void kernel_pre_dispatch(ulong thread_id, struct kernel_dispatch *kdi)
 {

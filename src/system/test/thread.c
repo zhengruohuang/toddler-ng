@@ -148,11 +148,11 @@ static void test_mutex()
  * RW-lock
  */
 #define NUM_RWLOCK_THREADS      64
-#define RWLOCK_WR_THREAD_MOD    2
-#define NUM_RWLOCK_LOOPS        4096
+#define RWLOCK_WR_THREAD_MOD    100
+#define NUM_RWLOCK_LOOPS        163840
 
 static kth_t rwlock_threads[NUM_RWLOCK_THREADS];
-static fast_rwlock_t rwlock = FAST_RWLOCK_INITIALIZER;
+static rwlock_t rwlock = RWLOCK_INITIALIZER;
 static volatile ulong rwlock_counter = 0;
 
 static ulong test_rwlock_worker(ulong param)
@@ -163,26 +163,35 @@ static ulong test_rwlock_worker(ulong param)
     int rd = param;
 
     for (ulong i = 0; i < NUM_RWLOCK_LOOPS; i++) {
+        // Reader
         if (rd) {
-            fast_rwlock_rdlock(&rwlock);
+            rwlock_rlock(&rwlock);
+            //kprintf("read counter: %lu\n", rwlock_counter);
             random_delay(&rand_state, 10);
-            fast_rwlock_rdunlock(&rwlock);
-        } else {
-            fast_rwlock_wrlock(&rwlock);
+            rwlock_runlock(&rwlock);
+        }
+
+        // Write
+        else {
+            rwlock_wlock(&rwlock);
             rwlock_counter++;
+            //kprintf("write counter: %lu\n", rwlock_counter);
             atomic_mb();
             random_delay(&rand_state, 10);
-            fast_rwlock_wrunlock(&rwlock);
+            rwlock_wunlock(&rwlock);
         }
     }
+
+    //if (rd) kprintf("rd done\n");
+    //else kprintf("wr done\n");
 
     return 0;
 }
 
 static void test_rwlock()
 {
-    kprintf("Testing rwlock\n");
-    fast_rwlock_init(&rwlock);
+    kprintf("Testing rwlock, rd futex @ %p\n", &rwlock.rd_futex);
+    rwlock_init(&rwlock);
 
     rwlock_counter = 0;
     atomic_mb();
@@ -190,10 +199,10 @@ static void test_rwlock()
     ulong num_wr_threads = 0;
     for (int i = 0; i < NUM_RWLOCK_THREADS; i++) {
         if (!(i % RWLOCK_WR_THREAD_MOD)) {
-            kth_create(&rwlock_threads[i], test_rwlock_worker, 1);
+            kth_create(&rwlock_threads[i], test_rwlock_worker, 0);
             num_wr_threads++;
         } else {
-            kth_create(&rwlock_threads[i], test_rwlock_worker, 0);
+            kth_create(&rwlock_threads[i], test_rwlock_worker, 1);
         }
     }
 
@@ -216,7 +225,7 @@ static void test_rwlock()
  */
 void test_thread()
 {
-    test_futex();
-    test_mutex();
-    //test_rwlock();
+    //test_futex();
+    //test_mutex();
+    test_rwlock();
 }

@@ -54,11 +54,13 @@ static void init_arch_mp()
 static void init_int()
 {
     init_int_entry();
+    init_switch();
 }
 
 static void init_int_mp()
 {
     init_int_entry_mp();
+    init_switch_mp();
 }
 
 static void init_mm()

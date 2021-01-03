@@ -27,13 +27,13 @@ struct root_entry {
     } list;
 
     ulong fs_id;
-    ref_count_t ref_count;
-
     char *name;
     int is_dir;
 
     char *data;
     size_t size;
+
+    ref_count_t ref_count;
 };
 
 static volatile ulong fs_id_seq = 1;

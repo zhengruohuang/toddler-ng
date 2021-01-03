@@ -5,229 +5,222 @@
 #include <sys.h>
 
 
-#define FAST_RWLOCK_MAX_SPIN_COUNT 0
-
-
-void fast_rwlock_init(fast_rwlock_t *lock)
+/*
+ * LSB of futex "locked" field indicates if there is a write,
+ * either waiting for the lock or already holding it
+ */
+void rwlock_init(rwlock_t *lock)
 {
-    lock->state.value = 0;
-    //lock->rd_wait_obj_id = syscall_wait_obj_alloc((void *)lock, 1, 0);
-    //lock->wr_wait_obj_id = syscall_wait_obj_alloc((void *)lock, 1, 0);
-    lock->rd_wait_obj_id = 0;
-    lock->wr_wait_obj_id = 0;
-    atomic_mb();
-
-    kprintf_unlocked("rwlock wait obj id, rd: %lx, wr: %lx\n",
-                     lock->rd_wait_obj_id, lock->wr_wait_obj_id);
-}
-
-void fast_rwlock_destroy(fast_rwlock_t *lock)
-{
-    atomic_mb();
-    lock->state.value = 0;
-    lock->rd_wait_obj_id = 0;
-    lock->wr_wait_obj_id = 0;
-    // TODO: free wait obj
+    futex_init(&lock->rd_futex);
+    futex_init(&lock->wr_futex);
+    futex_init(&lock->wait_futex);
+    lock->max_spin = RWLOCK_MAX_SPIN;
 }
 
 
 /*
- * Reader lock
+ * Read lock
  */
-void fast_rwlock_rdlock(fast_rwlock_t *lock)
+void rwlock_rlock(rwlock_t *lock)
 {
-    fast_rwlock_state_t old_val, new_val;
+    volatile futex_t f_old, f_new;
 
     do {
-        int num_spins = 0;
+        do {
+            // Check and wait for on-going write
+            futex_wait(&lock->wait_futex, lock->max_spin);
 
-        atomic_mb();
-        old_val.value = lock->state.value;
+            // Try inc reader count
+            f_old.value = lock->rd_futex.value;
 
-        if (!old_val.num_readers) {
-            atomic_notify();
-            if (FAST_RWLOCK_MAX_SPIN_COUNT && lock->wr_wait_obj_id) {
-                //syscall_wake_on_semaphore(lock->wr_wait_obj_id, 0);
-            }
-        }
+        // A writer is registered, check wait lock again
+        } while (f_old.locked & 0x1ul);
 
-        while (old_val.locked) {
-            atomic_pause();
-
-            atomic_mb();
-            old_val.value = lock->state.value;
-
-            if (FAST_RWLOCK_MAX_SPIN_COUNT && lock->rd_wait_obj_id &&
-                old_val.locked && ++num_spins >= FAST_RWLOCK_MAX_SPIN_COUNT
-            ) {
-                num_spins = 0;
-                //syscall_wait_on_semaphore(lock->rd_wait_obj_id);
-                old_val.value = lock->state.value;
-            }
-        }
-
-        atomic_mb();
-        assert(!old_val.locked);
-
-        new_val.value = old_val.value;
-        new_val.num_readers++;
-    } while (!atomic_cas(&lock->state.value, old_val.value, new_val.value));
+        f_new.value = f_old.value;
+        f_new.locked += 0x2ul;
+    } while (!atomic_cas(&lock->rd_futex.value, f_old.value, f_new.value));
 
     atomic_mb();
 }
 
-int fast_rwlock_rdtrylock(fast_rwlock_t *lock)
+int rwlock_rtrylock(rwlock_t *lock)
 {
-    fast_rwlock_state_t old_val;
-    atomic_mb();
-    old_val.value = lock->state.value;
-    if (old_val.locked) {
-        return 0;
+    futex_t f_old, f_new;
+
+    f_old.value = lock->rd_futex.value;
+    if (f_old.locked & 0x1ul) {
+        // A writer has registered
+        return -1;
     }
 
-    fast_rwlock_state_t new_val;
-    new_val.value = old_val.value;
-    new_val.num_readers++;
+    f_new.value = f_old.value;
+    f_new.locked += 0x2ul;
 
-    int success = atomic_cas(&lock->state.value, old_val.value, new_val.value);
+    int ok = atomic_cas(&lock->rd_futex.value, f_old.value, f_new.value);
     atomic_mb();
-
-    return success;
+    return ok ? 0 : -1;
 }
 
-void fast_rwlock_rdunlock(fast_rwlock_t *lock)
+void rwlock_runlock(rwlock_t *lock)
 {
-    fast_rwlock_state_t old_val, new_val;
+    futex_t f_old, f_new;
 
     atomic_mb();
+
+    // Dec read counter
     do {
-        old_val.value = lock->state.value;
-        assert(old_val.num_readers);
+        f_old.value = lock->rd_futex.value;
+        panic_if(f_old.locked <= 0x1ul,
+                 "Inconsistent rwlock state: %lu\n", f_old.locked);
 
-        new_val.value = old_val.value;
-        new_val.num_readers--;
-    } while (!atomic_cas(&lock->state.value, old_val.value, new_val.value));
+        f_new.value = f_old.value;
+        f_new.locked -= 0x2ul;
+    } while (!atomic_cas(&lock->rd_futex.value, f_old.value, f_new.value));
 
-    atomic_mb();
-    atomic_notify();
+    // Wakeup writer
+    if (f_new.locked == 0x1ul) {
+        // Check if syscall is required, and clear kernel flag
+        do {
+            f_old.value = lock->rd_futex.value;
+            if (!f_old.kernel) {
+                break;
+            }
 
-    if (FAST_RWLOCK_MAX_SPIN_COUNT && lock->wr_wait_obj_id &&
-        !new_val.num_readers
-    ) {
-        //syscall_wake_on_semaphore(lock->wr_wait_obj_id, 0);
+            f_new.value = f_old.value;
+            f_new.kernel = 0;
+        } while (!atomic_cas(&lock->rd_futex.value, f_old.value, f_new.value));
+
+        if (f_old.kernel) {
+            syscall_wake_on_futex(&lock->rd_futex, 0);
+        }
     }
 }
 
 
 /*
- * Writer lock
+ * Write lock
  */
-static inline void fast_rwlock_set_locked(fast_rwlock_t *lock)
+static inline void wait_for_reads(futex_t *f, const int spin)
 {
-    fast_rwlock_state_t old_val, new_val;
+    futex_t f_old, f_new;
 
+    // Set LSB of f->lock to 1, indicating a write is waiting
     do {
+        atomic_mb();
+
+        f_old.value = f->value;
+        panic_if(f_old.locked & 0x1ul, "Inconsistent rwlock state!\n");
+
+        f_new.value = f_old.value;
+        f_new.locked += 0x1ul;  // f_old.locked | 0x1ul;
+    } while (!atomic_cas(&f->value, f_old.value, f_new.value));
+
+    // Wait for on-going readers to finish
+    int acquired = 0;
+    while (!acquired) {
         int num_spins = 0;
-
-        atomic_mb();
-        old_val.value = lock->state.value;
-
-        while (old_val.locked) {
-            atomic_pause();
-
+        do {
             atomic_mb();
-            old_val.value = lock->state.value;
 
-            if (FAST_RWLOCK_MAX_SPIN_COUNT && lock->wr_wait_obj_id &&
-                old_val.locked && ++num_spins >= FAST_RWLOCK_MAX_SPIN_COUNT
-            ) {
-                num_spins = 0;
-                //syscall_wait_on_semaphore(lock->wr_wait_obj_id);
-                old_val.value = lock->state.value;
+            f_old.value = f->value;
+            f_new.value = f_old.value;
+            if (f_new.locked != 0x1ul) {
+                acquired = 0;
+                if (spin >= 0 || ++num_spins > spin) {
+                    f_new.kernel = 1;
+                }
+            } else {
+                acquired = 1;
+                f_new.kernel = 0;
             }
-        }
+        } while (!atomic_cas(&f->value, f_old.value, f_new.value));
 
-        atomic_mb();
-        assert(!old_val.locked);
-
-        new_val.value = old_val.value;
-        new_val.locked = 1;
-    } while (!atomic_cas(&lock->state.value, old_val.value, new_val.value));
-}
-
-static inline void fast_rwlock_wait_for_readers(fast_rwlock_t *lock)
-{
-    fast_rwlock_state_t old_val;
-
-    atomic_mb();
-    old_val.value = lock->state.value;
-
-    int num_spins = 0;
-    while (old_val.num_readers) {
-        atomic_pause();
-
-        atomic_mb();
-        old_val.value = lock->state.value;
-
-        if (FAST_RWLOCK_MAX_SPIN_COUNT && lock->wr_wait_obj_id &&
-            old_val.locked && ++num_spins >= FAST_RWLOCK_MAX_SPIN_COUNT
-        ) {
-            num_spins = 0;
-            //syscall_wait_on_semaphore(lock->wr_wait_obj_id);
-            old_val.value = lock->state.value;
+        if (!acquired && f_new.kernel) {
+            syscall_wait_on_futex(f, 0x1ul);
         }
     }
 }
 
-void fast_rwlock_wrlock(fast_rwlock_t *lock)
+void rwlock_wlock(rwlock_t *lock)
 {
-    fast_rwlock_set_locked(lock);
-    fast_rwlock_wait_for_readers(lock);
+    // Acquire writer lock, so that only one writer is allowed
+    futex_lock(&lock->wr_futex, lock->max_spin);
 
-    atomic_mb();
+    // Acquire read waiter lock, so that future readers must wait
+    // Note that this must not fail
+    int err = futex_trylock(&lock->wait_futex);
+    panic_if(err, "Inconsistent rwlock state!\n");
+
+    // Now wait for on-going readers
+    wait_for_reads(&lock->rd_futex, lock->max_spin);
 }
 
-int fast_rwlock_wrtrylock(fast_rwlock_t *lock)
+int rwlock_wtrylock(rwlock_t *lock)
 {
-    fast_rwlock_state_t old_val;
-    atomic_mb();
-    old_val.value = lock->state.value;
-    if (old_val.value) {
-        return 0;
+    int err = futex_trylock(&lock->wr_futex);
+    if (!err) {
+        return -1;
     }
 
-    fast_rwlock_state_t new_val;
-    new_val.value = old_val.value;
-    new_val.locked = 1;
+    futex_t f_old, f_new;
 
-    return atomic_cas(&lock->state.value, old_val.value, new_val.value);
+    // Set LSB of f->lock to 1, indicating a write is waiting
+    f_old.value = lock->rd_futex.value;
+    panic_if(f_old.locked & 0x1ul, "Inconsistent rwlock state!\n");
+
+    // Fail when there are on-going readers
+    if (f_old.locked) {
+        futex_unlock(&lock->wr_futex);
+        return -1;
+    }
+
+    // Try locking
+    f_new.value = f_old.value;
+    f_new.locked |= 0x1ul;
+
+    int ok = atomic_cas(&lock->rd_futex.value, f_old.value, f_new.value);
+    if (!ok) {
+        futex_unlock(&lock->wr_futex);
+        return -1;
+    }
+
+    // OK
+    return 0;
 }
 
-void fast_rwlock_wrunlock(fast_rwlock_t *lock)
+void rwlock_wunlock(rwlock_t *lock)
 {
-    atomic_mb();
+    futex_t f_old, f_new;
 
-    fast_rwlock_state_t old_val;
-    old_val.value = lock->state.value;
-    assert(old_val.locked);
-    assert(!old_val.num_readers);
+    f_old.value = lock->rd_futex.value;
+    panic_if(f_old.locked != 0x1ul, "Inconsistent rwlock state: %lu\n", f_old.locked);
 
-    fast_rwlock_state_t new_val;
-    new_val.value = old_val.value;
-    new_val.locked = 0;
+    f_new.value = f_old.value;
+    //f_new.kernel = 0;
+    f_new.locked = 0;
+    int ok = atomic_cas(&lock->rd_futex.value, f_old.value, f_new.value);
+    panic_if(!ok, "Inconsistent rwlock state: %lu\n", f_old.locked);
 
-    int success = atomic_cas(&lock->state.value, old_val.value, new_val.value);
-    assert(success);
+    futex_unlock(&lock->wait_futex);
+    futex_unlock(&lock->wr_futex);
+}
 
-    atomic_mb();
-    atomic_notify();
 
-    if (FAST_RWLOCK_MAX_SPIN_COUNT) {
-        if (lock->rd_wait_obj_id) {
-            //syscall_wake_on_semaphore(lock->rd_wait_obj_id, 0);
-        }
-        if (lock->wr_wait_obj_id) {
-            //syscall_wake_on_semaphore(lock->wr_wait_obj_id, 0);
-        }
-    }
+/*
+ * Upgrade
+ */
+void rwlock_upgrade(rwlock_t *lock)
+{
+    panic("Not implemented!\n");
+}
+
+int rwlock_tryupgrade(rwlock_t *lock)
+{
+    panic("Not implemented!\n");
+    return -1;
+}
+
+void rwlock_downgrade(rwlock_t *lock)
+{
+    panic("Not implemented!\n");
 }

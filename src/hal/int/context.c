@@ -43,6 +43,9 @@ void init_context()
     int *user_mode = get_per_cpu(int, cur_in_user_mode);
     *user_mode = 0;
 
+    struct reg_context *ctxt = get_per_cpu(struct reg_context, cur_context);
+    memzero(ctxt, sizeof(struct reg_context));
+
     ulong *cur_tcb = get_per_cpu(ulong, cur_tcb_vaddr);
     *cur_tcb = 0;
 }

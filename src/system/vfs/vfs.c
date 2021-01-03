@@ -9,9 +9,9 @@
 #include "system/include/vfs.h"
 
 
-static salloc_obj_t ventry_salloc = SALLOC_CREATE(sizeof(struct ventry), 0, salloc_zero_ctor, NULL);
-static salloc_obj_t vnode_salloc = SALLOC_CREATE(sizeof(struct vnode), 0, salloc_zero_ctor, NULL);
-static salloc_obj_t mount_salloc = SALLOC_CREATE(sizeof(struct mount_point), 0, salloc_zero_ctor, NULL);
+static salloc_obj_t ventry_salloc = SALLOC_CREATE_DEFAULT(sizeof(struct ventry));
+static salloc_obj_t vnode_salloc = SALLOC_CREATE_DEFAULT(sizeof(struct vnode));
+static salloc_obj_t mount_salloc = SALLOC_CREATE_DEFAULT(sizeof(struct mount_point));
 
 static struct ventry *vroot = NULL;
 
@@ -438,6 +438,19 @@ int vfs_unmount(struct ventry *vent)
  */
 int vfs_file_open(struct vnode *node, ulong flags, ulong mode)
 {
+    struct mount_point *mount = node->mount;
+    if (ignore_op_ipc(mount, VFS_OP_FILE_OPEN)) {
+        return 0;
+    }
+
+    // Request
+    msg_t *msg = get_empty_msg();
+    msg_append_param(msg, VFS_OP_FILE_OPEN);
+    msg_append_param(msg, node->fs_id);
+    msg_append_param(msg, flags);
+    msg_append_param(msg, mode);
+    syscall_ipc_popup_request(mount->ipc.pid, mount->ipc.opcode);
+
     return 0;
 }
 
@@ -532,8 +545,20 @@ ssize_t vfs_file_write(struct vnode *node, size_t offset, char *buf, size_t buf_
 /*
  * Dir ops
  */
-int vfs_dir_open(struct vnode *node, ulong mode)
+int vfs_dir_open(struct vnode *node, ulong flags)
 {
+    struct mount_point *mount = node->mount;
+    if (ignore_op_ipc(mount, VFS_OP_DIR_OPEN)) {
+        return 0;
+    }
+
+    // Request
+    msg_t *msg = get_empty_msg();
+    msg_append_param(msg, VFS_OP_DIR_OPEN);
+    msg_append_param(msg, node->fs_id);
+    msg_append_param(msg, flags);
+    syscall_ipc_popup_request(mount->ipc.pid, mount->ipc.opcode);
+
     return 0;
 }
 

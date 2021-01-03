@@ -22,8 +22,11 @@
 int futex_init(futex_t *f);
 int futex_destory(futex_t *f);
 int futex_lock(futex_t *f, int spin);
+int futex_wait(futex_t *f, int spin);
 int futex_trylock(futex_t *f);
 int futex_unlock(futex_t *f);
+
+static inline int futex_is_locked(futex_t *f) { return f->locked ? 1 : 0; }
 
 
 #endif

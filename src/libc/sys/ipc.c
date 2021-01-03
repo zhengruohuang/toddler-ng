@@ -8,7 +8,7 @@
 /*
  * Handlers
  */
-static fast_rwlock_t global_rwlock = FAST_RWLOCK_INITIALIZER;
+static rwlock_t global_rwlock = RWLOCK_INITIALIZER;
 
 // TODO: use hashtable
 static msg_handler_t handlers[255] = { 0 };
@@ -43,11 +43,11 @@ static inline ulong get_port(ulong opcode)
 
 static msg_handler_t acquire_handler(ulong port)
 {
-    fast_rwlock_rdlock(&global_rwlock);
+    rwlock_rlock(&global_rwlock);
 
     msg_handler_t handler = find_handler(port);
     if (!handler) {
-        fast_rwlock_rdunlock(&global_rwlock);
+        rwlock_runlock(&global_rwlock);
         return NULL;
     }
 
@@ -56,7 +56,7 @@ static msg_handler_t acquire_handler(ulong port)
 
 static void release_handler(ulong port)
 {
-    fast_rwlock_rdunlock(&global_rwlock);
+    rwlock_runlock(&global_rwlock);
 }
 
 static void dispatch(ulong opcode)
@@ -82,7 +82,6 @@ static void dispatch(ulong opcode)
  */
 void init_ipc()
 {
-    fast_rwlock_init(&global_rwlock);
     syscall_ipc_handler(dispatch);
 }
 
@@ -92,9 +91,9 @@ void init_ipc()
  */
 void register_msg_handler(ulong port, msg_handler_t handler)
 {
-    fast_rwlock_wrlock(&global_rwlock);
+    rwlock_wlock(&global_rwlock);
     update_handler(port, handler);
-    fast_rwlock_wrunlock(&global_rwlock);
+    rwlock_wunlock(&global_rwlock);
 }
 
 void cancel_msg_handler(ulong port)

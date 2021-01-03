@@ -63,34 +63,46 @@ extern void mutex_unlock(mutex_t *lock);
 /*
  * RW-lock
  */
-typedef volatile struct {
+struct __rwlock_flags {
     union {
-        ulong value;
+        unsigned long value;
+
         struct {
-            ulong locked        : 1;
-            ulong num_readers   : sizeof(ulong) - 1;
+            unsigned long writer        : 1;
+            unsigned long num_readers   : sizeof(unsigned long) - 1;
         };
     };
-} fast_rwlock_state_t;
+};
 
-typedef volatile struct {
-    fast_rwlock_state_t state;
-    ulong rd_wait_obj_id;
-    ulong wr_wait_obj_id;
-} fast_rwlock_t;
+typedef struct {
+    futex_t rd_futex;
+    futex_t wr_futex;
+    futex_t wait_futex;
+    volatile struct __rwlock_flags flags;
+    int max_spin;
+} rwlock_t;
 
-#define FAST_RWLOCK_INITIALIZER { .state.value = 0, .rd_wait_obj_id = 0, .wr_wait_obj_id = 0 }
+#define RWLOCK_MAX_SPIN -1
+#define RWLOCK_INITIALIZER { \
+    .rd_futex = FUTEX_INITIALIZER, \
+    .wr_futex = FUTEX_INITIALIZER, \
+    .wait_futex = FUTEX_INITIALIZER, \
+    .max_spin = RWLOCK_MAX_SPIN \
+}
 
-extern void fast_rwlock_init(fast_rwlock_t *lock);
-extern void fast_rwlock_destroy(fast_rwlock_t *lock);
+extern void rwlock_init(rwlock_t *lock);
 
-extern void fast_rwlock_rdlock(fast_rwlock_t *lock);
-extern int fast_rwlock_rdtrylock(fast_rwlock_t *lock);
-extern void fast_rwlock_rdunlock(fast_rwlock_t *lock);
+extern void rwlock_rlock(rwlock_t *lock);
+extern int rwlock_rtrylock(rwlock_t *lock);
+extern void rwlock_runlock(rwlock_t *lock);
 
-extern void fast_rwlock_wrlock(fast_rwlock_t *lock);
-extern int fast_rwlock_wrtrylock(fast_rwlock_t *lock);
-extern void fast_rwlock_wrunlock(fast_rwlock_t *lock);
+extern void rwlock_wlock(rwlock_t *lock);
+extern int rwlock_wtrylock(rwlock_t *lock);
+extern void rwlock_wunlock(rwlock_t *lock);
+
+extern void rwlock_upgrade(rwlock_t *lock);
+extern int rwlock_tryupgrade(rwlock_t *lock);
+extern void rwlock_downgrade(rwlock_t *lock);
 
 
 /*

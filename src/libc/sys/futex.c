@@ -54,6 +54,37 @@ int futex_lock(futex_t *f, int spin)
     return 0;
 }
 
+// wait until the lock is release, without acquiring it
+int futex_wait(futex_t *f, int spin)
+{
+    futex_t f_old, f_new;
+
+    for (int acquired = 0; !acquired; ) {
+        int num_spins = 0;
+        do {
+            f_old.value = f->value;
+            if (!f_old.locked) {
+                return 0;
+            }
+
+            // spin
+            if (spin < 0 || ++num_spins > spin) {
+                continue;
+            }
+
+            // wait in kernel
+            f_new.value = f_old.value;
+            f_new.kernel = 1;
+        } while (!atomic_cas(&f->value, f_old.value, f_new.value));
+
+        if (!acquired && f_new.kernel) {
+            syscall_wait_on_futex(f, 0);
+        }
+    }
+
+    return 0;
+}
+
 int futex_trylock(futex_t *f)
 {
     futex_t f_old, f_new;
