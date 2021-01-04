@@ -29,6 +29,7 @@ extern void syscall_thread_exit_self(ulong status);
  * VM
  */
 extern ulong syscall_vm_alloc(ulong size, uint attri);
+extern ulong syscall_vm_map(int type, ulong ppfn, ulong size);
 extern void syscall_vm_free(ulong base);
 
 /*

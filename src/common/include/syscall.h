@@ -30,6 +30,7 @@ enum syscall_nums {
 
     // VM
     SYSCALL_VM_ALLOC,
+    SYSCALL_VM_MAP,
     SYSCALL_VM_FREE,
 
     // Thread

@@ -72,7 +72,7 @@ static void test_stdio_file()
     kprintf("test2\n");
     static char test_buf[128] = "Bad!\n";
 
-    kprintf("Welcome message:\n");
+    kprintf("Test message:\n");
     size_t c = fread(test_buf, 1, 127, f);
     do {
         test_buf[127] = '\0';
@@ -81,6 +81,17 @@ static void test_stdio_file()
     } while (c);
 
     kprintf("test3\n");
+    fclose(f);
+
+    kprintf("test4\n");
+    f = fopen("/about", "r");
+    kprintf("About message:\n");
+    c = fread(test_buf, 1, 127, f);
+    do {
+        test_buf[127] = '\0';
+        kprintf("%s", test_buf);
+        c = fread(test_buf, 1, 127, f);
+    } while (c);
     fclose(f);
 }
 
@@ -116,6 +127,22 @@ static void test_dirent()
     closedir(d);
 }
 
+static void test_coreimg()
+{
+    DIR *d = NULL;
+    struct dirent dent;
+    int rc = 0;
+
+    kprintf("test1\n");
+    d = opendir("/sys/coreimg");
+    rc = readdir_safe(d, &dent);
+    while (rc == 1) {
+        kprintf("subdir: %s, fs id: %ld, type: %d\n", dent.d_name, dent.d_ino, dent.d_type);
+        rc = readdir_safe(d, &dent);
+    }
+    closedir(d);
+}
+
 
 /*
  * Entry
@@ -123,6 +150,7 @@ static void test_dirent()
 void test_vfs()
 {
     //test_file_api();
-    test_stdio_file();
+    //test_stdio_file();
     //test_dirent();
+    test_coreimg();
 }

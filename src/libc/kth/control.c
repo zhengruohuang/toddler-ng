@@ -85,3 +85,8 @@ void kth_exit(unsigned long ret)
 
     syscall_thread_exit_self(ret);
 }
+
+void kth_yield()
+{
+    syscall_thread_yield();
+}

@@ -80,4 +80,14 @@ enum vm_attri {
 };
 
 
+/*
+ * VM map
+ */
+enum vm_map_type {
+    VM_MAP_COREIMG,
+    VM_MAP_DEVTREE,
+    VM_MAP_DEV,
+};
+
+
 #endif

@@ -139,24 +139,10 @@ void vfs_dir_read_forward(struct vnode *node, size_t count, ulong offset);
 
 
 /*
- * RootFS
+ * Built-in pseudo file systems
  */
 extern void init_rootfs();
-
-
-/*
- * CoreFS
- */
-
-
-/*
- * ProcFS
- */
-
-
-/*
- * DevFS
- */
+extern void init_coreimgfs();
 
 
 #endif

@@ -38,6 +38,7 @@ static void init_system()
     init_vfs();
     init_vfs_api();
     init_rootfs();
+    init_coreimgfs();
 }
 
 int main(int argc, char **argv)

@@ -27,6 +27,7 @@ void init_dispatch()
     handlers[SYSCALL_FAULT_PAGE] = syscall_handler_fault_page;
 
     handlers[SYSCALL_VM_ALLOC] = syscall_handler_vm_alloc;
+    handlers[SYSCALL_VM_MAP] = syscall_handler_vm_map;
     handlers[SYSCALL_VM_FREE] = syscall_handler_vm_free;
 
     handlers[SYSCALL_THREAD_CREATE] = syscall_handler_create;

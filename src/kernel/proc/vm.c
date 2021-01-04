@@ -363,3 +363,42 @@ int vm_map(struct process *p, ulong addr, ulong prot)
 
     return err;
 }
+
+ulong vm_map_coreimg(struct process *p)
+{
+    void *ci = get_coreimg();
+    if (!ci) {
+        return 0;
+    }
+
+    ulong size = coreimg_size();
+    if (!size) {
+        return 0;
+    }
+
+    ulong paddr_start = align_down_vaddr((ulong)ci, PAGE_SIZE);
+    ulong paddr_end = align_up_vaddr((ulong)ci + size, PAGE_SIZE);
+    ulong map_size = paddr_end - paddr_start;
+
+    struct vm_block *b = vm_alloc(p, 0, map_size, 0);
+    if (!b) {
+        return 0;
+    }
+
+    get_hal_exports()->map_range(p->page_table, b->base,
+                                 cast_vaddr_to_paddr(paddr_start), b->size,
+                                 1, 1, 1, 0, 0);
+
+    ulong offset = paddr_start - (ulong)ci;
+    return b->base + offset;
+}
+
+ulong vm_map_devtree(struct process *p)
+{
+    return 0;
+}
+
+ulong vm_map_dev(struct process *p, ulong ppfn, ulong count, ulong prot)
+{
+    return 0;
+}

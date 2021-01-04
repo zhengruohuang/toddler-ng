@@ -6,6 +6,7 @@
 #include <sys.h>
 #include <sys/api.h>
 
+#include "common/include/names.h"
 #include "common/include/inttypes.h"
 #include "system/include/vfs.h"
 
@@ -33,6 +34,7 @@ struct root_entry {
     char *data;
     size_t size;
 
+    rwlock_t rwlock;
     ref_count_t ref_count;
 };
 
@@ -156,11 +158,14 @@ static void rootfs_acquire(msg_t *msg)
     // Request
     ulong fs_id = msg_get_param(msg, 1);    // ent_fs_id
 
+    // Lock
+    rwlock_rlock(&root->rwlock);
+
     // Acquire
     struct root_entry *entry = find_entry(fs_id);
     if (!entry) {
         rootfs_response(-1);
-        return;
+        goto done;
     }
 
     ref_count_inc(&entry->ref_count);
@@ -169,6 +174,11 @@ static void rootfs_acquire(msg_t *msg)
     msg = rootfs_response(0);               // ok
     msg_append_param(msg, entry->fs_id);    // node_fs_id
     msg_append_int(msg, 1);                 // cacheable
+    goto done;
+
+done:
+    // Unlock
+    rwlock_runlock(&root->rwlock);
 }
 
 
@@ -180,17 +190,25 @@ static void rootfs_release(msg_t *msg)
     // Request
     ulong fs_id = msg_get_param(msg, 1);    // ent_fs_id
 
+    // Lock
+    rwlock_rlock(&root->rwlock);
+
     // Release
     struct root_entry *entry = find_entry(fs_id);
     if (!entry) {
         rootfs_response(-1);
-        return;
+        goto done;
     }
 
     ref_count_dec(&entry->ref_count);
 
     // Response
     msg = rootfs_response(0);               // ok
+    goto done;
+
+done:
+    // Unlock
+    rwlock_runlock(&root->rwlock);
 }
 
 
@@ -202,16 +220,24 @@ static void rootfs_file_open(msg_t *msg)
     // Request
     ulong fs_id = msg_get_param(msg, 1);    // ent_fs_id
 
+    // Lock
+    rwlock_rlock(&root->rwlock);
+
     // Open
     struct root_entry *entry = find_entry(fs_id);
     if (!entry) {
         rootfs_response(-1);
-        return;
+        goto done;
     }
 
     // Response
     msg = rootfs_response(0);               // ok
     msg_append_param(msg, fs_id);           // node_fs_id
+    goto done;
+
+done:
+    // Unlock
+    rwlock_runlock(&root->rwlock);
 }
 
 static void rootfs_file_read(msg_t *msg)
@@ -221,11 +247,14 @@ static void rootfs_file_read(msg_t *msg)
     ulong req_size = msg_get_param(msg, 2); // size
     ulong offset = msg_get_param(msg, 3);   // offset
 
+    // Lock
+    rwlock_rlock(&root->rwlock);
+
     // Read
     struct root_entry *entry = find_entry(fs_id);
     if (!entry) {
         rootfs_response(-1);
-        return;
+        goto done;
     }
 
     kprintf("File read, offset: %lu, size: %lu\n", offset, req_size);
@@ -249,6 +278,11 @@ static void rootfs_file_read(msg_t *msg)
     msg_append_param(msg, real_size);       // real size
     msg_append_data(msg, entry->data && real_size ? &entry->data[offset] : NULL,
                     real_size);             // data
+    goto done;
+
+done:
+    // Unlock
+    rwlock_runlock(&root->rwlock);
 }
 
 
@@ -260,15 +294,23 @@ static void rootfs_dir_open(msg_t *msg)
     // Request
     ulong fs_id = msg_get_param(msg, 1);    // ent_fs_id
 
+    // Lock
+    rwlock_rlock(&root->rwlock);
+
     // Open
     struct root_entry *entry = find_entry(fs_id);
     if (!entry || !entry->is_dir) {
         rootfs_response(-1);
-        return;
+        goto done;
     }
 
     // Response
     msg = rootfs_response(0);               // ok
+    goto done;
+
+done:
+    // Unlock
+    rwlock_runlock(&root->rwlock);
 }
 
 static void rootfs_dir_read(msg_t *msg)
@@ -278,11 +320,14 @@ static void rootfs_dir_read(msg_t *msg)
     ulong size = msg_get_param(msg, 2);             // size
     ulong last_fs_id = msg_get_param(msg, 3);       // offset
 
+    // Lock
+    rwlock_rlock(&root->rwlock);
+
     // Read
     struct root_entry *entry = find_entry(fs_id);
     if (!entry || !entry->is_dir) {
         rootfs_response(-1);
-        return;
+        goto done;
     }
 
     kprintf("Dir read, start: %lu, max bytes: %lu\n", last_fs_id, size);
@@ -293,7 +338,7 @@ static void rootfs_dir_read(msg_t *msg)
 
     struct root_entry *child = last_fs_id ? find_entry(last_fs_id) : entry->child;
     if (!child || child->parent != entry) {
-        return;
+        goto done;
     }
 
     //kprintf("child next @ %p %p\n", child->sibling.next);
@@ -302,7 +347,7 @@ static void rootfs_dir_read(msg_t *msg)
     if (last_fs_id) {
         child = child->sibling.next;
         if (!child) {
-            return;
+            goto done;
         }
     }
 
@@ -332,6 +377,11 @@ static void rootfs_dir_read(msg_t *msg)
     }
 
     msg_set_param(msg, 1, num_entries);     // num entries
+    goto done;
+
+done:
+    // Unlock
+    rwlock_runlock(&root->rwlock);
 }
 
 static void rootfs_dir_create(msg_t *msg)
@@ -341,23 +391,26 @@ static void rootfs_dir_create(msg_t *msg)
     const char *name = msg_get_data(msg, 2, NULL);  // size
     ulong mode = msg_get_param(msg, 3);             // offset
 
+    // Lock
+    rwlock_wlock(&root->rwlock);
+
     // Find entry
     struct root_entry *entry = find_entry(fs_id);
     if (!entry || !entry->is_dir) {
         rootfs_response(-1);
-        return;
+        goto done;
     }
 
     // Make sure name is valid
     if (!strcmp(name, ".") || !strcmp(name, "..")) {
         rootfs_response(-1);
-        return;
+        goto done;
     }
 
     // Make sure the dir hasn't been created
     if (lookup_entry(entry, name)) {
         rootfs_response(-1);
-        return;
+        goto done;
     }
 
     // Create
@@ -366,7 +419,11 @@ static void rootfs_dir_create(msg_t *msg)
     // Response
     rootfs_response(0);
     msg_append_param(msg, new_ent->fs_id);          // new fs_id
-    return;
+    goto done;
+
+done:
+    // Unlock
+    rwlock_wunlock(&root->rwlock);
 }
 
 static void rootfs_dir_remove(msg_t *msg)
@@ -374,11 +431,14 @@ static void rootfs_dir_remove(msg_t *msg)
     // Request
     ulong fs_id = msg_get_param(msg, 1);            // ent_fs_id
 
+    // Lock
+    rwlock_wlock(&root->rwlock);
+
     // Find entry
     struct root_entry *entry = find_entry(fs_id);
     if (!entry || !entry->is_dir) {
         rootfs_response(-1);
-        return;
+        goto done;
     }
 
     // Remove
@@ -388,7 +448,11 @@ static void rootfs_dir_remove(msg_t *msg)
     // Response
     rootfs_response(0);
     msg_append_param(msg, parent_entry->fs_id);     // parent fs_id
-    return;
+    goto done;
+
+done:
+    // Unlock
+    rwlock_wunlock(&root->rwlock);
 }
 
 
@@ -445,16 +509,28 @@ static ulong rootfs_dispatch(ulong opcode)
 void init_rootfs()
 {
     // Root
-    root = new_entry(NULL, "root", 1);
+    root = new_entry(NULL, "/", 1);
+    rwlock_init(&root->rwlock);
 
     // Subdirs
     new_entry(root, "proc", 1);
-    new_entry(root, "sys", 1);
     new_entry(root, "dev", 1);
     new_entry(root, "ipc", 1);
 
+    struct root_entry *sys = new_entry(root, "sys", 1);
+    new_entry(sys, "coreimg", 1);
+    new_entry(sys, "devtree", 1);
+
     // File
     const char *about_data =
+        "Toddler " ARCH_NAME "-" MACH_NAME "-" MODEL_NAME "\n"
+        "Built on " __DATE__ " at " __TIME__ "\n"
+        ;
+    struct root_entry *about = new_entry(root, "about", 0);
+    set_entry_data(about, about_data, strlen(about_data) + 1);
+
+    // Test
+    const char *test_data =
         " 1 Welcome!\n 2 Welcome!\n 3 Welcome!\n 4 Welcome!\n 5 Welcome!\n"
         " 6 Welcome!\n 7 Welcome!\n 8 Welcome!\n 9 Welcome!\n10 Welcome!\n\n"
         "11 Welcome!\n12 Welcome!\n13 Welcome!\n14 Welcome!\n15 Welcome!\n"
@@ -462,15 +538,12 @@ void init_rootfs()
         "21 Welcome!\n22 Welcome!\n23 Welcome!\n24 Welcome!\n25 Welcome!\n"
         "26 Welcome!\n27 Welcome!\n28 Welcome!\n29 Welcome!\n30 Welcome!\n\n"
         "Yeah!\n\n";
-    struct root_entry *about = new_entry(root, "about", 0);
-    set_entry_data(about, about_data, strlen(about_data) + 1);
 
-    // Test
     struct root_entry *test = new_entry(root, "test", 1);
     struct root_entry *test2 = new_entry(test, "test2", 1);
     struct root_entry *test3 = new_entry(test2, "test3", 1);
     struct root_entry *test4 = new_entry(test3, "test4", 0);
-    set_entry_data(test4, about_data, strlen(about_data) + 1);
+    set_entry_data(test4, test_data, strlen(test_data) + 1);
 
     new_entry(test, "sub1", 1);
     new_entry(test, "sub2", 1);

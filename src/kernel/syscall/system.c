@@ -159,6 +159,32 @@ int syscall_handler_vm_alloc(struct process *p, struct thread *t,
     return SYSCALL_HANDLED_CONTINUE;
 }
 
+int syscall_handler_vm_map(struct process *p, struct thread *t,
+                           struct kernel_dispatch *kdi)
+{
+    int type = kdi->param0;
+    ulong ppfn = kdi->param1;
+    ulong count = kdi->param2;
+
+    ulong vbase = 0;
+    switch (type) {
+    case VM_MAP_COREIMG:
+        vbase = vm_map_coreimg(p);
+        break;
+    case VM_MAP_DEVTREE:
+        vbase = vm_map_devtree(p);
+        break;
+    case VM_MAP_DEV:
+        vbase = vm_map_dev(p, ppfn, count, 0);
+        break;
+    default:
+        break;
+    }
+
+    hal_set_syscall_return(kdi->regs, 0, vbase, 0);
+    return SYSCALL_HANDLED_CONTINUE;
+}
+
 int syscall_handler_vm_free(struct process *p, struct thread *t,
                             struct kernel_dispatch *kdi)
 {

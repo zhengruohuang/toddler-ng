@@ -270,6 +270,9 @@ extern int vm_free(struct process *p, ulong base);
 extern void vm_move_to_sanit_unmapped(struct process *p, struct vm_block *b);
 
 extern int vm_map(struct process *p, ulong base, ulong prot);
+extern ulong vm_map_coreimg(struct process *p);
+extern ulong vm_map_devtree(struct process *p);
+extern ulong vm_map_dev(struct process *p, ulong ppfn, ulong count, ulong prot);
 
 
 /*

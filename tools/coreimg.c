@@ -116,15 +116,6 @@ static int gen_image(int argc, char *argv[])
             return -1;
         }
 
-        // Open the file
-        cur_file_size = 0;
-        cur_file = fopen(cur_file_name, "rb");
-        if (!cur_file) {
-            printf("ignored\n");
-            continue;
-            //return -1;
-        }
-
         // Set file info in FAT
         fat->records[i].file_type = 1;
         fat->records[i].load_type = 1;
@@ -134,20 +125,26 @@ static int gen_image(int argc, char *argv[])
         fat->records[i].start_offset = cur_offset;
 
         // Load current file to memory, and write to the image at the same time
-        do {
-            // Read the file
-            read_count = fread(buffer, 1, BUFFER_SIZE, cur_file);
+        cur_file_size = 0;
+        cur_file = fopen(cur_file_name, "rb");
+        if (cur_file) {
+            do {
+                // Read the file
+                read_count = fread(buffer, 1, BUFFER_SIZE, cur_file);
 
-            // Copy the file to the image
-            copy_to_image(buffer, cur_offset, read_count);
+                // Copy the file to the image
+                copy_to_image(buffer, cur_offset, read_count);
 
-            // Update size and offset */
-            cur_offset += read_count;
-            cur_file_size += read_count;
-        } while (!feof(cur_file));
+                // Update size and offset */
+                cur_offset += read_count;
+                cur_file_size += read_count;
+            } while (!feof(cur_file));
 
-        // Done processing current file
-        fclose(cur_file);
+            // Done processing current file
+            fclose(cur_file);
+        } else {
+            printf("skip ... ");
+        }
 
         // Refine file size: align to 8byte
         if (cur_file_size % 8) {

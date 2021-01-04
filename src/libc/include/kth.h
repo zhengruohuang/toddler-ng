@@ -141,6 +141,7 @@ extern int kth_create(kth_t *kth, kth_entry_t entry, unsigned long param);
 extern kth_t *kth_self();
 extern int kth_join(kth_t *kth, ulong *ret);
 extern void kth_exit(unsigned long retval);
+extern void kth_yield();
 
 
 #endif

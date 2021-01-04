@@ -32,7 +32,6 @@ ulong syscall_thread_create(thread_entry_t entry,  ulong param)
     return tid;
 }
 
-
 void syscall_thread_yield()
 {
     sysenter(SYSCALL_THREAD_YIELD, 0, 0, 0, NULL, NULL);
@@ -53,6 +52,13 @@ ulong syscall_vm_alloc(ulong size, uint attri)
     ulong base = 0;
     sysenter(SYSCALL_VM_ALLOC, 0, size, attri, &base, NULL);
     return base;
+}
+
+ulong syscall_vm_map(int type, ulong ppfn, ulong size)
+{
+    ulong vbase = 0;
+    sysenter(SYSCALL_VM_MAP, type, ppfn, size, &vbase, NULL);
+    return vbase;
 }
 
 void syscall_vm_free(ulong base)

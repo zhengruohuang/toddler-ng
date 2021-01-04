@@ -169,3 +169,9 @@ int sys_api_dir_remove(int dirfd)
     int err = msg_get_int(msg, 0);
     return err;
 }
+
+
+/*
+ * Mount and unmount
+ */
+
