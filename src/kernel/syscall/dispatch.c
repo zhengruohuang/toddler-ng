@@ -26,12 +26,16 @@ void init_dispatch()
 
     handlers[SYSCALL_FAULT_PAGE] = syscall_handler_fault_page;
 
+    handlers[SYSCALL_PROCESS_CREATE] = syscall_handler_process_create;
+
     handlers[SYSCALL_VM_ALLOC] = syscall_handler_vm_alloc;
     handlers[SYSCALL_VM_MAP] = syscall_handler_vm_map;
+    handlers[SYSCALL_VM_MAP_CROSS] = syscall_handler_vm_map_cross;
     handlers[SYSCALL_VM_FREE] = syscall_handler_vm_free;
 
-    handlers[SYSCALL_THREAD_CREATE] = syscall_handler_create;
-    handlers[SYSCALL_THREAD_YIELD] = syscall_handler_yield;
+    handlers[SYSCALL_THREAD_CREATE] = syscall_handler_thread_create;
+    handlers[SYSCALL_THREAD_CREATE_CROSS] = syscall_handler_thread_create_cross;
+    handlers[SYSCALL_THREAD_YIELD] = syscall_handler_thread_yield;
     handlers[SYSCALL_THREAD_EXIT] = syscall_handler_thread_exit;
 
     handlers[SYSCALL_EVENT_ALLOC] = syscall_handler_alloc_wait;

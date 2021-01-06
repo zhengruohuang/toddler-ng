@@ -320,7 +320,7 @@ int fflush(FILE *f)
     }
 
     reset_fbuf(f);
-    return -1;
+    return 0;
 }
 
 

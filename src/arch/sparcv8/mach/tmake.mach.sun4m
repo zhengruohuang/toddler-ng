@@ -20,7 +20,7 @@ build_opts['qemu'] = {
     'memory'    : 128,
     'graphic'   : False,
     'bootargs'  : 'test',
-    'bootimg'   : img_dir + 'tdlrboot.bin',
+    'bootimg'   : img_dir + 'boot.bin',
     'mp'        : '1',
 }
 

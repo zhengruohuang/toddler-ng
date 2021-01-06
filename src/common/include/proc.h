@@ -7,9 +7,28 @@
 
 
 /*
- * Thread entry
+ * Process
+ */
+enum process_type {
+    // Native types
+    PROCESS_TYPE_KERNEL,
+    PROCESS_TYPE_DRIVER,
+    PROCESS_TYPE_SYSTEM,
+    PROCESS_TYPE_USER,
+
+    // Emulation - e.g. running Linux on top of Toddler
+    PROCESS_TYPE_EMULATE,
+};
+
+typedef ulong pid_t;
+
+
+/*
+ * Thread
  */
 typedef void (*thread_entry_t)(ulong param);
+
+typedef ulong tid_t;
 
 
 /*
@@ -51,14 +70,14 @@ typedef volatile struct futex {
         ulong value;
 
         struct {
-            ulong valid         : 1;
+            //ulong valid         : 1;
             ulong kernel        : 1;
-            ulong locked        : sizeof(ulong) * 8 - 2;
+            ulong locked        : sizeof(ulong) * 8 - 1;
         };
     };
 } natural_struct futex_t;
 
-#define FUTEX_INITIALIZER   { .valid = 1 }
+#define FUTEX_INITIALIZER   { .value = 0 }
 
 
 /*

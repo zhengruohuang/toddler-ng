@@ -61,7 +61,7 @@ int syscall_handler_puts(struct process *p, struct thread *t,
 
     acquire_kprintf();
 
-    int pass = 0;
+    //int pass = 0;
     for (ulong vaddr = kdi->param0, copied_len = 0; copied_len < len;
          copied_len += PUTS_BUF_SIZE, vaddr += PUTS_BUF_SIZE
     ) {
@@ -144,6 +144,22 @@ int syscall_handler_fault_page(struct process *p, struct thread *t,
 
 
 /*
+ * Process
+ */
+int syscall_handler_process_create(struct process *p, struct thread *t,
+                                   struct kernel_dispatch *kdi)
+{
+    int type = kdi->param0;
+
+    // TODO: Name
+    ulong pid = create_process(p->pid, "my_proc", type);
+
+    hal_set_syscall_return(kdi->regs, 0, pid, 0);
+    return SYSCALL_HANDLED_CONTINUE;
+}
+
+
+/*
  * VM
  */
 int syscall_handler_vm_alloc(struct process *p, struct thread *t,
@@ -185,6 +201,19 @@ int syscall_handler_vm_map(struct process *p, struct thread *t,
     return SYSCALL_HANDLED_CONTINUE;
 }
 
+int syscall_handler_vm_map_cross(struct process *p, struct thread *t,
+                                 struct kernel_dispatch *kdi)
+{
+    ulong pid = kdi->param0;
+    ulong remote_vbase = kdi->param1;
+    ulong size = kdi->param2;
+
+    ulong local_vbase = vm_map_cross(p, pid, remote_vbase, size, 0);
+
+    hal_set_syscall_return(kdi->regs, 0, local_vbase, 0);
+    return SYSCALL_HANDLED_CONTINUE;
+}
+
 int syscall_handler_vm_free(struct process *p, struct thread *t,
                             struct kernel_dispatch *kdi)
 {
@@ -199,11 +228,12 @@ int syscall_handler_vm_free(struct process *p, struct thread *t,
 /*
  * Thread
  */
-int syscall_handler_create(struct process *p, struct thread *t,
-                           struct kernel_dispatch *kdi)
+int syscall_handler_thread_create(struct process *p, struct thread *t,
+                                  struct kernel_dispatch *kdi)
 {
     ulong entry = kdi->param0;
     ulong param = kdi->param1;
+
     ulong ret_tid = 0;
     create_and_run_thread(tid, t, p, entry, param, NULL) {
         ret_tid = tid;
@@ -213,8 +243,28 @@ int syscall_handler_create(struct process *p, struct thread *t,
     return SYSCALL_HANDLED_SAVE_RESCHED;
 }
 
-int syscall_handler_yield(struct process *p, struct thread *t,
-                          struct kernel_dispatch *kdi)
+int syscall_handler_thread_create_cross(struct process *p, struct thread *t,
+                                        struct kernel_dispatch *kdi)
+{
+    ulong pid = kdi->param0;
+    ulong entry = kdi->param1;
+    ulong param = kdi->param2;
+
+    ulong ret_tid = 0;
+    access_process(pid, dst_proc) {
+        if (dst_proc->state == PROCESS_STATE_ENTER) {
+            create_and_run_thread(tid, dst_thrd, dst_proc, entry, param, NULL) {
+                ret_tid = tid;
+            }
+        }
+    }
+
+    hal_set_syscall_return(kdi->regs, 0, ret_tid, 0);
+    return SYSCALL_HANDLED_CONTINUE;
+}
+
+int syscall_handler_thread_yield(struct process *p, struct thread *t,
+                                 struct kernel_dispatch *kdi)
 {
     hal_set_syscall_return(kdi->regs, 0, 0, 0);
     return SYSCALL_HANDLED_SAVE_RESCHED;

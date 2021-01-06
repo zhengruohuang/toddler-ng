@@ -23,14 +23,14 @@ def build_preload():
     preload_files = get_all_arch_files('preload/', [ '.c', '.S' ])
 
     # Embed boot image
-    bootimg_c = b2c_dir + 'tdlrboot.img.c'
-    bootimg = img_dir + 'tdlrboot.bin'
+    bootimg_c = b2c_dir + 'boot.img.c'
+    bootimg = img_dir + 'boot.bin'
     gen_embed_c(bootimg_c, bootimg, 'embedded_bootimg', 8)
     preload_files.append(bootimg_c)
 
     # Build
     build_files(
-        bin_dir + 'tdlrprel.elf',
+        bin_dir + 'preload.elf',
         preload_files,
         ext_ld_deps = [ preload_ld ],
         ld_script = preload_ld,
@@ -39,8 +39,8 @@ def build_preload():
 
     # Disasm
     disasm_exec(
-        disasm_dir + 'tdlrprel.S',
-        bin_dir + 'tdlrprel.elf',
+        disasm_dir + 'preload.S',
+        bin_dir + 'preload.elf',
         toolchain = get_toolchain('preload'),
     )
 

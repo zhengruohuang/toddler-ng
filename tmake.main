@@ -7,7 +7,7 @@ def build_libk():
     libk_files = get_all_arch_files('libk/', [ '.c', '.S' ])
 
     lib_files(
-        bin_dir + 'tdlrlibk.a',
+        bin_dir + 'libk.a',
         libk_files,
         toolchain = get_toolchain('default'),
     )
@@ -18,7 +18,7 @@ def build_libsys():
     libsys_files = get_all_arch_files('libsys/', [ '.c', '.S' ])
 
     lib_files(
-        bin_dir + 'tdlrlibsys.a',
+        bin_dir + 'libsys.a',
         libsys_files,
         toolchain = get_toolchain('default'),
     )
@@ -31,7 +31,7 @@ def build_libc():
     libc_files = get_all_arch_files('libc/', [ '.c', '.S' ])
 
     lib_files(
-        bin_dir + 'tdlrlibc.a',
+        bin_dir + 'libc.a',
         libk_files + libsys_files + libc_files,
         toolchain = get_toolchain('default'),
         includes = [ src_dir + 'libc/include' ],
@@ -42,10 +42,10 @@ def build_hal():
 
     hal_ld = find_deepest_arch_file('hal/hal.ld')
     hal_files = get_all_arch_files('hal/', [ '.c', '.S' ])
-    libk = bin_dir + 'tdlrlibk.a'
+    libk = bin_dir + 'libk.a'
 
     build_files(
-        bin_dir + 'tdlrhal.elf',
+        bin_dir + 'hal.elf',
         hal_files,
         ext_libs = [ libk ],
         ext_ld_deps = [ hal_ld ],
@@ -54,8 +54,8 @@ def build_hal():
     )
 
     disasm_exec(
-        disasm_dir + 'tdlrhal.S',
-        bin_dir + 'tdlrhal.elf',
+        disasm_dir + 'hal.S',
+        bin_dir + 'hal.elf',
         toolchain = get_toolchain('default'),
     )
 
@@ -64,11 +64,11 @@ def build_kernel():
 
     kernel_ld = find_deepest_arch_file('kernel/kernel.ld')
     kernel_files = get_all_arch_files('kernel/', [ '.c', '.S' ])
-    libk = bin_dir + 'tdlrlibk.a'
-    libsys = bin_dir + 'tdlrlibsys.a'
+    libk = bin_dir + 'libk.a'
+    libsys = bin_dir + 'libsys.a'
 
     build_files(
-        bin_dir + 'tdlrkrnl.elf',
+        bin_dir + 'kernel.elf',
         kernel_files,
         ext_libs = [ libsys, libk ],
         ext_ld_deps = [ kernel_ld ],
@@ -77,21 +77,21 @@ def build_kernel():
     )
 
     disasm_exec(
-        disasm_dir + 'tdlrkrnl.S',
-        bin_dir + 'tdlrkrnl.elf',
+        disasm_dir + 'kernel.S',
+        bin_dir + 'kernel.elf',
         toolchain = get_toolchain('default'),
     )
 
 def build_servers():
     server_ld = find_deepest_arch_file('libc/user.ld')
-    libc = bin_dir + 'tdlrlibc.a'
+    libc = bin_dir + 'libc.a'
 
     # System
     print_info('system', 'Building system')
     system_files = get_all_arch_files('system/', [ '.c', '.S' ])
 
     build_files(
-        bin_dir + 'tdlrsys.elf',
+        bin_dir + 'system.elf',
         system_files,
         ext_libs = [ libc ],
         ext_ld_deps = [ server_ld ],
@@ -101,8 +101,28 @@ def build_servers():
     )
 
     disasm_exec(
-        disasm_dir + 'tdlrsys.S',
-        bin_dir + 'tdlrsys.elf',
+        disasm_dir + 'system.S',
+        bin_dir + 'system.elf',
+        toolchain = get_toolchain('default'),
+    )
+
+    # Device
+    print_info('device', 'Building device')
+    system_files = get_all_arch_files('device/', [ '.c', '.S' ])
+
+    build_files(
+        bin_dir + 'device.elf',
+        system_files,
+        ext_libs = [ libc ],
+        ext_ld_deps = [ server_ld ],
+        ld_script = server_ld,
+        toolchain = get_toolchain('default'),
+        includes = [ src_dir + 'libc/include' ],
+    )
+
+    disasm_exec(
+        disasm_dir + 'device.S',
+        bin_dir + 'device.elf',
         toolchain = get_toolchain('default'),
     )
 
@@ -122,14 +142,14 @@ def build_fdt():
 def build_coreimg():
     print_info('coreimg', 'Building core image')
 
-    target_name = img_dir + 'tdlrcore.img'
+    target_name = img_dir + 'coreimg.img'
     src_files = [ \
-        bin_dir + 'tdlrhal.elf',
-        bin_dir + 'tdlrkrnl.elf',
-        bin_dir + 'tdlrdrv.elf',
-        bin_dir + 'tdlrsys.elf',
-        bin_dir + 'tdlrshell.elf',
-        src_dir + 'init/init.py',
+        bin_dir + 'hal.elf',
+        bin_dir + 'kernel.elf',
+        bin_dir + 'system.elf',
+        bin_dir + 'device.elf',
+        #bin_dir + 'shell.elf',
+        #src_dir + 'init/init.py',
     ]
 
     coreimg_gen = tools_bin_dir + 'coreimg'
@@ -148,7 +168,7 @@ def build_loader():
     # Prepare loader file
     loader_ld = find_deepest_arch_file('loader/loader.ld')
     loader_files = get_all_arch_files('loader/', [ '.c', '.S' ])
-    libk = bin_dir + 'tdlrlibk.a'
+    libk = bin_dir + 'libk.a'
 
     # Embed FDT
     embed_fdt = build_opts['embed_fdt'] if 'embed_fdt' in build_opts else False
@@ -161,14 +181,14 @@ def build_loader():
     # Embed coreimg
     embed_coreimg = build_opts['embed_coreimg'] if 'embed_coreimg' in build_opts else False
     if embed_coreimg:
-        coreimg_c = b2c_dir + 'tdlrcore.img.c'
-        coreimg = img_dir + 'tdlrcore.img'
+        coreimg_c = b2c_dir + 'coreimg.img.c'
+        coreimg = img_dir + 'coreimg.img'
         gen_embed_c(coreimg_c, coreimg, 'embedded_coreimg', 8)
         loader_files.append(coreimg_c)
 
     # Build loader
     build_files(
-        bin_dir + 'tdlrldr.elf',
+        bin_dir + 'loader.elf',
         loader_files,
         ext_libs = [ libk ],
         ext_ld_deps = [ loader_ld ],
@@ -178,17 +198,17 @@ def build_loader():
 
     # Disasm
     disasm_exec(
-        disasm_dir + 'tdlrldr.S',
-        bin_dir + 'tdlrldr.elf',
+        disasm_dir + 'loader.S',
+        bin_dir + 'loader.elf',
         toolchain = get_toolchain('default'),
     )
 
 def build_boot():
     print_info('boot', 'Building boot image')
 
-    loader_elf = bin_dir + 'tdlrldr.elf'
-    boot_elf = img_dir + 'tdlrboot.elf'
-    boot_bin = img_dir + 'tdlrboot.bin'
+    loader_elf = bin_dir + 'loader.elf'
+    boot_elf = img_dir + 'boot.elf'
+    boot_bin = img_dir + 'boot.bin'
 
     copy_file(boot_elf, loader_elf)
 
@@ -216,8 +236,8 @@ def run_qemu(opts):
     title = 'Starting ' + ('MP ' if mp else '') + 'QEMU'
     print_info('qemu', title)
 
-    bootimg = opts['bootimg'] if 'bootimg' in opts else img_dir + 'tdlrboot.elf'
-    coreimg = opts['coreimg'] if 'coreimg' in opts else img_dir + 'tdlrcore.img'
+    bootimg = opts['bootimg'] if 'bootimg' in opts else img_dir + 'boot.elf'
+    coreimg = opts['coreimg'] if 'coreimg' in opts else img_dir + 'coreimg.img'
     fdt = opts['fdt'] if 'fdt' in opts else img_dir + 'fdt.dtb'
 
     qemu = opts['exec']

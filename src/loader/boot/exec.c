@@ -234,14 +234,14 @@ void load_hal_and_kernel()
     struct loader_args *largs = get_loader_args();
 
     // Load HAL
-    largs->hal_entry = (void *)load_elf("tdlrhal.elf",
+    largs->hal_entry = (void *)load_elf("hal.elf",
         &largs->hal_start, &largs->hal_end);
 
     kprintf("HAL @ %lx to %lx, entry @ %p\n",
             largs->hal_start, largs->hal_end, largs->hal_entry);
 
     // Load kernel
-    largs->kernel_entry = (void *)load_elf("tdlrkrnl.elf",
+    largs->kernel_entry = (void *)load_elf("kernel.elf",
         &largs->kernel_start, &largs->kernel_end);
 
     kprintf("Kernel @ %lx to %lx, entry @ %p\n",

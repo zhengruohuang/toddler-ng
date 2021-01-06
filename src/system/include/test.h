@@ -8,5 +8,7 @@ extern void test_ipc();
 extern void test_malloc();
 extern void test_vfs();
 
+extern void run_tests();
+
 
 #endif

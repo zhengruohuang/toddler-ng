@@ -144,17 +144,6 @@ extern void run_thread(struct thread *t);
 /*
  * Process
  */
-enum process_type {
-    // Native types
-    PROCESS_TYPE_KERNEL,
-    PROCESS_TYPE_DRIVER,
-    PROCESS_TYPE_SYSTEM,
-    PROCESS_TYPE_USER,
-
-    // Emulation - e.g. running Linux on top of Toddler
-    PROCESS_TYPE_EMULATE,
-};
-
 enum process_state {
     PROCESS_STATE_ENTER,
     PROCESS_STATE_NORMAL,
@@ -273,6 +262,7 @@ extern int vm_map(struct process *p, ulong base, ulong prot);
 extern ulong vm_map_coreimg(struct process *p);
 extern ulong vm_map_devtree(struct process *p);
 extern ulong vm_map_dev(struct process *p, ulong ppfn, ulong count, ulong prot);
+extern ulong vm_map_cross(struct process *p, ulong remote_pid, ulong remote_vbase, ulong size, ulong remote_prot);
 
 
 /*

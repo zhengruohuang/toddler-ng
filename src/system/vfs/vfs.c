@@ -158,6 +158,7 @@ static struct ventry *lookup_ipc(struct mount_point *mount,
     vent->name = malloc(seg_len + 1);
     memcpy(vent->name, path, seg_len);
     vent->name[seg_len] = '\0';
+    vent->from_mount = mount;
 
     //kprintf("vent @ %p, lookup: %s, fs_id: %lu, cache: %d\n",
     //        vent, vent->name, vent->fs_id, vent->cacheable);
@@ -216,11 +217,14 @@ static struct ventry *walk_path(struct ventry *root, const char *path)
     struct ventry *cur_vent = NULL;
 
     if (!path || *path == '\0') {
+        rwlock_rlock(&prev_vent->rwlock);
         return prev_vent;
     }
 
     const char *cur_path = path;
     const char *next_path = strchr(cur_path, '/');
+
+    rwlock_wlock(&cur_mount->rwlock);
 
     do {
         size_t seg_len = 0;
@@ -252,10 +256,14 @@ static struct ventry *walk_path(struct ventry *root, const char *path)
             break;
         }
 
-        // Record last mount point
+        // Encountered a new mount point
         if (cur_vent->mount) {
+            struct mount_point *last_mount = cur_mount;
             cur_mount = cur_vent->mount;
             cur_vent = cur_mount->root;
+
+            rwlock_wlock(&cur_mount->rwlock);
+            rwlock_wunlock(&last_mount->rwlock);
         }
 
         // Next path
@@ -271,6 +279,11 @@ static struct ventry *walk_path(struct ventry *root, const char *path)
 
     //kprintf("Done walk path @ %p: %s\n", cur_vent, cur_vent->name);
 
+    if (cur_vent) {
+        rwlock_rlock(&cur_vent->rwlock);
+    }
+    rwlock_wunlock(&cur_mount->rwlock);
+
     return cur_vent;
 }
 
@@ -278,19 +291,19 @@ static struct ventry *walk_path(struct ventry *root, const char *path)
 /*
  * Access
  */
-static inline void inc_tree_open_count(struct ventry *vent)
-{
-    for (; vent; vent = vent->parent) {
-        ref_count_inc(&vent->ref_count);
-    }
-}
-
-static inline void dec_tree_open_count(struct ventry *vent)
-{
-    for (; vent; vent = vent->parent) {
-        ref_count_dec(&vent->ref_count);
-    }
-}
+// static inline void inc_tree_open_count(struct ventry *vent)
+// {
+//     for (; vent; vent = vent->parent) {
+//         ref_count_inc(&vent->ref_count);
+//     }
+// }
+//
+// static inline void dec_tree_open_count(struct ventry *vent)
+// {
+//     for (; vent; vent = vent->parent) {
+//         ref_count_dec(&vent->ref_count);
+//     }
+// }
 
 static struct vnode *acquire_ipc(struct ventry *vent)
 {
@@ -359,8 +372,10 @@ struct ventry *vfs_acquire(const char *path)
         }
     }
 
-    inc_tree_open_count(vent);
+    ref_count_inc(&vent->ref_count);
     ref_count_inc(&vent->vnode->open_count);
+
+    rwlock_runlock(&vent->rwlock);
 
     return vent;
 }
@@ -371,12 +386,17 @@ int vfs_release(struct ventry *vent)
         return -1;
     }
 
+    rwlock_rlock(&vent->rwlock);
     ref_count_dec(&vent->vnode->open_count);
+    ref_count_dec(&vent->ref_count);
 
     if (ref_count_is_zero(&vent->vnode->open_count)) {
         release_ipc(vent);
-        dec_tree_open_count(vent);
+        //dec_tree_open_count(vent);
+
+        rwlock_wlock(&vent->from_mount->rwlock);
         trim_ventries(vent);
+        rwlock_wunlock(&vent->from_mount->rwlock);
     }
 
     return 0;
@@ -420,6 +440,7 @@ int vfs_mount(struct ventry *vent, const char *name,
     mroot->name = strdup("/");
     mroot->parent = vent;
     mroot->is_root = 1;
+    mroot->from_mount = m;
     ref_count_init(&mroot->ref_count, 1);
 
     kprintf("Mounted %s\n", name);
@@ -522,6 +543,8 @@ void vfs_file_read_forward(struct vnode *node, size_t count, size_t offset)
         return;
     }
 
+    rwlock_rlock(&node->rwlock);
+
     // Request
     msg_t *msg = get_empty_msg();
     msg_append_param(msg, VFS_OP_FILE_READ);
@@ -529,11 +552,33 @@ void vfs_file_read_forward(struct vnode *node, size_t count, size_t offset)
     msg_append_param(msg, count);
     msg_append_param(msg, offset);
     syscall_ipc_popup_request(mount->ipc.pid, mount->ipc.opcode);
+
+    rwlock_runlock(&node->rwlock);
 }
 
 ssize_t vfs_file_write(struct vnode *node, size_t offset, char *buf, size_t buf_size)
 {
     return -1;
+}
+
+void vfs_file_write_forward(struct vnode *node, size_t count, size_t offset)
+{
+    struct mount_point *mount = node->mount;
+    if (ignore_op_ipc(mount, VFS_OP_FILE_WRITE)) {
+        return;
+    }
+
+    rwlock_wlock(&node->rwlock);
+
+    // Request
+    msg_t *msg = get_empty_msg();
+    msg_append_param(msg, VFS_OP_FILE_WRITE);
+    msg_append_param(msg, node->fs_id);
+    msg_append_param(msg, count);
+    msg_append_param(msg, offset);
+    syscall_ipc_popup_request(mount->ipc.pid, mount->ipc.opcode);
+
+    rwlock_wunlock(&node->rwlock);
 }
 
 
@@ -569,6 +614,8 @@ void vfs_dir_read_forward(struct vnode *node, size_t count, ulong offset)
         return;
     }
 
+    rwlock_rlock(&node->rwlock);
+
     // Request
     msg_t *msg = get_empty_msg();
     msg_append_param(msg, VFS_OP_DIR_READ);
@@ -576,6 +623,8 @@ void vfs_dir_read_forward(struct vnode *node, size_t count, ulong offset)
     msg_append_param(msg, count);
     msg_append_param(msg, offset);
     syscall_ipc_popup_request(mount->ipc.pid, mount->ipc.opcode);
+
+    rwlock_runlock(&node->rwlock);
 }
 
 

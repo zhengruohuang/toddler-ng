@@ -68,7 +68,7 @@ static void find_and_parse_initrd()
     struct multiboot_mod_list *e = (void *)(ulong)mbi->mods_addr;
     for (int i = 0; i < mbi->mods_count && e; i++, e++) {
         char *str = (void *)(ulong)e->cmdline;
-        if (strstr(str, "tdlrcore.img") && e->mod_start && e->mod_end) {
+        if (strstr(str, "coreimg.img") && e->mod_start && e->mod_end) {
             u64 initrd_start = e->mod_start;
             u64 initrd_end = e->mod_end;
 

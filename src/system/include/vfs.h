@@ -83,6 +83,8 @@ struct mount_point {
         ulong pid;
         ulong opcode;
     } ipc;
+
+    rwlock_t rwlock;
 };
 
 struct vnode {
@@ -93,6 +95,7 @@ struct vnode {
 
     ref_count_t link_count;
     ref_count_t open_count;
+    rwlock_t rwlock;
 };
 
 struct ventry {
@@ -107,12 +110,13 @@ struct ventry {
     char *name;
     ulong fs_id;
     int cacheable;
+    struct mount_point *from_mount;
 
     struct mount_point *mount;
     struct vnode *vnode;
 
     ref_count_t ref_count;
-    mutex_t mutex;
+    rwlock_t rwlock;
 };
 
 

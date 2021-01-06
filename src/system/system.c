@@ -5,27 +5,25 @@
 
 #include "system/include/vfs.h"
 #include "system/include/test.h"
+#include "system/include/startup.h"
 
 
 /*
- * Test
+ * Run
  */
-static void test_worker(ulong param)
+static ulong start_system_worker(ulong param)
 {
-    kprintf("Testing\n");
-    //test_syscall();
-    //test_thread();
-    //test_ipc();
-    //test_malloc();
-    test_vfs();
-    kprintf("Passed all tests!\n");
+    // Test
+    run_tests();
 
-    syscall_thread_exit_self(0);
+    // Startup
+    startup();
 }
 
-static void test_system()
+static void start_system()
 {
-    syscall_thread_create(test_worker, 0);
+    kth_t thread;
+    kth_create(&thread, start_system_worker, 0);
 }
 
 
@@ -41,16 +39,25 @@ static void init_system()
     init_coreimgfs();
 }
 
-int main(int argc, char **argv)
-{
-    init_system();
-    test_system();
 
+/*
+ * Main
+ */
+static void clock()
+{
     ulong seconds = 0;
     while (1) {
         kprintf("System: %lu seconds\n", seconds++);
         syscall_wait_on_timeout(1000);
     }
+}
+
+int main(int argc, char **argv)
+{
+    init_system();
+    start_system();
+
+    clock();
 
     while (1);
     return 0;

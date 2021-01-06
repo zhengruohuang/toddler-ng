@@ -8,6 +8,9 @@
 #include "common/include/proc.h"
 
 
+/*
+ * Debug
+ */
 extern void syscall_puts(const char *buf, size_t len);
 
 
@@ -18,9 +21,16 @@ extern thread_info_block_t *syscall_get_tib();
 
 
 /*
+ * Process
+ */
+extern pid_t syscall_process_create(int type);
+
+
+/*
  * Thread
  */
 extern ulong syscall_thread_create(thread_entry_t entry,  ulong param);
+extern tid_t syscall_thread_create_cross(pid_t pid, ulong entry, ulong param);
 extern void syscall_thread_yield();
 extern void syscall_thread_exit_self(ulong status);
 
@@ -30,6 +40,7 @@ extern void syscall_thread_exit_self(ulong status);
  */
 extern ulong syscall_vm_alloc(ulong size, uint attri);
 extern ulong syscall_vm_map(int type, ulong ppfn, ulong size);
+extern ulong syscall_vm_map_cross(pid_t pid, ulong vbase, ulong size, ulong prot);
 extern void syscall_vm_free(ulong base);
 
 /*

@@ -402,3 +402,45 @@ ulong vm_map_dev(struct process *p, ulong ppfn, ulong count, ulong prot)
 {
     return 0;
 }
+
+ulong vm_map_cross(struct process *p, ulong remote_pid,
+                   ulong remote_vbase, ulong size, ulong remote_prot)
+{
+    ulong local_vbase = 0;
+    ulong align_offset = 0;
+
+    access_process(remote_pid, remote_p) {
+        ulong remote_map_vbase = align_down_vaddr(remote_vbase, PAGE_SIZE);
+        ulong remote_map_vend = align_up_vaddr(remote_vbase + size, PAGE_SIZE);
+        ulong map_size = remote_map_vend - remote_map_vbase;
+
+        kprintf("remote vbase @ %lx, remote vend @ %lx\n", remote_map_vbase, remote_map_vend);
+
+        struct vm_block *remote_b = vm_alloc(remote_p, remote_map_vbase, map_size, remote_prot);
+        if (!remote_b) break;
+        align_offset = remote_vbase - remote_map_vbase;
+
+        struct vm_block *local_b = vm_alloc(p, 0, map_size, 0);
+        panic_if(!local_b, "Unable to allocate VM block!\n");
+        local_vbase = local_b->base;
+
+        for (ulong offset = 0; offset < map_size; offset += PAGE_SIZE) {
+            paddr_t paddr = palloc_paddr_direct_mapped(1);
+
+            ulong remote_vaddr = remote_map_vbase + offset;
+            get_hal_exports()->map_range(remote_p->page_table, remote_vaddr,
+                                         paddr, PAGE_SIZE,
+                                         1, 1, 1, 0, 0);
+
+            ulong local_vaddr = local_vbase + offset;
+            get_hal_exports()->map_range(p->page_table, local_vaddr,
+                                         paddr, PAGE_SIZE,
+                                         1, 1, 1, 0, 0);
+        }
+    }
+
+    kprintf("local vbase @ %lx, align offset: %lx\n", local_vbase, align_offset);
+
+    return local_vbase ? local_vbase + align_offset : 0;
+
+}

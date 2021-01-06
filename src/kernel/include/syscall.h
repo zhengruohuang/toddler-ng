@@ -63,12 +63,16 @@ extern int syscall_handler_interrupt(struct process *p, struct thread *t, struct
 
 extern int syscall_handler_fault_page(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 
+extern int syscall_handler_process_create(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
+
 extern int syscall_handler_vm_alloc(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 extern int syscall_handler_vm_map(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
+extern int syscall_handler_vm_map_cross(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 extern int syscall_handler_vm_free(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 
-extern int syscall_handler_create(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
-extern int syscall_handler_yield(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
+extern int syscall_handler_thread_create(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
+extern int syscall_handler_thread_create_cross(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
+extern int syscall_handler_thread_yield(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 extern int syscall_handler_thread_exit(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 
 extern int syscall_handler_alloc_wait(struct process *p, struct thread *t, struct kernel_dispatch *kdi);

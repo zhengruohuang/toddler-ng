@@ -47,6 +47,7 @@ extern ppfn_t palloc(int count);
 extern int pfree(ppfn_t pfn);
 
 extern paddr_t palloc_paddr(int count);
+extern paddr_t palloc_paddr_direct_mapped(int count);
 extern int pfree_paddr(paddr_t paddr);
 
 extern void *palloc_ptr(int count);

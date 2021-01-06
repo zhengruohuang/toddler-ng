@@ -23,12 +23,30 @@ thread_info_block_t *syscall_get_tib()
 
 
 /*
+ * Process
+ */
+pid_t syscall_process_create(int type)
+{
+    pid_t pid = 0;
+    sysenter(SYSCALL_PROCESS_CREATE, type, 0, 0, &pid, NULL);
+    return pid;
+}
+
+
+/*
  * Thread
  */
 ulong syscall_thread_create(thread_entry_t entry,  ulong param)
 {
     ulong tid = 0;
     sysenter(SYSCALL_THREAD_CREATE, (ulong)entry, param, 0, &tid, NULL);
+    return tid;
+}
+
+tid_t syscall_thread_create_cross(pid_t pid, ulong entry, ulong param)
+{
+    ulong tid = 0;
+    sysenter(SYSCALL_THREAD_CREATE_CROSS, pid, entry, param, &tid, NULL);
     return tid;
 }
 
@@ -54,11 +72,18 @@ ulong syscall_vm_alloc(ulong size, uint attri)
     return base;
 }
 
-ulong syscall_vm_map(int type, ulong ppfn, ulong size)
+ulong syscall_vm_map(int type, ulong ppfn, ulong count)
 {
     ulong vbase = 0;
-    sysenter(SYSCALL_VM_MAP, type, ppfn, size, &vbase, NULL);
+    sysenter(SYSCALL_VM_MAP, type, ppfn, count, &vbase, NULL);
     return vbase;
+}
+
+ulong syscall_vm_map_cross(pid_t pid, ulong vbase, ulong size, ulong prot)
+{
+    ulong local_vbase = 0;
+    sysenter(SYSCALL_VM_MAP_CROSS, pid, vbase, size, &local_vbase, NULL);
+    return local_vbase;
 }
 
 void syscall_vm_free(ulong base)

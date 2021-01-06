@@ -476,6 +476,13 @@ paddr_t palloc_paddr(int count)
     return paddr;
 }
 
+paddr_t palloc_paddr_direct_mapped(int count)
+{
+    ppfn_t ppfn = palloc_direct_mapped(count);
+    paddr_t paddr = ppfn_to_paddr(ppfn);
+    return paddr;
+}
+
 int pfree_paddr(paddr_t paddr)
 {
     ppfn_t ppfn = paddr_to_ppfn(paddr);

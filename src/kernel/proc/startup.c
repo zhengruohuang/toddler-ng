@@ -19,7 +19,7 @@ struct startup_record {
 
 
 static struct startup_record records[] = {
-    { "system", "tdlrsys.elf", PROCESS_TYPE_SYSTEM, 0 },
+    { "system", "system.elf", PROCESS_TYPE_SYSTEM, 0 },
 };
 
 
