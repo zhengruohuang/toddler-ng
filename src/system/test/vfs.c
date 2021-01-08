@@ -150,7 +150,7 @@ static void test_coreimg()
 void test_vfs()
 {
     //test_file_api();
-    //test_stdio_file();
-    //test_dirent();
+    test_stdio_file();
+    test_dirent();
     test_coreimg();
 }

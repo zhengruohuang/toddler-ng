@@ -411,9 +411,8 @@ int vfs_release(struct ventry *vent)
 /*
  * Mount
  */
-int vfs_mount(struct ventry *vent, const char *name,
-              ulong pid, ulong opcode, ulong root_fs_id,
-              int read_only, u32 ops_ignore_map)
+int vfs_mount(struct ventry *vent, const char *name, pid_t pid,
+              unsigned long opcode, unsigned long ops_ignore_map)
 {
     if (!vent) {
         vent = vroot;
@@ -425,6 +424,28 @@ int vfs_mount(struct ventry *vent, const char *name,
         return -1;
     }
 
+    if (vent->child) {
+        kprintf("Unable to mount on a non-empty dir\n");
+        return -1;
+    }
+
+    // TODO: lock
+
+    // Request
+    msg_t *msg = get_empty_msg();
+    msg_append_param(msg, VFS_OP_MOUNT);
+    syscall_ipc_popup_request(pid, opcode);
+
+    // Response
+    msg = get_response_msg();
+    int err = msg_get_int(msg, 0);
+    if (err) {
+        return err;
+    }
+    unsigned long root_fs_id = msg_get_param(msg, 1);
+    int read_only = msg_get_int(msg, 2);
+
+    // Mount
     struct mount_point *m = vent->mount = salloc(&mount_salloc);
     m->entry = vent;
     m->name = strdup(name);
@@ -444,6 +465,8 @@ int vfs_mount(struct ventry *vent, const char *name,
     ref_count_init(&mroot->ref_count, 1);
 
     kprintf("Mounted %s\n", name);
+
+    // TODO: unlock
 
     return 0;
 }
@@ -475,67 +498,6 @@ int vfs_file_open(struct vnode *node, ulong flags, ulong mode)
     return 0;
 }
 
-static ssize_t vfs_ipc_file_read(struct vnode *node,
-                                 size_t offset, char *buf, size_t buf_size)
-{
-    struct mount_point *mount = node->mount;
-    if (ignore_op_ipc(mount, VFS_OP_FILE_READ)) {
-        return 0;
-    }
-
-    // Request
-    msg_t *msg = get_empty_msg();
-    msg_append_param(msg, VFS_OP_FILE_READ);
-    msg_append_param(msg, node->fs_id);
-    msg_append_param(msg, buf_size);
-    msg_append_param(msg, offset);
-    syscall_ipc_popup_request(mount->ipc.pid, mount->ipc.opcode);
-
-    // Response
-    msg = get_response_msg();
-    int err = msg_get_int(msg, 0);
-    if (err) {
-        return -1;
-    }
-
-    size_t read_size = msg_get_param(msg, 1);
-    void *read_data = msg_get_data(msg, 2, NULL);
-    if (read_size > buf_size) {
-        // There must be a bug in the FS
-        return -1;
-    }
-
-    memcpy(buf, read_data, read_size);
-    return read_size;
-}
-
-ssize_t vfs_file_read(struct vnode *node, size_t offset, char *buf, size_t buf_size)
-{
-    if (!buf || !buf_size) {
-        return -1;
-    }
-
-    ssize_t total_size = 0;
-    ssize_t batch_size = 0;
-    do {
-        batch_size = vfs_ipc_file_read(node, offset, buf, buf_size);
-        if (batch_size == -1) {
-            return -1;
-        }
-        if (batch_size > buf_size) {
-            // There must be a bug in the FS
-            return -1;
-        }
-
-        total_size += batch_size;
-        offset += batch_size;
-        buf += batch_size;
-        buf_size -= batch_size;
-    } while (buf_size && batch_size);
-
-    return total_size;
-}
-
 void vfs_file_read_forward(struct vnode *node, size_t count, size_t offset)
 {
     struct mount_point *mount = node->mount;
@@ -554,11 +516,6 @@ void vfs_file_read_forward(struct vnode *node, size_t count, size_t offset)
     syscall_ipc_popup_request(mount->ipc.pid, mount->ipc.opcode);
 
     rwlock_runlock(&node->rwlock);
-}
-
-ssize_t vfs_file_write(struct vnode *node, size_t offset, char *buf, size_t buf_size)
-{
-    return -1;
 }
 
 void vfs_file_write_forward(struct vnode *node, size_t count, size_t offset)

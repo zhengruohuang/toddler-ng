@@ -185,6 +185,30 @@ static ulong vfs_api_dir_read(ulong opcode)
 
 
 /*
+ * Mount
+ */
+static ulong vfs_api_mount(ulong opcode)
+{
+    // Request
+    msg_t *msg = get_msg();
+    int fd = msg_get_int(msg, 0);
+    char *name = strdup(msg_get_data(msg, 1, NULL));
+    pid_t pid = msg_get_param(msg, 2);
+    unsigned long op = msg_get_param(msg, 3);
+    unsigned long ops_ignore_map = msg_get_param(msg, 4);
+
+    // Mount
+    struct ventry *vent = fd ? lookup_fd(fd) : NULL;
+    vfs_mount(vent, name, pid, op, ops_ignore_map);
+    free(name);
+
+    // Response
+    syscall_ipc_respond();
+    return 0;
+}
+
+
+/*
  * Init
  */
 void init_vfs_api()
@@ -198,4 +222,6 @@ void init_vfs_api()
 
     register_msg_handler(SYS_API_DIR_OPEN, vfs_api_dir_open);
     register_msg_handler(SYS_API_DIR_READ, vfs_api_dir_read);
+
+    register_msg_handler(SYS_API_MOUNT, vfs_api_mount);
 }

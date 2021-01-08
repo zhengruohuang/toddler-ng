@@ -174,4 +174,20 @@ int sys_api_dir_remove(int dirfd)
 /*
  * Mount and unmount
  */
+int sys_api_mount(int fd, const char *name,
+                  unsigned long opcode, unsigned long ops_ignore_map)
+{
+    ulong pid = syscall_get_tib()->pid;
 
+    msg_t *msg = get_empty_msg();
+    msg_append_int(msg, fd);
+    msg_append_str(msg, name, 0);
+    msg_append_param(msg, pid);
+    msg_append_param(msg, opcode);
+    msg_append_param(msg, ops_ignore_map);
+    syscall_ipc_popup_request(0, SYS_API_MOUNT);
+
+    msg = get_response_msg();
+    int err = msg_get_int(msg, 0);
+    return err;
+}

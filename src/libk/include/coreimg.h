@@ -16,6 +16,7 @@ extern int coreimg_file_count();
 extern int coreimg_get_filename(int idx, char *buf, int buf_size);
 extern void *coreimg_get_file(int idx);
 extern void *coreimg_get_file2(int idx, size_t *size);
+extern int coreimg_is_checksum_correct(int idx);
 
 
 #endif

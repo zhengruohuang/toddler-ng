@@ -1,506 +1,53 @@
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <atomic.h>
-#include <kth.h>
-#include <sys.h>
-#include <sys/api.h>
+#include <stdio.h>
+#include <fs/pseudo.h>
 
 #include "common/include/names.h"
-#include "common/include/inttypes.h"
-#include "system/include/vfs.h"
 
 
 /*
  * FS structure
  */
-struct root_entry {
-    struct root_entry *parent;
-    struct root_entry *child;
-    struct {
-        struct root_entry *prev;
-        struct root_entry *next;
-    } sibling;
+static salloc_obj_t entry_salloc = SALLOC_CREATE_DEFAULT(sizeof(struct pseudo_fs_node));
+static struct pseudo_fs root_fs;
 
-    struct {
-        struct root_entry *prev;
-        struct root_entry *next;
-    } list;
+static struct pseudo_fs_node *new_node(struct pseudo_fs_node *parent, const char *name, int dir)
+{
+    struct pseudo_fs_node *node = salloc(&entry_salloc);
+    pseudo_fs_node_setup(&root_fs, node, name,
+                         dir ? PSEUDO_NODE_DIR : PSEUDO_NODE_FILE,
+                         0, 0, 0);
+    pseudo_fs_node_attach(&root_fs, parent, node);
 
-    ulong fs_id;
-    char *name;
-    int is_dir;
+    return node;
+}
 
-    char *data;
-    size_t size;
+static void set_node_data(struct pseudo_fs_node *node, const char *data, size_t size)
+{
+    pseudo_fs_set_data(node, PSEUDO_FS_DATA_FIXED, (void *)data, size);
+}
 
-    rwlock_t rwlock;
-    ref_count_t ref_count;
+
+/*
+ * Ops
+ */
+static const struct fs_ops rootfs_ops = {
+    .mount = pseudo_fs_mount,
+    .unmount = pseudo_fs_unmount,
+
+    .lookup = pseudo_fs_lookup,
+
+    .acquire = pseudo_fs_acquire,
+    .release = pseudo_fs_release,
+
+    .file_open = pseudo_fs_file_open,
+    .file_read = pseudo_fs_file_read,
+
+    .dir_open = pseudo_fs_dir_open,
+    .dir_read = pseudo_fs_dir_read,
+    .dir_create = pseudo_fs_dir_create,
+    .dir_remove = pseudo_fs_dir_remove,
 };
-
-static volatile ulong fs_id_seq = 1;
-
-static struct root_entry *root = NULL;
-static struct root_entry *entries = NULL;
-
-static salloc_obj_t entry_salloc = SALLOC_CREATE_DEFAULT(sizeof(struct root_entry));
-
-static inline ulong alloc_fs_id()
-{
-    return atomic_fetch_and_add(&fs_id_seq, 1);
-}
-
-static struct root_entry *find_entry(ulong fs_id)
-{
-    for (struct root_entry *ent = entries; ent; ent = ent->list.next) {
-        if (ent->fs_id == fs_id) {
-            return ent;
-        }
-    }
-
-    return NULL;
-}
-
-static struct root_entry *lookup_entry(struct root_entry *parent, const char *name)
-{
-    for (struct root_entry *ent = parent->child; ent; ent = ent->sibling.next) {
-        if (!strcmp(ent->name, name)) {
-            return ent;
-        }
-    }
-
-    return NULL;
-}
-
-static struct root_entry *new_entry(struct root_entry *parent, const char *name, int dir)
-{
-    struct root_entry *entry = salloc(&entry_salloc);
-    entry->fs_id = alloc_fs_id();
-    entry->data = NULL;
-    entry->size = 0;
-    entry->is_dir = dir;
-    entry->name = strdup(name);
-
-    entry->parent = parent;
-    entry->child = NULL;
-    entry->sibling.prev = NULL;
-    if (parent) {
-        entry->sibling.next = parent->child;
-        if (parent->child) parent->child->sibling.prev = entry;
-        parent->child = entry;
-    }
-
-    entry->list.prev = NULL;
-    entry->list.next = entries;
-    if (entries) {
-        entries->list.prev = entry;
-    }
-    entries = entry;
-
-    return entry;
-}
-
-static void set_entry_data(struct root_entry *entry, const char *data, size_t size)
-{
-    entry->data = malloc(size);
-    entry->size = size;
-    memcpy(entry->data, data, size);
-}
-
-
-/*
- * Response
- */
-static inline msg_t *rootfs_response(int err)
-{
-    msg_t *msg = get_empty_msg();
-    msg_append_int(msg, err);
-    return msg;
-}
-
-
-/*
- * Lookup
- */
-static void rootfs_lookup(msg_t *msg)
-{
-    // Request
-    ulong parent_fs_id = msg_get_param(msg, 1); // ent_fs_id
-    char *name = msg_get_data(msg, 2, NULL);    // name
-
-    // Lookup
-    struct root_entry *parent = find_entry(parent_fs_id);
-    if (!parent) {
-        rootfs_response(-1);
-        return;
-    }
-
-    struct root_entry *entry = lookup_entry(parent, name);
-    if (!entry) {
-        rootfs_response(-1);
-        return;
-    }
-
-    //kprintf("RootFS lookup @ %s\n", name);
-
-    // Response
-    msg = rootfs_response(0);               // ok
-    msg_append_param(msg, entry->fs_id);    // ent_fs_id
-    msg_append_int(msg, 1);                 // cacheable
-}
-
-
-/*
- * Acquire
- */
-static void rootfs_acquire(msg_t *msg)
-{
-    // Request
-    ulong fs_id = msg_get_param(msg, 1);    // ent_fs_id
-
-    // Lock
-    rwlock_rlock(&root->rwlock);
-
-    // Acquire
-    struct root_entry *entry = find_entry(fs_id);
-    if (!entry) {
-        rootfs_response(-1);
-        goto done;
-    }
-
-    ref_count_inc(&entry->ref_count);
-
-    // Response
-    msg = rootfs_response(0);               // ok
-    msg_append_param(msg, entry->fs_id);    // node_fs_id
-    msg_append_int(msg, 1);                 // cacheable
-    goto done;
-
-done:
-    // Unlock
-    rwlock_runlock(&root->rwlock);
-}
-
-
-/*
- * Release
- */
-static void rootfs_release(msg_t *msg)
-{
-    // Request
-    ulong fs_id = msg_get_param(msg, 1);    // ent_fs_id
-
-    // Lock
-    rwlock_rlock(&root->rwlock);
-
-    // Release
-    struct root_entry *entry = find_entry(fs_id);
-    if (!entry) {
-        rootfs_response(-1);
-        goto done;
-    }
-
-    ref_count_dec(&entry->ref_count);
-
-    // Response
-    msg = rootfs_response(0);               // ok
-    goto done;
-
-done:
-    // Unlock
-    rwlock_runlock(&root->rwlock);
-}
-
-
-/*
- * File ops
- */
-static void rootfs_file_open(msg_t *msg)
-{
-    // Request
-    ulong fs_id = msg_get_param(msg, 1);    // ent_fs_id
-
-    // Lock
-    rwlock_rlock(&root->rwlock);
-
-    // Open
-    struct root_entry *entry = find_entry(fs_id);
-    if (!entry) {
-        rootfs_response(-1);
-        goto done;
-    }
-
-    // Response
-    msg = rootfs_response(0);               // ok
-    msg_append_param(msg, fs_id);           // node_fs_id
-    goto done;
-
-done:
-    // Unlock
-    rwlock_runlock(&root->rwlock);
-}
-
-static void rootfs_file_read(msg_t *msg)
-{
-    // Request
-    ulong fs_id = msg_get_param(msg, 1);    // ent_fs_id
-    ulong req_size = msg_get_param(msg, 2); // size
-    ulong offset = msg_get_param(msg, 3);   // offset
-
-    // Lock
-    rwlock_rlock(&root->rwlock);
-
-    // Read
-    struct root_entry *entry = find_entry(fs_id);
-    if (!entry) {
-        rootfs_response(-1);
-        goto done;
-    }
-
-    kprintf("File read, offset: %lu, size: %lu\n", offset, req_size);
-
-    // Response
-    msg = rootfs_response(0);               // ok
-
-    size_t real_size = 0;
-    if (offset < entry->size) {
-        real_size = entry->size - offset;
-        if (real_size > req_size) {
-            real_size = req_size;
-        }
-
-        size_t max_size = msg_remain_data_size(msg) - 0x16ul; // extra safe
-        if (real_size > max_size) {
-            real_size = max_size;
-        }
-    }
-
-    msg_append_param(msg, real_size);       // real size
-    msg_append_data(msg, entry->data && real_size ? &entry->data[offset] : NULL,
-                    real_size);             // data
-    goto done;
-
-done:
-    // Unlock
-    rwlock_runlock(&root->rwlock);
-}
-
-
-/*
- * Dir ops
- */
-static void rootfs_dir_open(msg_t *msg)
-{
-    // Request
-    ulong fs_id = msg_get_param(msg, 1);    // ent_fs_id
-
-    // Lock
-    rwlock_rlock(&root->rwlock);
-
-    // Open
-    struct root_entry *entry = find_entry(fs_id);
-    if (!entry || !entry->is_dir) {
-        rootfs_response(-1);
-        goto done;
-    }
-
-    // Response
-    msg = rootfs_response(0);               // ok
-    goto done;
-
-done:
-    // Unlock
-    rwlock_runlock(&root->rwlock);
-}
-
-static void rootfs_dir_read(msg_t *msg)
-{
-    // Request
-    ulong fs_id = msg_get_param(msg, 1);            // ent_fs_id
-    ulong size = msg_get_param(msg, 2);             // size
-    ulong last_fs_id = msg_get_param(msg, 3);       // offset
-
-    // Lock
-    rwlock_rlock(&root->rwlock);
-
-    // Read
-    struct root_entry *entry = find_entry(fs_id);
-    if (!entry || !entry->is_dir) {
-        rootfs_response(-1);
-        goto done;
-    }
-
-    kprintf("Dir read, start: %lu, max bytes: %lu\n", last_fs_id, size);
-
-    // Response
-    msg = rootfs_response(0);               // ok
-    msg_append_param(msg, 0);               // num entries
-
-    struct root_entry *child = last_fs_id ? find_entry(last_fs_id) : entry->child;
-    if (!child || child->parent != entry) {
-        goto done;
-    }
-
-    //kprintf("child next @ %p %p\n", child->sibling.next);
-
-    // batch read starts from the entry after ``last_fs_id''
-    if (last_fs_id) {
-        child = child->sibling.next;
-        if (!child) {
-            goto done;
-        }
-    }
-
-    ulong num_entries = 0;
-    size_t copied_size = 0;
-    for (; child; child = child->sibling.next, num_entries++) {
-        size_t dent_size = sizeof(struct sys_dir_ent) + strlen(child->name) + 1;
-        if (copied_size + dent_size > size) {
-            break;
-        }
-
-        void *buf = msg_try_append_data(msg, NULL, dent_size);
-        if (!buf) {
-            break;
-        }
-
-        struct sys_dir_ent *dent = buf;
-        dent->size = dent_size;
-        dent->type = 0;
-        dent->fs_id = child->fs_id;
-        //dent->next_fs_id = child->sibling.next ?
-        //                    child->sibling.next->fs_id : 0;
-        strcpy(dent->name, child->name);
-        //kprintf("copy: %s\n", child->name);
-
-        copied_size += dent_size;
-    }
-
-    msg_set_param(msg, 1, num_entries);     // num entries
-    goto done;
-
-done:
-    // Unlock
-    rwlock_runlock(&root->rwlock);
-}
-
-static void rootfs_dir_create(msg_t *msg)
-{
-    // Request
-    ulong fs_id = msg_get_param(msg, 1);            // ent_fs_id
-    const char *name = msg_get_data(msg, 2, NULL);  // size
-    ulong mode = msg_get_param(msg, 3);             // offset
-
-    // Lock
-    rwlock_wlock(&root->rwlock);
-
-    // Find entry
-    struct root_entry *entry = find_entry(fs_id);
-    if (!entry || !entry->is_dir) {
-        rootfs_response(-1);
-        goto done;
-    }
-
-    // Make sure name is valid
-    if (!strcmp(name, ".") || !strcmp(name, "..")) {
-        rootfs_response(-1);
-        goto done;
-    }
-
-    // Make sure the dir hasn't been created
-    if (lookup_entry(entry, name)) {
-        rootfs_response(-1);
-        goto done;
-    }
-
-    // Create
-    struct root_entry *new_ent = new_entry(entry, name, 1);
-
-    // Response
-    rootfs_response(0);
-    msg_append_param(msg, new_ent->fs_id);          // new fs_id
-    goto done;
-
-done:
-    // Unlock
-    rwlock_wunlock(&root->rwlock);
-}
-
-static void rootfs_dir_remove(msg_t *msg)
-{
-    // Request
-    ulong fs_id = msg_get_param(msg, 1);            // ent_fs_id
-
-    // Lock
-    rwlock_wlock(&root->rwlock);
-
-    // Find entry
-    struct root_entry *entry = find_entry(fs_id);
-    if (!entry || !entry->is_dir) {
-        rootfs_response(-1);
-        goto done;
-    }
-
-    // Remove
-    // TODO: detach
-    struct root_entry *parent_entry = NULL;
-
-    // Response
-    rootfs_response(0);
-    msg_append_param(msg, parent_entry->fs_id);     // parent fs_id
-    goto done;
-
-done:
-    // Unlock
-    rwlock_wunlock(&root->rwlock);
-}
-
-
-/*
- * Dispatcher
- */
-static ulong rootfs_dispatch(ulong opcode)
-{
-    msg_t *msg = get_msg();
-    ulong vfs_op = msg_get_param(msg, 0);
-    kprintf("RootFS op: %lu\n", vfs_op);
-    switch (vfs_op) {
-    case VFS_OP_LOOKUP:
-        rootfs_lookup(msg);
-        break;
-    case VFS_OP_ACQUIRE:
-        rootfs_acquire(msg);
-        break;
-    case VFS_OP_RELEASE:
-        rootfs_release(msg);
-        break;
-    case VFS_OP_FILE_OPEN:
-        rootfs_file_open(msg);
-        break;
-    case VFS_OP_FILE_READ:
-        rootfs_file_read(msg);
-        break;
-    case VFS_OP_DIR_OPEN:
-        rootfs_dir_open(msg);
-        break;
-    case VFS_OP_DIR_READ:
-        rootfs_dir_read(msg);
-        break;
-    case VFS_OP_DIR_CREATE:
-        rootfs_dir_create(msg);
-        break;
-    case VFS_OP_DIR_REMOVE:
-        rootfs_dir_remove(msg);
-        break;
-    default:
-        kprintf("Unknown VFS op: %lu\n", vfs_op);
-        rootfs_response(-1);
-        break;
-    }
-
-    syscall_ipc_respond();
-    return 0;
-}
 
 
 /*
@@ -508,26 +55,30 @@ static ulong rootfs_dispatch(ulong opcode)
  */
 void init_rootfs()
 {
+    kprintf("Mouting rootfs\n");
+
+    // Init
+    pseudo_fs_setup(&root_fs);
+
     // Root
-    root = new_entry(NULL, "/", 1);
-    rwlock_init(&root->rwlock);
+    struct pseudo_fs_node *root = new_node(NULL, "/", 1);
 
     // Subdirs
-    new_entry(root, "proc", 1);
-    new_entry(root, "dev", 1);
-    new_entry(root, "ipc", 1);
+    new_node(root, "proc", 1);
+    new_node(root, "dev", 1);
+    new_node(root, "ipc", 1);
 
-    struct root_entry *sys = new_entry(root, "sys", 1);
-    new_entry(sys, "coreimg", 1);
-    new_entry(sys, "devtree", 1);
+    struct pseudo_fs_node *sys = new_node(root, "sys", 1);
+    new_node(sys, "coreimg", 1);
+    new_node(sys, "devtree", 1);
 
     // File
     const char *about_data =
         "Toddler " ARCH_NAME "-" MACH_NAME "-" MODEL_NAME "\n"
         "Built on " __DATE__ " at " __TIME__ "\n"
         ;
-    struct root_entry *about = new_entry(root, "about", 0);
-    set_entry_data(about, about_data, strlen(about_data) + 1);
+    struct pseudo_fs_node *about = new_node(root, "about", 0);
+    set_node_data(about, about_data, strlen(about_data) + 1);
 
     // Test
     const char *test_data =
@@ -539,27 +90,15 @@ void init_rootfs()
         "26 Welcome!\n27 Welcome!\n28 Welcome!\n29 Welcome!\n30 Welcome!\n\n"
         "Yeah!\n\n";
 
-    struct root_entry *test = new_entry(root, "test", 1);
-    struct root_entry *test2 = new_entry(test, "test2", 1);
-    struct root_entry *test3 = new_entry(test2, "test3", 1);
-    struct root_entry *test4 = new_entry(test3, "test4", 0);
-    set_entry_data(test4, test_data, strlen(test_data) + 1);
+    struct pseudo_fs_node *test = new_node(root, "test", 1);
+    struct pseudo_fs_node *test2 = new_node(test, "test2", 1);
+    struct pseudo_fs_node *test3 = new_node(test2, "test3", 1);
+    struct pseudo_fs_node *test4 = new_node(test3, "test4", 0);
+    set_node_data(test4, test_data, strlen(test_data) + 1);
 
-    new_entry(test, "sub1", 1);
-    new_entry(test, "sub2", 1);
+    new_node(test, "sub1", 1);
+    new_node(test, "sub2", 1);
 
     // Mount
-    const int rootfs_opcode = 128;
-    const int rootfs_read_only = 0;
-    const u32 rootfs_ignored_ops = ~(
-        (0x1 << VFS_OP_LOOKUP)      |
-        (0x1 << VFS_OP_ACQUIRE)     | (0x1 << VFS_OP_RELEASE)   |
-        (0x1 << VFS_OP_FILE_OPEN)   | (0x1 << VFS_OP_FILE_READ) |
-        (0x1 << VFS_OP_DIR_OPEN)    | (0x1 << VFS_OP_DIR_READ)  |
-        (0x1 << VFS_OP_DIR_CREATE)  | (0x1 << VFS_OP_DIR_REMOVE)
-    );
-
-    register_msg_handler(rootfs_opcode, rootfs_dispatch);
-    vfs_mount(NULL, "rootfs", syscall_get_tib()->pid, rootfs_opcode,
-              root->fs_id, rootfs_read_only, rootfs_ignored_ops);
+    create_fs(NULL, "rootfs", &root_fs, &rootfs_ops, 1);
 }

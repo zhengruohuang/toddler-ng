@@ -115,3 +115,16 @@ void *coreimg_get_file2(int idx, size_t *size)
     int offset = record->start_offset;
     return (void *)coreimg + offset;
 }
+
+int coreimg_is_checksum_correct(int idx)
+{
+    size_t size = 0;
+    const u8 *data = coreimg_get_file2(idx, &size);
+
+    u8 checksum = 0;
+    for (size_t i = 0; i < size; i++) {
+        checksum += data[i];
+    }
+
+    return checksum == coreimg->records[idx].checksum;
+}

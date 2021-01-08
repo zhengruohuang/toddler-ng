@@ -18,6 +18,8 @@ static ulong start_system_worker(ulong param)
 
     // Startup
     startup();
+
+    return 0;
 }
 
 static void start_system()
@@ -32,7 +34,6 @@ static void start_system()
  */
 static void init_system()
 {
-    init_ipc();
     init_vfs();
     init_vfs_api();
     init_rootfs();

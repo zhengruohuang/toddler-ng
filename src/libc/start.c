@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <sys.h>
 
 #include "common/include/compiler.h"
 
@@ -13,6 +14,7 @@ static void init_libc()
     init_kprintf();
     init_libk_stop(abort);
     init_malloc();
+    init_ipc();
 }
 
 

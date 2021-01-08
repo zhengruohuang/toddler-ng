@@ -27,10 +27,11 @@ struct coreimg_header {
 } packed_struct;
 
 struct coreimg_record {
-    u8      file_type;
-    u8      load_type;
+    //u8      file_type;
+    //u8      load_type;
+    u8      checksum;
     u8      compressed;
-    u8      reserved;
+    u8      reserved[2];
     u32     start_offset;
     u32     length;
     char    file_name[20];
