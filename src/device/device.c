@@ -7,6 +7,17 @@
 
 
 /*
+ * Test
+ */
+extern void test_devtree();
+
+static void test_device()
+{
+    test_devtree();
+}
+
+
+/*
  * Init
  */
 static void init_device()
@@ -30,6 +41,7 @@ static void clock()
 int main(int argc, char **argv)
 {
     init_device();
+    test_device();
 
     clock();
 

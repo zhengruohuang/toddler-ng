@@ -89,6 +89,9 @@ struct hal_exports {
     // Kernel info
     void *kernel_page_table;
 
+    // Device tree
+    void *devtree;
+
     // Core image
     void *coreimg;
 

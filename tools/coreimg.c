@@ -40,10 +40,22 @@ static u32 swap_to_target_endian(u32 val)
     return is_big_endian() != ARCH_BIG_ENDIAN ? swap_endian32(val) : val;
 }
 
-static void copy_to_image(const void *buf, u32 offset, unsigned long size)
+static u8 calc_checksum(const u8 *data, u32 size)
+{
+    u8 sum = 0;
+    for (u32 i = 0; i < size; i++) {
+        sum += data[i];
+    }
+    return sum;
+}
+
+static u8 copy_to_image(const void *buf, u32 offset, unsigned long size)
 {
     fseek(image, offset, SEEK_SET);
     fwrite(buf, size, 1, image);
+
+    u8 checksum = calc_checksum(buf, size);
+    return checksum;
 }
 
 static void extract_file_name(char *extracted_name, char *full_name)
@@ -91,6 +103,7 @@ static int gen_image(int argc, char *argv[])
     FILE *cur_file;
     u32 cur_file_size = 0;
     u32 read_count;
+    u8 checksum = 0;
 
     u32 i;
 
@@ -117,14 +130,16 @@ static int gen_image(int argc, char *argv[])
         }
 
         // Set file info in FAT
-        fat->records[i].file_type = 1;
-        fat->records[i].load_type = 1;
+        //fat->records[i].file_type = 1;
+        //fat->records[i].load_type = 1;
+        fat->records[i].checksum = 0;
         fat->records[i].compressed = 0;
 
         // Set file start position in FAT
         fat->records[i].start_offset = cur_offset;
 
         // Load current file to memory, and write to the image at the same time
+        checksum = 0;
         cur_file_size = 0;
         cur_file = fopen(cur_file_name, "rb");
         if (cur_file) {
@@ -133,7 +148,7 @@ static int gen_image(int argc, char *argv[])
                 read_count = fread(buffer, 1, BUFFER_SIZE, cur_file);
 
                 // Copy the file to the image
-                copy_to_image(buffer, cur_offset, read_count);
+                checksum += copy_to_image(buffer, cur_offset, read_count);
 
                 // Update size and offset */
                 cur_offset += read_count;
@@ -152,6 +167,7 @@ static int gen_image(int argc, char *argv[])
             cur_file_size++;
             cur_file_size = cur_file_size << 3;
         }
+        fat->records[i].checksum = checksum;
         fat->records[i].length = cur_file_size;
         image_size += cur_file_size;
 

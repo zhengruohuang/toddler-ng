@@ -12,7 +12,8 @@
 struct devtree_head {
     int root;
     int strs;
-} packed_struct;
+    size_t buf_size;
+};
 
 struct devtree_node {
     int name;
@@ -20,7 +21,7 @@ struct devtree_node {
     int parent;
     int child;
     int next;
-} packed_struct;
+};
 
 struct devtree_prop {
     int name;
@@ -28,7 +29,7 @@ struct devtree_prop {
     int len;
     int parent;
     int next;
-} packed_struct;
+};
 
 
 #define DEVTREE_DATA(head, offset) (offset ? (void *)head + offset : NULL)

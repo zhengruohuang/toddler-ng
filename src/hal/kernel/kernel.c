@@ -79,6 +79,9 @@ static void fill_hal_exports()
     // Kernel info
     hexp.kernel_page_table = largs->page_table;
 
+    // Device tree
+    hexp.devtree = largs->devtree;
+
     // Core image info
     hexp.coreimg = largs->coreimg;
 

@@ -178,6 +178,7 @@ void kernel(struct hal_exports *hal_exp)
     init_libk_memmap(hal_exp->memmap);
     init_libk_stop(hal_stop);
     init_libk_coreimg(hal_exp->coreimg);
+    open_libk_devtree(hal_exp->devtree);
 
     kprintf("In kernel!\n");
 

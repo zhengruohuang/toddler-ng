@@ -248,6 +248,7 @@ struct devtree_head *create_libk_devtree(void *_buf, ulong size)
     head = (void *)buf;
     strs = buf + sizeof(struct devtree_head);
     head->strs = DEVTREE_OFFSET(head, strs);
+    head->buf_size = size;
 
     string_offset = sizeof(struct devtree_head);
     struct_offset = DEVTREE_BUF_SIZE;
@@ -257,4 +258,14 @@ struct devtree_head *create_libk_devtree(void *_buf, ulong size)
     remain_size = DEVTREE_BUF_SIZE - sizeof(struct devtree_head);
 
     return head;
+}
+
+size_t devtree_get_buf_size()
+{
+    return head->buf_size;
+}
+
+size_t devtree_get_buf_size2(struct devtree_head *dt)
+{
+    return dt->buf_size;
 }

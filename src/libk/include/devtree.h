@@ -80,5 +80,8 @@ extern u64 devtree_get_prop_data_u64(struct devtree_prop *prop);
 extern void open_libk_devtree(struct devtree_head *devtree);
 extern struct devtree_head *create_libk_devtree(void *_buf, ulong size);
 
+extern size_t devtree_get_buf_size();
+extern size_t devtree_get_buf_size2(struct devtree_head *dt);
+
 
 #endif

@@ -17,7 +17,7 @@ enum ipc_flags {
 
 
 #define MAX_MSG_SIZE        2048
-#define MAX_MSG_PARAMS      16
+#define MAX_MSG_PARAMS      15
 #define MAX_MSG_DATA_WORDS  (MAX_MSG_SIZE / sizeof(ulong) - 3 - MAX_MSG_PARAMS)
 
 
