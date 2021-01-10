@@ -88,5 +88,9 @@ int exec_elf(pid_t pid, const char *path, unsigned long *entry, unsigned long *f
     int err = load_elf(pid, f, entry, &vstart, &vend);
     fclose(f);
 
+    if (free_start) {
+        *free_start = vend;
+    }
+
     return err;
 }

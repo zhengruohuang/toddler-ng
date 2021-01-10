@@ -8,6 +8,7 @@
 #include "common/include/inttypes.h"
 #include "libk/include/mem.h"
 #include "system/include/vfs.h"
+#include "system/include/task.h"
 
 
 /*
@@ -54,6 +55,7 @@ static ulong vfs_api_acquire(ulong opcode)
     // Request
     msg_t *msg = get_msg();
     char *pathname = strdup((char *)msg_get_data(msg, 0, NULL));
+    pid_t pid = msg->sender.pid;
 
     // Acquire
     struct ventry *vent = vfs_acquire(pathname);
@@ -64,8 +66,9 @@ static ulong vfs_api_acquire(ulong opcode)
     }
 
     // Set up file descriptor
-    int fd = alloc_fd();
-    fd_table[fd] = vent;
+    int fd = task_alloc_fd(pid, vent);
+    //int fd = alloc_fd();
+    //fd_table[fd] = vent;
 
     // Response
     msg = get_empty_msg();
@@ -81,12 +84,15 @@ static ulong vfs_api_release(ulong opcode)
     // Request
     msg_t *msg = get_msg();
     int fd = msg_get_int(msg, 0);
+    pid_t pid = msg->sender.pid;
 
     // Release
-    struct ventry *vent = lookup_fd(fd);
+    //struct ventry *vent = lookup_fd(fd);
+    struct ventry *vent = task_lookup_fd(pid, fd);
     int err = vfs_release(vent);
     if (!err) {
-        free_fd(fd);
+        //free_fd(fd);
+        task_free_fd(pid, fd);
     }
 
     // Response
@@ -108,9 +114,11 @@ static ulong vfs_api_file_open(ulong opcode)
     int fd = msg_get_int(msg, 0);
     ulong flags = msg_get_param(msg, 1);
     ulong mode = msg_get_param(msg, 2);
+    pid_t pid = msg->sender.pid;
 
     // Open file
-    struct ventry *vent = lookup_fd(fd);
+    //struct ventry *vent = lookup_fd(fd);
+    struct ventry *vent = task_lookup_fd(pid, fd);
     int err = vfs_file_open(vent->vnode, flags, mode);
 
     // Response
@@ -128,9 +136,11 @@ static ulong vfs_api_file_read(ulong opcode)
     int fd = msg_get_int(msg, 0);
     size_t count = msg_get_param(msg, 1);
     size_t offset = msg_get_param(msg, 2);
+    pid_t pid = msg->sender.pid;
 
     // Read
-    struct ventry *vent = lookup_fd(fd);
+    //struct ventry *vent = lookup_fd(fd);
+    struct ventry *vent = task_lookup_fd(pid, fd);
     vfs_file_read_forward(vent->vnode, count, offset);
 
     // Response
@@ -153,9 +163,11 @@ static ulong vfs_api_dir_open(ulong opcode)
     msg_t *msg = get_msg();
     int fd = msg_get_int(msg, 0);
     ulong flags = msg_get_param(msg, 1);
+    pid_t pid = msg->sender.pid;
 
     // Open dir
-    struct ventry *vent = lookup_fd(fd);
+    //struct ventry *vent = lookup_fd(fd);
+    struct ventry *vent = task_lookup_fd(pid, fd);
     int err = vfs_dir_open(vent->vnode, flags);
 
     // Response
@@ -173,9 +185,11 @@ static ulong vfs_api_dir_read(ulong opcode)
     int fd = msg_get_int(msg, 0);
     size_t count = msg_get_param(msg, 1);
     size_t offset = msg_get_param(msg, 2);
+    pid_t pid = msg->sender.pid;
 
     // Read
-    struct ventry *vent = lookup_fd(fd);
+    //struct ventry *vent = lookup_fd(fd);
+    struct ventry *vent = task_lookup_fd(pid, fd);
     vfs_dir_read_forward(vent->vnode, count, offset);
 
     // Response
@@ -196,9 +210,11 @@ static ulong vfs_api_mount(ulong opcode)
     pid_t pid = msg_get_param(msg, 2);
     unsigned long op = msg_get_param(msg, 3);
     unsigned long ops_ignore_map = msg_get_param(msg, 4);
+    pid_t sender_pid = msg->sender.pid;
 
     // Mount
-    struct ventry *vent = fd ? lookup_fd(fd) : NULL;
+    //struct ventry *vent = fd ? lookup_fd(fd) : NULL;
+    struct ventry *vent = fd ? task_lookup_fd(sender_pid, fd) : NULL;
     vfs_mount(vent, name, pid, op, ops_ignore_map);
     free(name);
 

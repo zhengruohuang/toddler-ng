@@ -43,6 +43,8 @@ int main(int argc, char **argv)
     init_device();
     test_device();
 
+    kprintf("Device, argc: %d, argv[0]: %s\n", argc, argv[0]);
+
     clock();
 
     while (1);

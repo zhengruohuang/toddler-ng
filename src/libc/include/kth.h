@@ -90,6 +90,16 @@ typedef struct {
     .max_spin = RWLOCK_MAX_SPIN \
 }
 
+#define rwlock_exclusive_r(l) \
+    for (rwlock_t *__m = l; __m; __m = NULL) \
+        for (rwlock_rlock(__m); __m; rwlock_runlock(__m), __m = NULL) \
+            for (int __term = 0; !__term; __term = 1)
+
+#define rwlock_exclusive_w(l) \
+    for (rwlock_t *__m = l; __m; __m = NULL) \
+        for (rwlock_wlock(__m); __m; rwlock_wunlock(__m), __m = NULL) \
+            for (int __term = 0; !__term; __term = 1)
+
 extern void rwlock_init(rwlock_t *lock);
 
 extern void rwlock_rlock(rwlock_t *lock);

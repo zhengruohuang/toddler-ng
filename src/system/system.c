@@ -3,6 +3,7 @@
 #include <kth.h>
 #include <sys.h>
 
+#include "system/include/task.h"
 #include "system/include/vfs.h"
 #include "system/include/test.h"
 #include "system/include/startup.h"
@@ -34,8 +35,11 @@ static void start_system()
  */
 static void init_system()
 {
+    init_task();
+
     init_vfs();
     init_vfs_api();
+
     init_rootfs();
     init_coreimgfs();
 }

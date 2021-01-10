@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <sys.h>
+#include <crt.h>
 
 #include "common/include/compiler.h"
 
@@ -19,13 +20,38 @@ static void init_libc()
 
 
 /*
+ * Argv
+ */
+static int init_argv(struct crt_entry_param *param, char ***argv_out)
+{
+    if (!param) {
+        *argv_out = NULL;
+        return 0;
+    }
+
+    int argc = param->argc;
+    char **argv = calloc(argc + 1, sizeof(void *));
+
+    char *buf = param->argv;
+    for (int i = 0; i < argc; i++) {
+        argv[i] = buf;
+        buf += strlen(buf) + 1;
+    }
+    argv[argc] = NULL;
+
+    *argv_out = argv;
+    return argc;
+}
+
+
+/*
  * Main
  */
 extern int main(int argc, char *argv[], char *envp[]);
 
-static int call_main()
+static int call_main(int argc, char **argv, char **envp)
 {
-    return main(0, NULL, NULL);
+    return main(argc, argv, envp);
 }
 
 
@@ -40,10 +66,14 @@ static void exit_libc(int err)
 /*
  * Entry
  */
-void __libc_entry()
+void __libc_entry(unsigned long param)
 {
     init_libc();
-    int err = call_main();
+
+    char **argv = NULL;
+    int argc = init_argv((void *)param, &argv);
+
+    int err = call_main(argc, argv, NULL);
     exit_libc(err);
 }
 
@@ -53,5 +83,5 @@ void __libc_entry()
  */
 weak_func void _start(unsigned long param)
 {
-    __libc_entry();
+    __libc_entry(param);
 }

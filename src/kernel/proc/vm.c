@@ -185,6 +185,8 @@ struct vm_block *vm_alloc(struct process *p, ulong base, ulong size, ulong attri
             }
         }
 
+        //kprintf("target_block @ %p\n", target_block);
+
         if (!target_block) {
             break;
         }
@@ -449,6 +451,8 @@ ulong vm_map_cross(struct process *p, ulong remote_pid,
         struct vm_block *local_b = vm_alloc(p, 0, map_size, 0);
         panic_if(!local_b, "Unable to allocate VM block!\n");
         local_vbase = local_b->base;
+
+        //kprintf("b @ %p, base: %lx, size: %lx\n", local_b, local_b->base, local_b->size);
 
         for (ulong offset = 0; offset < map_size; offset += PAGE_SIZE) {
             paddr_t paddr = palloc_paddr_direct_mapped(1);
