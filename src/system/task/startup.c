@@ -2,7 +2,6 @@
 #include <assert.h>
 #include <sys.h>
 
-#include "system/include/exec.h"
 #include "system/include/task.h"
 
 

@@ -12,31 +12,6 @@
 
 
 /*
- * Fd table
- */
-static volatile int fd_count = 4;
-static struct ventry *fd_table[128] = { };
-
-static int alloc_fd()
-{
-    panic_if(fd_count >= 128, "Too many file descriptors!\n");
-    return fd_count++;
-}
-
-static struct ventry *lookup_fd(int fd)
-{
-    panic_if(fd >= 128, "Invalid file descriptor!\n");
-    return fd_table[fd];
-}
-
-static void free_fd(int fd)
-{
-    panic_if(fd >= 128, "Invalid file descriptor!\n");
-    fd_table[fd] = NULL;
-}
-
-
-/*
  * Error response
  */
 static inline void _err_response(int err)

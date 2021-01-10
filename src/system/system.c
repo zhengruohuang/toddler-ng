@@ -6,7 +6,6 @@
 #include "system/include/task.h"
 #include "system/include/vfs.h"
 #include "system/include/test.h"
-#include "system/include/startup.h"
 
 
 /*
