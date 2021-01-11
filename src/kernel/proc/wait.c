@@ -155,17 +155,6 @@ int wait_on_object(struct process *p, struct thread *t, int wait_type, ulong wai
         }
         break;
     }
-    case WAIT_ON_MSG_REPLY:
-        do_wait = 1;
-        break;
-    case WAIT_ON_THREAD:
-        do_wait = t->tid != wait_obj && acquire_thread(wait_obj);
-        break;
-    case WAIT_ON_MAIN_THREAD:
-        do_wait = t->pid != wait_obj && acquire_main_thread(wait_obj);
-        if (do_wait)
-            kprintf("wait on main thread: %lx, %lx, %d\n", wait_obj, t->tid, do_wait);
-        break;
     default:
         err = -1;
         break;
@@ -262,14 +251,6 @@ ulong wake_on_object(struct process *p, struct thread *t, int wait_type, ulong w
         }
         break;
     }
-    case WAIT_ON_MSG_REPLY:
-        global_wait = 1;
-        do_wakeup = 1;
-        break;
-    case WAIT_ON_MAIN_THREAD:
-        global_wait = 1;
-        do_wakeup = 1;
-        break;
     default:
         break;
     }

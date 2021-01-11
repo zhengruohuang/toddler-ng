@@ -112,21 +112,6 @@ void syscall_wait_on_futex(futex_t *f, ulong skip)
     sysenter(SYSCALL_EVENT_WAIT, WAIT_ON_FUTEX, (ulong)f, skip, NULL, NULL);
 }
 
-// void syscall_wait_on_thread(ulong target_tid)
-// {
-//     //sysenter(SYSCALL_EVENT_WAIT, WAIT_ON_THREAD, target_tid, 0, NULL, NULL);
-// }
-//
-// void syscall_wait_on_main_thread(ulong target_pid)
-// {
-//     //sysenter(SYSCALL_EVENT_WAIT, WAIT_ON_MAIN_THREAD, target_pid, 0, NULL, NULL);
-// }
-//
-// void syscall_wait_on_process(ulong target_pid)
-// {
-//     //sysenter(SYSCALL_EVENT_WAIT, WAIT_ON_PROCESS, target_pid, 0, NULL, NULL);
-// }
-
 void syscall_wake_on_futex(futex_t *f, ulong skip)
 {
     sysenter(SYSCALL_EVENT_WAKE, WAIT_ON_FUTEX, (ulong)f, skip, NULL, NULL);

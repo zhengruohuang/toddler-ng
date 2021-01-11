@@ -5,6 +5,7 @@
 
 #include "system/include/task.h"
 #include "system/include/vfs.h"
+#include "system/include/api.h"
 #include "system/include/test.h"
 
 
@@ -34,11 +35,14 @@ static void start_system()
  */
 static void init_system()
 {
+    // System components
     init_task();
-
     init_vfs();
+
+    // API
     init_vfs_api();
 
+    // File systems
     init_rootfs();
     init_coreimgfs();
 }

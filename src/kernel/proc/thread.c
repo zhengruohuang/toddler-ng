@@ -305,10 +305,10 @@ void exit_thread(struct thread *t)
             list_remove_exclusive(&threads, &t->node);
             list_remove_exclusive(&proc->threads, &t->node_proc);
 
-            wake_on_object(proc, t, WAIT_ON_THREAD, t->tid, 0, 0);
-            if (t->is_main) {
-                wake_on_object(proc, t, WAIT_ON_MAIN_THREAD, t->tid, 0, 0);
-            }
+            //wake_on_object(proc, t, WAIT_ON_THREAD, t->tid, 0, 0);
+            //if (t->is_main) {
+            //    wake_on_object(proc, t, WAIT_ON_MAIN_THREAD, t->tid, 0, 0);
+            //}
         }
 
         ref_count_dec(&t->ref_count);

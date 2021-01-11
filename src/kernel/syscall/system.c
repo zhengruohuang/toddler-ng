@@ -61,7 +61,6 @@ int syscall_handler_puts(struct process *p, struct thread *t,
 
     acquire_kprintf();
 
-    //int pass = 0;
     for (ulong vaddr = kdi->param0, copied_len = 0; copied_len < len;
          copied_len += PUTS_BUF_SIZE, vaddr += PUTS_BUF_SIZE
     ) {
@@ -303,15 +302,13 @@ int syscall_handler_wait(struct process *p, struct thread *t,
 
     int err = 0;
     switch (wait_type) {
-    case WAIT_ON_MSG_REPLY:
-    //case WAIT_ON_MSG_RECEIVE:
-        err = -2;
+    case WAIT_ON_TIMEOUT:
+        err = wait_on_object(p, t, wait_type, wait_obj, 0, timeout_ms);
         break;
     case WAIT_ON_FUTEX:
         err = wait_on_object(p, t, wait_type, wait_obj, wait_value, 0);
         break;
     default:
-        err = wait_on_object(p, t, wait_type, wait_obj, 0, timeout_ms);
         break;
     }
 

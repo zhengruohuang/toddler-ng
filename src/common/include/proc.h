@@ -56,9 +56,6 @@ typedef struct thread_info_block {
 enum thread_wait_type {
     WAIT_ON_TIMEOUT,
     WAIT_ON_FUTEX,
-    WAIT_ON_MSG_REPLY,
-    WAIT_ON_THREAD,
-    WAIT_ON_MAIN_THREAD,
 };
 
 

@@ -207,7 +207,16 @@ pid_t task_create(pid_t ppid, int type, int argc, char **argv, const char *stdio
 
 int task_exit(pid_t pid, int status)
 {
-    return -1;
+    struct task *t = NULL;
+    access_task(pid, task) {
+        t = task;
+    }
+
+    if (t) {
+        del_task(t);
+    }
+
+    return 0;
 }
 
 

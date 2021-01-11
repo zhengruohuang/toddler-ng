@@ -64,7 +64,6 @@ struct ventry {
  * VFS
  */
 extern void init_vfs();
-extern void init_vfs_api();
 
 extern struct ventry *vfs_acquire(const char *path);
 extern int vfs_release(struct ventry *vent);
