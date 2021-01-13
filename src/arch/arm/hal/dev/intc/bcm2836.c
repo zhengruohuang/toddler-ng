@@ -258,7 +258,7 @@ struct bcm2836_mmio {
 
 struct bcm2836_record {
     volatile struct bcm2836_mmio *mmio;
-    struct driver_param *int_devs[8];
+    struct driver_param *int_devs[10];
 };
 
 
@@ -379,21 +379,23 @@ static void setup_int(struct driver_param *param, struct driver_int_encode *enco
         int irq = swap_big_endian32(int_srcs[g]);
 
         switch (irq) {
-        case 0:
-        case 2:
-        case 3:
-            break;
         case 1:
             record->int_devs[1] = dev;
             for (int c = 0; c < 4; c++) {
                 enable_irq(record, c, irq);
             }
             break;
+        case 8:
+            record->int_devs[8] = dev;
+            enable_irq(record, 0, irq);
+            break;
+        case 0:
+        case 2:
+        case 3:
         case 4:
         case 5:
         case 6:
         case 7:
-        case 8:
         case 9:
             break;
         default:

@@ -261,7 +261,7 @@ extern void vm_move_to_sanit_unmapped(struct process *p, struct vm_block *b);
 extern int vm_map(struct process *p, ulong base, ulong prot);
 extern ulong vm_map_coreimg(struct process *p);
 extern ulong vm_map_devtree(struct process *p);
-extern ulong vm_map_dev(struct process *p, ulong ppfn, ulong count, ulong prot);
+extern ulong vm_map_dev(struct process *p, ulong ppfn, ulong size, ulong prot);
 extern ulong vm_map_cross(struct process *p, ulong remote_pid, ulong remote_vbase, ulong size, ulong remote_prot);
 
 
@@ -345,9 +345,14 @@ extern int request_tlb_shootdown(struct process *p, struct vm_block *b);
 extern void service_tlb_shootdown_requests();
 
 
-// extern void init_tlb_mgmt();
-// extern void trigger_tlb_shootdown(ulong asid, ulong addr, size_t size);
-// extern void service_tlb_shootdown();
+/*
+ * Interrupt
+ */
+extern ulong int_handler_register(struct process *p, ulong phandle, ulong entry);
+extern int int_handler_unregister(struct process *p, ulong seq);
+
+extern int int_handler_invoke(ulong seq);
+extern int int_handler_eoi(ulong seq);
 
 
 // /*

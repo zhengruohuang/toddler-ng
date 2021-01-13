@@ -426,9 +426,21 @@ ulong vm_map_devtree(struct process *p)
     return b->base + offset;
 }
 
-ulong vm_map_dev(struct process *p, ulong ppfn, ulong count, ulong prot)
+ulong vm_map_dev(struct process *p, ulong ppfn, ulong size, ulong prot)
 {
-    return 0;
+    paddr_t paddr_start = ppfn_to_paddr((ppfn_t)ppfn);
+    ulong map_size = align_up_vaddr(size, PAGE_SIZE);
+
+    struct vm_block *b = vm_alloc(p, 0, map_size, 0);
+    if (!b) {
+        return 0;
+    }
+
+    get_hal_exports()->map_range(p->page_table, b->base,
+                                 paddr_start, b->size,
+                                 1, 1, 1, 0, 0);
+
+    return b->base;
 }
 
 ulong vm_map_cross(struct process *p, ulong remote_pid,

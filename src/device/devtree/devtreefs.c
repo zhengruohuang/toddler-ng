@@ -111,16 +111,20 @@ static const struct fs_ops devtreefs_ops = {
 /*
  * Init
  */
+static inline void _print_devtree_node_name(struct devtree_node *dt_node, int level)
+{
+    const char *name = devtree_get_node_name(dt_node);
+    for (int i = 0; i < level; i++) kprintf("  ");
+    kprintf("DT: %s\n", name);
+}
+
 static void visit_devtree_node(struct dtfs_node *parent_fs_node,
                                struct devtree_node *dt_node, int level)
 {
     while (dt_node) {
-        const char *name = devtree_get_node_name(dt_node);
-        for (int i = 0; i < level; i++) kprintf("  ");
-        kprintf("DT: %s\n", name);
+        //_print_devtree_node_name(dt_node, level);
 
         struct dtfs_node *fs_node = new_device(parent_fs_node, dt_node);
-
         struct devtree_node *child_dt_node = devtree_get_child_node(dt_node);
         if (child_dt_node) {
             visit_devtree_node(fs_node, child_dt_node, level + 1);

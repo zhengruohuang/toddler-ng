@@ -21,6 +21,13 @@ extern thread_info_block_t *syscall_get_tib();
 
 
 /*
+ * Interrupt
+ */
+extern ulong syscall_int_handler(ulong intc_phandle, thread_entry_t entry);
+extern int syscall_int_eoi(ulong seq);
+
+
+/*
  * Process
  */
 extern pid_t syscall_process_create(int type);

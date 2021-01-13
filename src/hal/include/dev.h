@@ -24,6 +24,9 @@ extern void start_all_devices_mp();
 
 extern int handle_dev_int(struct int_context *ictxt, struct kernel_dispatch *kdi);
 
+extern void *user_int_register(ulong phandle, ulong user_seq);
+extern void user_int_eoi(void *hal_dev);
+
 extern void init_dev();
 
 

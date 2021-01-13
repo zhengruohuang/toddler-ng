@@ -14,7 +14,8 @@ struct fw_dev_info {
 
 struct driver_param {
     void *record;
-    int int_seq;
+    int int_seq;    // HAL interrupt sequence
+    int user_seq;   // User-space handler sequence
 };
 
 struct driver_int_encode {
@@ -30,6 +31,7 @@ struct internal_dev_driver {
     void (*setup)(struct driver_param *param);
     void (*setup_int)(struct driver_param *param, struct driver_int_encode *encode, struct driver_param *dev);
     void (*start)(struct driver_param *param);
+    void (*eoi)(struct driver_param *param, struct driver_int_encode *encode, struct driver_param *dev);
 };
 
 

@@ -3,7 +3,6 @@
 #include <sys.h>
 #include <sys/api.h>
 
-
 // #include "system/include/vfs.h"
 // static void test_root()
 // {
@@ -35,7 +34,7 @@
 //     vfs_release(ent);
 // }
 
-static void test_file_api()
+__unused_func static void test_file_api()
 {
     int fd = 0;
 
@@ -62,7 +61,7 @@ static void test_file_api()
     sys_api_release(fd);
 }
 
-static void test_stdio_file()
+__unused_func static void test_stdio_file()
 {
     FILE *f = NULL;
 
@@ -95,7 +94,7 @@ static void test_stdio_file()
     fclose(f);
 }
 
-static void test_dirent()
+__unused_func static void test_dirent()
 {
     DIR *d = NULL;
     struct dirent dent;
@@ -127,7 +126,7 @@ static void test_dirent()
     closedir(d);
 }
 
-static void test_coreimg()
+__unused_func static void test_coreimg()
 {
     DIR *d = NULL;
     struct dirent dent;

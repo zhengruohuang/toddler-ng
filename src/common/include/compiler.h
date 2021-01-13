@@ -66,6 +66,14 @@
 #define pure_func           __attribute__((pure))
 #endif
 
+#ifndef __unused_func
+#define __unused_func       __attribute__((unused))
+#endif
+
+#ifndef __unused_var
+#define __unused_var        __attribute__((unused))
+#endif
+
 
 #ifndef COMPILE_ASSERT
 #ifdef __COMPILE_ASSERT

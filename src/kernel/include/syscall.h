@@ -60,6 +60,8 @@ extern int syscall_handler_illegal(struct process *p, struct thread *t, struct k
 extern int syscall_handler_puts(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 
 extern int syscall_handler_interrupt(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
+extern int syscall_handler_int_register(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
+extern int syscall_handler_int_eoi(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 
 extern int syscall_handler_fault_page(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 

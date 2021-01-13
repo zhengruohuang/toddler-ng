@@ -3,6 +3,7 @@
  */
 
 
+#include "common/include/compiler.h"
 #include "common/include/inttypes.h"
 #include "common/include/mem.h"
 #include "kernel/include/kernel.h"
@@ -69,7 +70,7 @@ static ulong alloc_wait_object_id(struct wait_object *wait_obj)
     return (ulong)wait_obj;
 }
 
-static struct wait_object *get_wait_object(struct process *p, ulong obj_id)
+__unused_func static struct wait_object *get_wait_object(struct process *p, ulong obj_id)
 {
     panic_if(!spinlock_is_locked(&wait_objects.lock), "wait_objects must be locked!\n");
 

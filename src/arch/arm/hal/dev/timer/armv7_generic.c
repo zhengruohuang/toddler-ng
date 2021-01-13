@@ -62,6 +62,9 @@ static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
         clock_advance_ms(record->clock_idx, MS_PER_INT);
     }
 
+    // KDI
+    kdi->param0 = 0;
+
     // Set a new value for compare
     write_generic_timer_phys_interval(record->timer_step);
 

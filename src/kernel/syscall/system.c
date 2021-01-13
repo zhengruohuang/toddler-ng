@@ -125,7 +125,35 @@ int syscall_handler_illegal(struct process *p, struct thread *t,
 int syscall_handler_interrupt(struct process *p, struct thread *t,
                               struct kernel_dispatch *kdi)
 {
+    ulong seq = kdi->param0;
+    if (seq) {
+        //kprintf("Kernel received interrupt: %lu!\n", kdi->param0);
+        int_handler_invoke(seq);
+    }
+
     return SYSCALL_HANDLED_SAVE_RESCHED;
+}
+
+int syscall_handler_int_register(struct process *p, struct thread *t,
+                                 struct kernel_dispatch *kdi)
+{
+    ulong phandle = kdi->param0;
+    ulong entry = kdi->param1;
+    ulong seq = int_handler_register(p, phandle, entry);
+
+    int err = seq == -1ul ? -1 : 0;
+    hal_set_syscall_return(kdi->regs, err, seq, 0);
+    return SYSCALL_HANDLED_CONTINUE;
+}
+
+int syscall_handler_int_eoi(struct process *p, struct thread *t,
+                            struct kernel_dispatch *kdi)
+{
+    ulong seq = kdi->param0;
+    int err = int_handler_eoi(seq);
+
+    hal_set_syscall_return(kdi->regs, err, 0, 0);
+    return SYSCALL_HANDLED_CONTINUE;
 }
 
 
@@ -179,7 +207,7 @@ int syscall_handler_vm_map(struct process *p, struct thread *t,
 {
     int type = kdi->param0;
     ulong ppfn = kdi->param1;
-    ulong count = kdi->param2;
+    ulong size = kdi->param2;
 
     ulong vbase = 0;
     switch (type) {
@@ -190,7 +218,7 @@ int syscall_handler_vm_map(struct process *p, struct thread *t,
         vbase = vm_map_devtree(p);
         break;
     case VM_MAP_DEV:
-        vbase = vm_map_dev(p, ppfn, count, 0);
+        vbase = vm_map_dev(p, ppfn, size, 0);
         break;
     default:
         break;

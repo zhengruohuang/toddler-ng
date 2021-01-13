@@ -42,7 +42,7 @@ static ulong test_futex_worker(ulong param)
     return 0;
 }
 
-static void test_futex()
+__unused_func static void test_futex()
 {
     kprintf("Testing Futex\n");
     futex_init(&futex);
@@ -107,7 +107,7 @@ static ulong test_mutex_worker(ulong param)
     return 0;
 }
 
-static void test_mutex()
+__unused_func static void test_mutex()
 {
     kprintf("Testing Mutex\n");
     mutex_init(&mutex);
@@ -188,7 +188,7 @@ static ulong test_rwlock_worker(ulong param)
     return 0;
 }
 
-static void test_rwlock()
+__unused_func static void test_rwlock()
 {
     kprintf("Testing rwlock, rd futex @ %p\n", &rwlock.rd_futex);
     rwlock_init(&rwlock);

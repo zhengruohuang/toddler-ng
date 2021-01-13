@@ -3,6 +3,7 @@
  */
 
 
+#include "common/include/compiler.h"
 #include "common/include/inttypes.h"
 #include "common/include/stdarg.h"
 #include "kernel/include/lib.h"
@@ -16,13 +17,13 @@
 /*
  * Kernel demo thread
  */
-static void kernel_demo_thread(ulong param)
+__unused_func static void kernel_demo_thread(ulong param)
 {
     //while (1);
 
     do {
-        int index = param;
-        int cpu_id = hal_get_cur_mp_seq();
+        __unused_var int index = param;
+        __unused_var int cpu_id = hal_get_cur_mp_seq();
         //kprintf("Kernel demo thread #%d on CPU #%d%s!\n",
         //        index, cpu_id , index == cpu_id ? ", TID == CPU ID" : "");
         syscall_thread_yield();

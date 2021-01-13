@@ -5,11 +5,18 @@
 #include "libsys/include/syscall.h"
 
 
+/*
+ * Kputs
+ */
 void syscall_puts(const char *buf, size_t len)
 {
     sysenter(SYSCALL_PUTS, (ulong)buf, (ulong)len, 0, NULL, NULL);
 }
 
+
+/*
+ * Thread info block
+ */
 thread_info_block_t *syscall_get_tib()
 {
 #if (defined(FAST_GET_TIB) && FAST_GET_TIB)
@@ -19,6 +26,23 @@ thread_info_block_t *syscall_get_tib()
     sysenter(SYSCALL_HAL_GET_TIB, 0, 0, 0, &tib, NULL);
     return (void *)tib;
 #endif
+}
+
+
+/*
+ * Interrupt
+ */
+ulong syscall_int_handler(ulong intc_phandle, thread_entry_t entry)
+{
+    ulong seq = -1ul;
+    sysenter(SYSCALL_INT_HANDLER, intc_phandle, (ulong)entry, 0, &seq, NULL);
+    return seq;
+}
+
+int syscall_int_eoi(ulong seq)
+{
+    int err = sysenter(SYSCALL_INT_EOI, seq, 0, 0, NULL, NULL);
+    return err;
 }
 
 

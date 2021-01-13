@@ -99,6 +99,10 @@ static void fill_hal_exports()
     hexp.enable_local_int = enable_local_int;
     hexp.restore_local_int = restore_local_int;
 
+    // User-space interrupt handler
+    hexp.int_register = user_int_register;
+    hexp.int_eoi = user_int_eoi;
+
     // Clock
     hexp.get_ms = clock_get_ms;
 

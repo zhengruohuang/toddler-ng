@@ -65,7 +65,7 @@ ulong get_dev_access_window(paddr_t paddr, ulong size, int cached)
     if (!vpfn) {
         int map_cached = cached == DEV_PFN_ANY_CACHED ?
                          DEV_PFN_CACHED : cached;
-        map_cached = 1;
+        map_cached = 0;
 
         paddr_t page_paddr = ppfn_to_paddr(ppfn);
         ulong page_vaddr = pre_valloc(1, page_paddr, map_cached);

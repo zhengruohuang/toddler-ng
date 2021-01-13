@@ -55,7 +55,7 @@ struct arm_pl011_mmio {
 
     // 0x20 - 0xfff
     u32 others[1016];
-} packed2_struct;
+} packed_struct;
 
 struct arm_pl011_record {
     volatile struct arm_pl011_mmio *mmio;
@@ -81,14 +81,14 @@ static int pl011_putchar(int ch)
 }
 
 
-/*
- * Interrupt
- */
-static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
-{
-    panic("Not implemented!\n");
-    return INT_HANDLE_CALL_KERNEL;
-}
+// /*
+//  * Interrupt
+//  */
+// static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
+// {
+//     panic("Not implemented!\n");
+//     return INT_HANDLE_CALL_KERNEL;
+// }
 
 
 /*

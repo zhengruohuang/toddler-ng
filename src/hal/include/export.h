@@ -48,6 +48,10 @@ typedef void *(*access_per_cpu_var_t)(int *offset, size_t size);
 typedef int (*disable_local_int_t)();
 typedef void (*enable_local_int_t)();
 
+// User-space interrupt handler
+typedef void *(*int_register_t)(ulong phandle, ulong user_seq);
+typedef void (*int_eoi_t)(void *hal_dev);
+
 // Clock
 typedef u64 (*get_ms_t)();
 
@@ -109,6 +113,10 @@ struct hal_exports {
     disable_local_int_t disable_local_int;
     enable_local_int_t enable_local_int;
     int (*restore_local_int)(int enabled);
+
+    // User-space interrupt handler
+    int_register_t int_register;
+    int_eoi_t int_eoi;
 
     // Clock
     get_ms_t get_ms;

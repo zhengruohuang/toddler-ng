@@ -123,6 +123,8 @@ void enable_pl011()
 
     // Clear all interrupt status
     pl011->ICR = 0x7FF;
+
+    kprintf("PL011 interrupt enabled\n");
 }
 
 
@@ -210,6 +212,8 @@ static int invoke(struct bcm2835_record *record, int bank,
 
     disable_irq(record, bank, irq);
 
+    //kprintf("int_dev @ %p, seq: %d\n", int_dev, int_dev->int_seq);
+
     int handle_type = INT_HANDLE_SIMPLE;
     if (int_dev && int_dev->int_seq) {
         ictxt->param = int_dev->record;
@@ -218,6 +222,10 @@ static int invoke(struct bcm2835_record *record, int bank,
         if (INT_HANDLE_KEEP_MASKED & ~handle_type) {
             enable_irq(record, bank, irq);
         }
+    } else if (int_dev) {
+        // TODO: need a better way
+        kdi->param0 = int_dev->user_seq;
+        handle_type = INT_HANDLE_CALL_KERNEL | INT_HANDLE_KEEP_MASKED;
     }
 
     return handle_type & INT_HANDLE_CALL_KERNEL ?
@@ -227,14 +235,19 @@ static int invoke(struct bcm2835_record *record, int bank,
 static int handle(struct int_context *ictxt, struct kernel_dispatch *kdi,
                   struct bcm2835_record *record, int bank, u32 irq_mask)
 {
+    //kprintf("irq mask: %x\n", irq_mask);
+
     int num_irqs = popcount32(irq_mask);
     int handle_type = INT_HANDLE_SIMPLE;
 
     while (num_irqs) {
         int irq = ctz32(irq_mask);
-        struct driver_param *int_dev = record->int_devs[irq];
+        int seq = irq_to_dev(bank, irq);
+        struct driver_param *int_dev = record->int_devs[seq];
 
         handle_type |= invoke(record, bank, irq, int_dev, ictxt, kdi);
+
+        //kprintf("irq: %d, handle_type: %d\n", irq, handle_type);
 
         irq_mask &= ~(0x1 << irq);
         num_irqs = popcount32(irq_mask);
@@ -252,19 +265,41 @@ static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
 
     int handle_type = INT_HANDLE_SIMPLE;
 
+    //kprintf("bcm2835, value: %x, ap: %x, pend1: %x, pend2: %x\n",
+    //        basic_pending.value, basic_pending.arm_periphs, record->mmio->pending1, record->mmio->pending2);
+
     if (basic_pending.arm_periphs) {
         handle_type |= handle(ictxt, kdi, record, 0, basic_pending.arm_periphs);
     }
 
     if (basic_pending.more1) {
-        handle_type |= handle(ictxt, kdi, record, 1, record->mmio->pending1);
+        u32 mask = record->mmio->pending1;
+        handle_type |= handle(ictxt, kdi, record, 1, mask);
     }
 
     if (basic_pending.more2) {
-        handle_type |= handle(ictxt, kdi, record, 2, record->mmio->pending2);
+        u32 mask = record->mmio->pending2;
+        handle_type |= handle(ictxt, kdi, record, 2, mask);
     }
 
     return handle_type;
+}
+
+
+/*
+ * EOI
+ */
+static void eoi(struct driver_param *param, struct driver_int_encode *encode, struct driver_param *dev)
+{
+    struct bcm2835_record *record = param->record;
+    int num_ints = encode->size / sizeof(int);
+    int *int_srcs = encode->data;
+
+    for (int g = 0; g < num_ints; g += 2) {
+        int bank = swap_big_endian32(int_srcs[g]);
+        int irq = swap_big_endian32(int_srcs[g + 1]);
+        enable_irq(record, bank, irq);
+    }
 }
 
 
@@ -273,15 +308,18 @@ static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
  */
 static void start(struct driver_param *param)
 {
+
 }
 
 static void setup_int(struct driver_param *param, struct driver_int_encode *encode, struct driver_param *dev)
 {
+    kprintf("set int, data: %p, size: %d\n", encode->data, encode->size);
+
     if (!encode->size || !encode->data) {
         return;
     }
 
-    kprintf("set int, data: %p, size: %d\n", encode->data, encode->size);
+    //kprintf("set int, data: %p, size: %d\n", encode->data, encode->size);
 
     struct bcm2835_record *record = param->record;
     int num_ints = encode->size / sizeof(int);
@@ -292,6 +330,8 @@ static void setup_int(struct driver_param *param, struct driver_int_encode *enco
         int irq = swap_big_endian32(int_srcs[g + 1]);
         int seq = irq_to_dev(bank, irq);
 
+        kprintf("to enable irq: %d, bank: %d, seq: %d\n", irq, bank, seq);
+
         enable_irq(record, bank, irq);
         record->int_devs[seq] = dev;
     }
@@ -301,6 +341,8 @@ static void setup(struct driver_param *param)
 {
     struct bcm2835_record *record = param->record;
     disable_all(record);
+
+    //enable_pl011();
 }
 
 static int probe(struct fw_dev_info *fw_info, struct driver_param *param)
@@ -347,4 +389,5 @@ DECLARE_DEV_DRIVER(bcm2835_armctrl_intc) = {
     .setup = setup,
     .setup_int = setup_int,
     .start = start,
+    .eoi = eoi,
 };

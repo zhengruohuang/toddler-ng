@@ -39,6 +39,7 @@ struct inttree_node {
 
     struct inttree_node *next;
 
+    struct inttree_node *parent;
     struct inttree_node *child;
     struct inttree_node *sibling;
 };
@@ -220,11 +221,13 @@ static void find_all_int_children(struct dev_record *intc_dev)
                 int_hierarchy = intc_dev->int_node;
             } else {
                 dev->int_node->sibling = intc_dev->int_node->child;
+                dev->int_node->parent = intc_dev->int_node;
                 intc_dev->int_node->child = dev->int_node;
 
                 if (intc_dev->driver && intc_dev->driver->setup_int &&
-                    dev->driver
+                    dev->driver && dev->driver_param.int_seq
                 ) {
+                    //kprintf("dev: %s\n", dev->driver->name);
                     intc_dev->driver->setup_int(&intc_dev->driver_param,
                         &dev->int_node->fw_int_encode, &dev->driver_param);
                 }
@@ -252,6 +255,58 @@ int handle_dev_int(struct int_context *ictxt, struct kernel_dispatch *kdi)
     int seq = int_hierarchy->dev->driver_param.int_seq;
     ictxt->param = int_hierarchy->dev->driver_param.record;
     return invoke_int_handler(seq, ictxt, kdi);
+}
+
+
+/*
+ * User-space
+ */
+void *user_int_register(ulong phandle, ulong user_seq)
+{
+    int fw_id = (long)phandle;
+
+    for (struct dev_record *dev = dev_list; dev; dev = dev->next) {
+        if (dev->int_node && dev->int_node->fw_id == fw_id) {
+            // Register interrupt
+            struct inttree_node *intc = dev->int_node->parent;
+            if (intc && intc->is_int_ctrl) {
+                struct dev_record *intc_dev = intc->dev;
+                struct internal_dev_driver *intc_drv = intc_dev->driver;
+                if (intc_drv && intc_drv->setup_int) {
+                    intc_drv->setup_int(&intc_dev->driver_param,
+                        &dev->int_node->fw_int_encode, &dev->driver_param);
+
+                    dev->driver_param.user_seq = user_seq;
+                    return dev;
+                }
+            }
+
+            break;
+        }
+    }
+
+    return NULL;
+}
+
+void user_int_eoi(void *hal_dev)
+{
+    if (!hal_dev) {
+        return;
+    }
+
+    struct dev_record *dev = hal_dev;
+
+    struct inttree_node *intc = dev->int_node->parent;
+    panic_if(!intc || !intc->is_int_ctrl, "Dev parent must be int ctrl!\n");
+
+    struct dev_record *intc_dev = intc->dev;
+    struct internal_dev_driver *intc_drv = intc_dev->driver;
+    panic_if(!intc_drv, "Int ctrl must have a driver!\n");
+
+    if (intc_drv->eoi) {
+        intc_drv->eoi(&intc_dev->driver_param,
+            &dev->int_node->fw_int_encode, &dev->driver_param);
+    }
 }
 
 
