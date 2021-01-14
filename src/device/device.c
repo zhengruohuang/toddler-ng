@@ -5,16 +5,19 @@
 #include <hal.h>
 
 #include "device/include/devtreefs.h"
+#include "device/include/devfs.h"
 
 
 /*
  * Test
  */
 extern void test_devtree();
+extern void test_dev();
 
 __unused_func static void test_device()
 {
-    test_devtree();
+    //test_devtree();
+    test_dev();
 }
 
 
@@ -24,6 +27,7 @@ __unused_func static void test_device()
 static void init_device()
 {
     init_devtreefs();
+    init_devfs();
 }
 
 
@@ -34,6 +38,12 @@ static void start_drivers()
 {
     extern void init_pl011_driver();
     init_pl011_driver();
+
+    extern void init_dev_zero();
+    init_dev_zero();
+
+    extern void init_dev_null();
+    init_dev_null();
 }
 
 
@@ -52,10 +62,11 @@ static void clock()
 int main(int argc, char **argv)
 {
     init_device();
-    //test_device();
+    start_drivers();
+    test_device();
 
     kprintf("Device, argc: %d, argv[0]: %s\n", argc, argv[0]);
-    start_drivers();
+
 
     clock();
 
