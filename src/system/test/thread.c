@@ -225,7 +225,7 @@ __unused_func static void test_rwlock()
  */
 void test_thread()
 {
-    //test_futex();
-    //test_mutex();
+    test_futex();
+    test_mutex();
     test_rwlock();
 }

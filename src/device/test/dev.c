@@ -2,6 +2,8 @@
 #include <string.h>
 #include <dirent.h>
 
+#include <sys/api.h>
+
 
 static void cat_dev_zero()
 {
@@ -27,6 +29,22 @@ static void eof_dev_null()
     fclose(f);
 }
 
+static void cat_dev_serial()
+{
+    static char serial_buf[33];
+    memset(serial_buf, 0, 33);
+
+    FILE *f = fopen("/dev/serial", "r");
+    for (int i = 0; i < 2; i++) {
+        size_t c = fread(serial_buf, 1, 32, f);
+        //ssize_t c = sys_api_file_read(f->fd, serial_buf, 32, 0);
+        kprintf("read something!\n");
+        serial_buf[c] = '\0';
+        kprintf("Serial: %s\n", serial_buf);
+    }
+    fclose(f);
+}
+
 
 /*
  * Entry
@@ -35,4 +53,5 @@ void test_dev()
 {
     cat_dev_zero();
     eof_dev_null();
+    cat_dev_serial();
 }

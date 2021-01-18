@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/api.h>
 #include <fs/pseudo.h>
 
 
@@ -141,7 +142,7 @@ ssize_t pseudo_fs_append_data(struct pseudo_fs_node *node, void *data, size_t si
     return 0;
 }
 
-ssize_t pseudo_fs_read_data(struct pseudo_fs_node *node, void *buf, size_t count, size_t offset)
+ssize_t pseudo_fs_read_data(struct pseudo_fs_node *node, void *buf, size_t count, size_t offset, int *more)
 {
     ssize_t read_size = 0;
     rwlock_rlock(&node->rwlock);
@@ -150,7 +151,12 @@ ssize_t pseudo_fs_read_data(struct pseudo_fs_node *node, void *buf, size_t count
     case PSEUDO_FS_DATA_FIXED:
         if (offset < node->data.fixed.size && count) {
             read_size = node->data.fixed.size - offset;
-            if (read_size > count) read_size = count;
+            if (read_size > count) {
+                read_size = count;
+                *more = 1;
+            } else {
+                *more = 0;
+            }
             memcpy(buf, node->data.fixed.data + offset, read_size);
         }
         break;
@@ -175,12 +181,12 @@ ssize_t pseudo_fs_write_data(struct pseudo_fs_node *node, void *buf, size_t coun
  */
 static inline int _is_file(struct pseudo_fs_node *node)
 {
-    return node->type == PSEUDO_NODE_FILE;
+    return node->type == VFS_NODE_FILE;
 }
 
 static inline int _is_dir(struct pseudo_fs_node *node)
 {
-    return node->type == PSEUDO_NODE_DIR;
+    return node->type == VFS_NODE_DIR;
 }
 
 int pseudo_fs_mount(void *fs, struct fs_mount_config *cfg)
@@ -281,7 +287,8 @@ int pseudo_fs_file_read(void *fs, fs_id_t id, void *buf, size_t count,
         goto done;
     }
 
-    result->count = pseudo_fs_read_data(node, buf, count, offset);
+    result->more = 0;
+    result->count = pseudo_fs_read_data(node, buf, count, offset, &result->more);
     if (result->count < 0) {
         err = result->count;
         goto done;

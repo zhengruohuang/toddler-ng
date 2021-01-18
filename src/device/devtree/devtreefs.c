@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <sys.h>
+#include <sys/api.h>
 #include <fs/pseudo.h>
 
 #include "libk/include/devtree.h"
@@ -36,7 +37,7 @@ static struct devtree_fs devtree_fs;
 static struct dtfs_node *new_dtfs_node(struct dtfs_node *parent, const char *name, int type)
 {
     int node_type = (type == DTFS_NODE_PROP || type == DTFS_NODE_DRIVER) ?
-                    PSEUDO_NODE_FILE : PSEUDO_NODE_DIR;
+                    VFS_NODE_FILE : VFS_NODE_DIR;
     struct dtfs_node *node = salloc(&dtfs_salloc);
     pseudo_fs_node_setup(&devtree_fs.fs_node, &node->fs_node, name,
                          node_type, 0, 0, 0);

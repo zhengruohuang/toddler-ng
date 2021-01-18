@@ -148,7 +148,13 @@ int wait_on_object(struct process *p, struct thread *t, int wait_type, ulong wai
             futex_t futex_val;
             futex_val.value = futex->value;
 
-            if (futex_val.kernel && futex->locked != wait_value) {
+            int when_ne = wait_value & FUTEX_WHEN_NE ? 1 : 0;
+            ulong when_val = wait_value & FUTEX_VALUE_MASK;
+
+            if (futex_val.kernel && (
+                (!when_ne && futex->locked == when_val) ||
+                ( when_ne && futex->locked != when_val)
+            )) {
                 do_wait = 1;
             }
         } else {
@@ -246,9 +252,19 @@ ulong wake_on_object(struct process *p, struct thread *t, int wait_type, ulong w
             futex_t futex_val;
             futex_val.value = futex->value;
 
-            if (!futex_val.kernel && futex->locked != wait_value) {
+            int when_ne = wait_value & FUTEX_WHEN_NE ? 1 : 0;
+            ulong when_val = wait_value & FUTEX_VALUE_MASK;
+
+            if (!futex_val.kernel && (
+                (!when_ne && futex->locked == when_val) ||
+                ( when_ne && futex->locked != when_val)
+            )) {
                 do_wakeup = 1;
             }
+
+//             if (!futex_val.kernel && futex->locked != wait_value) {
+//                 do_wakeup = 1;
+//             }
         }
         break;
     }

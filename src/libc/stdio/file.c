@@ -269,17 +269,14 @@ size_t fread(void *ptr, size_t size, size_t count, FILE *f)
     ptr += read_bytes;
     total_bytes -= read_bytes;
 
-    // Directly read to the user buf, bypass file buf
-    while (total_bytes) {
-        ssize_t rc = sys_api_file_read(f->fd, ptr, total_bytes, f->pos);
-        if (rc < 0) {
-            // TODO: set err code
-            break;
-        } else if (!rc) {
-            f->eof = 1;
-            break;
-        }
-
+    // Read as much as possible
+    ssize_t rc = sys_api_file_read(f->fd, ptr, total_bytes, f->pos);
+    if (rc < 0) {
+        // TODO: set err code
+        //return 0;
+    } else if (!rc) {
+        f->eof = 1;
+    } else {
         panic_if(rc > total_bytes, "VFS returned more than requested!\n");
 
         ptr += rc;
@@ -287,6 +284,25 @@ size_t fread(void *ptr, size_t size, size_t count, FILE *f)
         total_bytes -= rc;
         f->pos += rc;
     }
+
+//     // Directly read to the user buf, bypass file buf
+//     while (total_bytes) {
+//         ssize_t rc = sys_api_file_read(f->fd, ptr, total_bytes, f->pos);
+//         if (rc < 0) {
+//             // TODO: set err code
+//             break;
+//         } else if (!rc) {
+//             f->eof = 1;
+//             break;
+//         }
+//
+//         panic_if(rc > total_bytes, "VFS returned more than requested!\n");
+//
+//         ptr += rc;
+//         read_bytes += rc;
+//         total_bytes -= rc;
+//         f->pos += rc;
+//     }
 
     // User buffer is filled
     if (!total_bytes) {

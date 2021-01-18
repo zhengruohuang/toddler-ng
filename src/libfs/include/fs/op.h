@@ -16,6 +16,9 @@ enum vfs_ops {
     VFS_OP_ACCESS,
     VFS_OP_MOVE,
 
+    VFS_OP_DEV_CREATE,
+    VFS_OP_PIPE_CREATE,
+
     VFS_OP_FILE_OPEN,
     VFS_OP_FILE_READ,
     VFS_OP_FILE_WRITE,
@@ -44,7 +47,6 @@ enum vfs_ops {
     NUM_VFS_OPS,
 
     // getattr
-    // mknod
     // chmod
     // chown
     // statfs
@@ -52,14 +54,10 @@ enum vfs_ops {
     // getxattr
     // listxattr
     // remove xattr
-    // init
-    // destroy
     // fgetattr
     // lock
     // utimes
     // bmap
-    // symlink
-    // readlink
 };
 
 

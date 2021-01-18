@@ -20,8 +20,6 @@ struct devfs_ipc {
 };
 
 
-extern int devfs_register(const char *name, unsigned long devid, pid_t pid, unsigned long opcode);
-
 extern void init_devfs();
 
 

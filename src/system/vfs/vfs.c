@@ -4,6 +4,7 @@
 #include <atomic.h>
 #include <kth.h>
 #include <sys.h>
+#include <sys/api.h>
 
 #include "common/include/inttypes.h"
 #include "system/include/vfs.h"
@@ -474,6 +475,58 @@ int vfs_mount(struct ventry *vent, const char *name, pid_t pid,
 int vfs_unmount(struct ventry *vent)
 {
     return -1;
+}
+
+
+/*
+ * Special node
+ */
+int vfs_dev_create(struct vnode *node, const char *name, unsigned int flags,
+                   pid_t pid, unsigned long opcode)
+{
+    struct mount_point *mount = node->mount;
+    if (ignore_op_ipc(mount, VFS_OP_DEV_CREATE)) {
+        return -1;
+    }
+
+    char *name_dup = strdup(name);
+
+    // Request
+    msg_t *msg = get_empty_msg();
+    msg_append_param(msg, VFS_OP_DEV_CREATE);
+    msg_append_param(msg, node->fs_id);
+    msg_append_str(msg, name_dup, 0);
+    msg_append_param(msg, flags);
+    msg_append_param(msg, pid);
+    msg_append_param(msg, opcode);
+    syscall_ipc_popup_request(mount->ipc.pid, mount->ipc.opcode);
+
+    free(name_dup);
+
+    return 0;
+}
+
+int vfs_pipe_create(struct vnode *node, const char *name, unsigned int flags)
+{
+    struct mount_point *mount = node->mount;
+    if (ignore_op_ipc(mount, VFS_OP_PIPE_CREATE)) {
+        return -1;
+    }
+
+    char *name_dup = strdup(name);
+
+    // Request
+    msg_t *msg = get_empty_msg();
+    msg_append_param(msg, VFS_OP_PIPE_CREATE);
+    msg_append_int(msg, VFS_NODE_PIPE);
+    msg_append_param(msg, node->fs_id);
+    msg_append_str(msg, name_dup, 0);
+    msg_append_param(msg, flags);
+    syscall_ipc_popup_request(mount->ipc.pid, mount->ipc.opcode);
+
+    free(name_dup);
+
+    return 0;
 }
 
 

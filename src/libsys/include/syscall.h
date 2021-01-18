@@ -56,9 +56,9 @@ extern void syscall_vm_free(ulong base);
 extern ulong syscall_wait_obj_alloc(void *user_obj, ulong total, ulong flags);
 
 extern void syscall_wait_on_timeout(ulong timeout_ms);
-extern void syscall_wait_on_futex(futex_t *f, ulong skip);
+extern void syscall_wait_on_futex(futex_t *f, ulong when);
 
-extern void syscall_wake_on_futex(futex_t *f, ulong skip);
+extern void syscall_wake_on_futex(futex_t *f, ulong when);
 
 
 /*

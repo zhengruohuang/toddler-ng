@@ -39,8 +39,48 @@ int sys_api_release(int fd)
 
 
 /*
+ * Special node creation
+ */
+int sys_api_dev_create(int dirfd, const char *pathname, unsigned int mode,
+                       pid_t pid, unsigned long opcode)
+{
+    msg_t *msg = get_empty_msg();
+    msg_append_int(msg, dirfd);
+    msg_append_str(msg, pathname, 0);
+    msg_append_param(msg, mode);
+    msg_append_param(msg, VFS_NODE_DEV);
+    msg_append_param(msg, pid);
+    msg_append_param(msg, opcode);
+    syscall_ipc_popup_request(0, SYS_API_NODE_CREATE);
+
+    msg = get_response_msg();
+    int err = msg_get_int(msg, 0);
+    return err;
+}
+
+int sys_api_pipe_create(int dirfd, const char *pathname, unsigned int mode)
+{
+    msg_t *msg = get_empty_msg();
+    msg_append_int(msg, dirfd);
+    msg_append_str(msg, pathname, 0);
+    msg_append_param(msg, mode);
+    msg_append_param(msg, VFS_NODE_PIPE);
+    syscall_ipc_popup_request(0, SYS_API_NODE_CREATE);
+
+    msg = get_response_msg();
+    int err = msg_get_int(msg, 0);
+    return err;
+}
+
+
+/*
  * File fead and write
  */
+int sys_api_file_create(int dirfd, const char *pathname, unsigned int mode)
+{
+    return -1;
+}
+
 int sys_api_file_open(int fd, unsigned int flags, unsigned int mode)
 {
     msg_t *msg = get_empty_msg();
@@ -56,25 +96,37 @@ int sys_api_file_open(int fd, unsigned int flags, unsigned int mode)
 
 ssize_t sys_api_file_read(int fd, void *buf, size_t count, size_t offset)
 {
-    msg_t *msg = get_empty_msg();
-    msg_append_int(msg, fd);
-    msg_append_param(msg, count);
-    msg_append_param(msg, offset);
-    syscall_ipc_popup_request(0, SYS_API_FILE_READ);
+    int more = 1;
+    size_t read_count = 0;
 
-    msg = get_response_msg();
-    int err = msg_get_int(msg, 0);
-    if (err) {
-        return err;
+    while (count && more) {
+        msg_t *msg = get_empty_msg();
+        msg_append_int(msg, fd);
+        msg_append_param(msg, count);
+        msg_append_param(msg, offset);
+        syscall_ipc_popup_request(0, SYS_API_FILE_READ);
+
+        msg = get_response_msg();
+        int err = msg_get_int(msg, 0);
+        if (err) {
+            return err;
+        }
+
+        size_t rc = msg_get_param(msg, 1);
+        panic_if(rc > count,
+                "VFS read returned (%lu) more than requested (%lu)!\n",
+                rc, count);
+
+        more = msg_get_param(msg, 2);
+        void *read_data = msg_get_data(msg, 3, NULL);
+        memcpy(buf, read_data, rc);
+
+        count -= rc;
+        offset += rc;
+        buf += rc;
+
+        read_count += rc;
     }
-
-    size_t read_count = msg_get_param(msg, 1);
-    panic_if(read_count > count,
-             "VFS read returned (%lu) more than requested (%lu)!\n",
-             read_count, count);
-
-    void *read_data = msg_get_data(msg, 2, NULL);
-    memcpy(buf, read_data, read_count);
 
     return read_count;
 }

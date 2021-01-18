@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/api.h>
 #include <fs/pseudo.h>
 
 #include "common/include/names.h"
@@ -15,7 +16,7 @@ static struct pseudo_fs_node *new_node(struct pseudo_fs_node *parent, const char
 {
     struct pseudo_fs_node *node = salloc(&entry_salloc);
     pseudo_fs_node_setup(&root_fs, node, name,
-                         dir ? PSEUDO_NODE_DIR : PSEUDO_NODE_FILE,
+                         dir ? VFS_NODE_DIR : VFS_NODE_FILE,
                          0, 0, 0);
     pseudo_fs_node_attach(&root_fs, parent, node);
 

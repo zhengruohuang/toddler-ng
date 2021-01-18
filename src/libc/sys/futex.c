@@ -48,7 +48,7 @@ int futex_lock(futex_t *f, int spin)
         } while (!atomic_cas(&f->value, f_old.value, f_new.value));
 
         if (!acquired && f_new.kernel) {
-            syscall_wait_on_futex(f, 0);
+            syscall_wait_on_futex(f, FUTEX_WHEN_EQ | 0x1ul);
         }
     }
 
@@ -79,7 +79,7 @@ int futex_wait(futex_t *f, int spin)
         } while (!atomic_cas(&f->value, f_old.value, f_new.value));
 
         if (!acquired && f_new.kernel) {
-            syscall_wait_on_futex(f, 0);
+            syscall_wait_on_futex(f, FUTEX_WHEN_EQ | 0x1ul);
         }
     }
 
@@ -127,7 +127,7 @@ int futex_unlock(futex_t *f)
             f_new.kernel = 0;
         } while (!atomic_cas(&f->value, f_old.value, f_new.value));
 
-        syscall_wake_on_futex(f, 1);
+        syscall_wake_on_futex(f, FUTEX_WHEN_EQ | 0);
     }
 
     return 0;

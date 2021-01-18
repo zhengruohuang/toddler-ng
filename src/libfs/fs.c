@@ -38,7 +38,7 @@ static unsigned long alloc_fs_idx()
 
 
 /*
- * Dispatch
+ * Response
  */
 static inline msg_t *dispatch_response(int err)
 {
@@ -47,6 +47,10 @@ static inline msg_t *dispatch_response(int err)
     return msg;
 }
 
+
+/*
+ * Mount
+ */
 static inline void dispatch_mount(msg_t *msg, struct fs_record *record)
 {
     // Request
@@ -84,6 +88,10 @@ static inline void dispatch_unmount(msg_t *msg, struct fs_record *record)
     msg = dispatch_response(err);
 }
 
+
+/*
+ * Lookup
+ */
 static inline void dispatch_lookup(msg_t *msg, struct fs_record *record)
 {
     // Request
@@ -107,6 +115,10 @@ static inline void dispatch_lookup(msg_t *msg, struct fs_record *record)
     msg_append_int(msg, result.cacheable);  // cacheable
 }
 
+
+/*
+ * Acquire
+ */
 static inline void dispatch_acquire(msg_t *msg, struct fs_record *record)
 {
     // Request
@@ -139,6 +151,50 @@ static inline void dispatch_release(msg_t *msg, struct fs_record *record)
     msg = dispatch_response(err);
 }
 
+
+/*
+ * Special node
+ */
+static inline void dispatch_dev_create(msg_t *msg, struct fs_record *record)
+{
+    // Request
+    ulong fs_id = msg_get_param(msg, 1);            // ent_fs_id
+    const char *name = msg_get_data(msg, 2, NULL);  // name
+    ulong flags = msg_get_param(msg, 3);            // flags
+    pid_t pid = msg_get_param(msg, 4);              // pid
+    unsigned long opcode = msg_get_param(msg, 5);   // opcode
+
+    // Open
+    int err = 0;
+    if (record->ops.dev_create) {
+        err = record->ops.dev_create(record->fs, fs_id, name, flags, pid, opcode);
+    }
+
+    // Response
+    msg = dispatch_response(err);
+}
+
+static inline void dispatch_pipe_create(msg_t *msg, struct fs_record *record)
+{
+    // Request
+    ulong fs_id = msg_get_param(msg, 1);            // ent_fs_id
+    const char *name = msg_get_data(msg, 2, NULL);  // name
+    ulong flags = msg_get_param(msg, 3);            // flags
+
+    // Open
+    int err = 0;
+    if (record->ops.pipe_create) {
+        err = record->ops.pipe_create(record->fs, fs_id, name, flags);
+    }
+
+    // Response
+    msg = dispatch_response(err);
+}
+
+
+/*
+ * File ops
+ */
 static inline void dispatch_file_open(msg_t *msg, struct fs_record *record)
 {
     // Request
@@ -166,6 +222,7 @@ static inline void dispatch_file_read(msg_t *msg, struct fs_record *record)
     // Response
     msg = dispatch_response(0);             // ok
     msg_append_param(msg, 0);               // real size
+    msg_append_int(msg, 0);                 // more
 
     // Buffer
     size_t max_size = msg_remain_data_size(msg) - 32ul; // extra safe
@@ -182,6 +239,7 @@ static inline void dispatch_file_read(msg_t *msg, struct fs_record *record)
 
         if (!err) {
             msg_set_param(msg, 1, result.count);
+            msg_set_int(msg, 2, result.more);
         }
     }
 
@@ -195,6 +253,10 @@ static inline void dispatch_file_write(msg_t *msg, struct fs_record *record)
     msg = dispatch_response(0);             // ok
 }
 
+
+/*
+ * Dir ops
+ */
 static inline void dispatch_dir_open(msg_t *msg, struct fs_record *record)
 {
     // Request
@@ -299,6 +361,12 @@ static unsigned long dispatch(unsigned long opcode)
     case VFS_OP_RELEASE:
         dispatch_release(msg, record);
         break;
+    case VFS_OP_DEV_CREATE:
+        dispatch_dev_create(msg, record);
+        break;
+    case VFS_OP_PIPE_CREATE:
+        dispatch_pipe_create(msg, record);
+        break;
     case VFS_OP_FILE_OPEN:
         dispatch_file_open(msg, record);
         break;
@@ -346,6 +414,9 @@ static inline unsigned long get_ignored_ops_map(const struct fs_ops *ops)
 
     if (!ops || !ops->acquire)  mask |= 0x1 << VFS_OP_ACQUIRE;
     if (!ops || !ops->release)  mask |= 0x1 << VFS_OP_RELEASE;
+
+    if (!ops || !ops->dev_create)   mask |= 0x1 << VFS_OP_DEV_CREATE;
+    if (!ops || !ops->pipe_create)  mask |= 0x1 << VFS_OP_PIPE_CREATE;
 
     if (!ops || !ops->file_open)    mask |= 0x1 << VFS_OP_FILE_OPEN;
     if (!ops || !ops->file_read)    mask |= 0x1 << VFS_OP_FILE_READ;

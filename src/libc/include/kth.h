@@ -1,5 +1,5 @@
-#ifndef __LIBC_INCLUDE_THREADS_H__
-#define __LIBC_INCLUDE_THREADS_H__
+#ifndef __LIBC_INCLUDE_KTH_H__
+#define __LIBC_INCLUDE_KTH_H__
 
 
 #include <atomic.h>
@@ -63,6 +63,7 @@ extern void mutex_unlock(mutex_t *lock);
 /*
  * RW-lock
  */
+// TODO: remove
 struct __rwlock_flags {
     union {
         unsigned long value;
@@ -113,6 +114,28 @@ extern void rwlock_wunlock(rwlock_t *lock);
 extern void rwlock_upgrade(rwlock_t *lock);
 extern int rwlock_tryupgrade(rwlock_t *lock);
 extern void rwlock_downgrade(rwlock_t *lock);
+
+
+/*
+ * Semaphore
+ */
+typedef struct {
+    futex_t futex;
+    int max_spin;
+} sema_t;
+
+#define SEMA_MAX_SPIN 100
+#define SEMA_INITIALIZER { .futex = FUTEX_INITIALIZER, .max_spin = SEMA_MAX_SPIN }
+
+extern void sema_init(sema_t *sema);
+extern void sema_init_spin(sema_t *sema, int max_spin);
+extern void sema_destroy(sema_t *sema);
+
+extern int sema_wait(sema_t *sema);
+extern int sema_wait_spin(sema_t *sema, int max_spin);
+extern int sema_trywait(sema_t *sema);
+
+extern int sema_post(sema_t *sema);
 
 
 /*

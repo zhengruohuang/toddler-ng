@@ -9,6 +9,6 @@ void run_tests()
     //test_thread();
     //test_ipc();
     //test_malloc();
-    test_vfs();
+    //test_vfs();
     kprintf("Passed all tests!\n");
 }

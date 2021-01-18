@@ -131,14 +131,14 @@ void syscall_wait_on_timeout(ulong timeout_ms)
     sysenter(SYSCALL_EVENT_WAIT, WAIT_ON_TIMEOUT, 0, timeout_ms, NULL, NULL);
 }
 
-void syscall_wait_on_futex(futex_t *f, ulong skip)
+void syscall_wait_on_futex(futex_t *f, ulong when)
 {
-    sysenter(SYSCALL_EVENT_WAIT, WAIT_ON_FUTEX, (ulong)f, skip, NULL, NULL);
+    sysenter(SYSCALL_EVENT_WAIT, WAIT_ON_FUTEX, (ulong)f, when, NULL, NULL);
 }
 
-void syscall_wake_on_futex(futex_t *f, ulong skip)
+void syscall_wake_on_futex(futex_t *f, ulong when)
 {
-    sysenter(SYSCALL_EVENT_WAKE, WAIT_ON_FUTEX, (ulong)f, skip, NULL, NULL);
+    sysenter(SYSCALL_EVENT_WAKE, WAIT_ON_FUTEX, (ulong)f, when, NULL, NULL);
 }
 
 

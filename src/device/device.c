@@ -34,16 +34,21 @@ static void init_device()
 /*
  * Driver
  */
+extern void init_pl011_driver();
+
+extern void init_dev_zero();
+extern void init_dev_null();
+extern void init_dev_full();
+extern void init_dev_random();
+
 static void start_drivers()
 {
-    extern void init_pl011_driver();
     init_pl011_driver();
 
-    extern void init_dev_zero();
     init_dev_zero();
-
-    extern void init_dev_null();
     init_dev_null();
+    init_dev_null();
+    init_dev_random();
 }
 
 
@@ -66,7 +71,6 @@ int main(int argc, char **argv)
     test_device();
 
     kprintf("Device, argc: %d, argv[0]: %s\n", argc, argv[0]);
-
 
     clock();
 

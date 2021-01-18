@@ -1,7 +1,8 @@
-#ifndef __LIBFS_INCLUDE_FS_FS__
-#define __LIBFS_INCLUDE_FS_FS__
+#ifndef __LIBFS_INCLUDE_FS_H__
+#define __LIBFS_INCLUDE_FS_H__
 
 
+#include <sys.h>
 #include <fs/op.h>
 
 
@@ -22,6 +23,7 @@ struct fs_lookup_result {
 
 struct fs_file_op_result {
     ssize_t count;
+    int more;
 };
 
 struct fs_dir_read_result {
@@ -40,6 +42,9 @@ struct fs_ops {
 
     int (*acquire)(void *fs, fs_id_t id);
     int (*release)(void *fs, fs_id_t id);
+
+    int (*dev_create)(void *fs, fs_id_t id, const char *name, unsigned long flags, pid_t pid, unsigned opcode);
+    int (*pipe_create)(void *fs, fs_id_t id, const char *name, unsigned long flags);
 
     int (*file_open)(void *fs, fs_id_t id, unsigned long flags, unsigned long mode);
     int (*file_read)(void *fs, fs_id_t id, void *buf, size_t count, size_t offset,

@@ -91,7 +91,7 @@ void rwlock_runlock(rwlock_t *lock)
         } while (!atomic_cas(&lock->rd_futex.value, f_old.value, f_new.value));
 
         if (f_old.kernel) {
-            syscall_wake_on_futex(&lock->rd_futex, 0);
+            syscall_wake_on_futex(&lock->rd_futex, FUTEX_WHEN_NE | 0);
         }
     }
 }
@@ -136,7 +136,7 @@ static inline void wait_for_reads(futex_t *f, const int spin)
         } while (!atomic_cas(&f->value, f_old.value, f_new.value));
 
         if (!acquired && f_new.kernel) {
-            syscall_wait_on_futex(f, 0x1ul);
+            syscall_wait_on_futex(f, FUTEX_WHEN_NE | 0x1ul);
         }
     }
 }

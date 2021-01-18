@@ -67,7 +67,6 @@ typedef volatile struct futex {
         ulong value;
 
         struct {
-            //ulong valid         : 1;
             ulong kernel        : 1;
             ulong locked        : sizeof(ulong) * 8 - 1;
         };
@@ -75,6 +74,10 @@ typedef volatile struct futex {
 } natural_struct futex_t;
 
 #define FUTEX_INITIALIZER   { .value = 0 }
+
+#define FUTEX_WHEN_EQ       0
+#define FUTEX_WHEN_NE       (0x1ul << (sizeof(ulong) * 8 - 1))
+#define FUTEX_VALUE_MASK    (~(FUTEX_WHEN_NE))
 
 
 /*

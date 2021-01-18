@@ -23,6 +23,51 @@ static inline void _err_response(int err)
 
 
 /*
+ * Special node creation
+ */
+static ulong vfs_api_node_create(ulong opcode)
+{
+    // Request
+    msg_t *msg = get_msg();
+    int dirfd = msg_get_int(msg, 0);
+    const char *name = msg_get_data(msg, 1, NULL);
+    ulong flags = msg_get_param(msg, 2);
+    ulong node_type = msg_get_param(msg, 3);
+    pid_t pid = msg->sender.pid;
+
+    // Obtain containing dir
+    struct ventry *vent = task_lookup_fd(pid, dirfd);
+    if (!vent || !vent->vnode) {
+        _err_response(-1);
+    }
+
+    // Create node
+    int err = -1;
+    switch (node_type) {
+    case VFS_NODE_DEV: {
+        pid_t drv_pid = msg_get_param(msg, 4);
+        unsigned long drv_opcode = msg_get_param(msg, 5);
+        err = vfs_dev_create(vent->vnode, name, flags, drv_pid, drv_opcode);
+        break;
+    }
+    case VFS_NODE_PIPE: {
+        err = vfs_pipe_create(vent->vnode, name, flags);
+        break;
+    }
+    default:
+        break;
+    }
+
+    // Response
+    msg = get_empty_msg();
+    msg_append_int(msg, err);
+
+    syscall_ipc_respond();
+    return 0;
+}
+
+
+/*
  * Acquire and release
  */
 static ulong vfs_api_acquire(ulong opcode)
@@ -206,6 +251,8 @@ void init_vfs_api()
 {
     register_msg_handler(SYS_API_ACQUIRE, vfs_api_acquire);
     register_msg_handler(SYS_API_RELEASE, vfs_api_release);
+
+    register_msg_handler(SYS_API_NODE_CREATE, vfs_api_node_create);
 
     register_msg_handler(SYS_API_FILE_OPEN, vfs_api_file_open);
     register_msg_handler(SYS_API_FILE_READ, vfs_api_file_read);

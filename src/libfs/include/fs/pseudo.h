@@ -13,15 +13,6 @@ enum pseudo_fs_data_type {
     PSEUDO_FS_DATA_DYNAMIC,
 };
 
-enum pseudo_fs_node_type {
-    PSEUDO_NODE_NONE,
-    PSEUDO_NODE_DIR,
-    PSEUDO_NODE_FILE,
-    PSEUDO_NODE_PIPE,
-    PSEUDO_NODE_DEV_CHAR,
-    PSEUDO_NODE_DEV_BLOCK,
-};
-
 struct pseudo_fs_data_block {
     struct pseudo_fs_data_block *next;
 
@@ -106,7 +97,7 @@ extern void pseudo_fs_node_detach(struct pseudo_fs *fs, struct pseudo_fs_node *p
 
 extern ssize_t pseudo_fs_set_data(struct pseudo_fs_node *node, int type, void *data, size_t size);
 extern ssize_t pseudo_fs_append_data(struct pseudo_fs_node *node, void *data, size_t size);
-extern ssize_t pseudo_fs_read_data(struct pseudo_fs_node *node, void *buf, size_t count, size_t offset);
+extern ssize_t pseudo_fs_read_data(struct pseudo_fs_node *node, void *buf, size_t count, size_t offset, int *more);
 extern ssize_t pseudo_fs_write_data(struct pseudo_fs_node *node, void *buf, size_t count, size_t offset);
 
 /*

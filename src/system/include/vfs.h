@@ -71,6 +71,10 @@ extern int vfs_release(struct ventry *vent);
 extern int vfs_mount(struct ventry *vent, const char *name, pid_t pid,
                      unsigned long opcode, unsigned long ops_ignore_map);
 
+extern int vfs_dev_create(struct vnode *node, const char *name, unsigned int flags,
+                          pid_t pid, unsigned long opcode);
+extern int vfs_pipe_create(struct vnode *node, const char *name, unsigned int flags);
+
 extern int vfs_file_open(struct vnode *node, ulong flags, ulong mode);
 extern void vfs_file_read_forward(struct vnode *node, size_t count, size_t offset);
 

@@ -52,6 +52,22 @@ def build_libfs():
         ],
     )
 
+def build_libdrv():
+    print_info('libdrv', 'Building libdrv')
+
+    libdrv_files = get_all_arch_files('libdrv/', [ '.c', '.S' ])
+
+    lib_files(
+        bin_dir + 'libdrv.a',
+        libdrv_files,
+        toolchain = get_toolchain('default'),
+        includes = [
+            src_dir + 'libc/include',
+            src_dir + 'libfs/include',
+            src_dir + 'libdrv/include'
+        ],
+    )
+
 def build_hal():
     print_info('hal', 'Building HAL')
 
@@ -125,12 +141,14 @@ def build_server(name, msg, ld, libs, incs):
 def build_servers():
     server_ld = find_deepest_arch_file('libc/user.ld')
     libs = [
+        bin_dir + 'libdrv.a',
         bin_dir + 'libfs.a',
         bin_dir + 'libc.a',
     ]
     includes = [
         src_dir + 'libc/include',
-        src_dir + 'libfs/include'
+        src_dir + 'libfs/include',
+        src_dir + 'libdrv/include',
     ]
 
     # System
@@ -276,6 +294,7 @@ def build_main():
     build_libsys()
     build_libc()
     build_libfs()
+    build_libdrv()
     build_hal()
     build_kernel()
     build_servers()
