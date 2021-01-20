@@ -571,11 +571,11 @@ void vfs_file_read_forward(struct vnode *node, size_t count, size_t offset)
     rwlock_runlock(&node->rwlock);
 }
 
-void vfs_file_write_forward(struct vnode *node, size_t count, size_t offset)
+ssize_t vfs_file_write(struct vnode *node, const void *data, size_t count, size_t offset)
 {
     struct mount_point *mount = node->mount;
     if (ignore_op_ipc(mount, VFS_OP_FILE_WRITE)) {
-        return;
+        return 0;
     }
 
     rwlock_wlock(&node->rwlock);
@@ -586,9 +586,20 @@ void vfs_file_write_forward(struct vnode *node, size_t count, size_t offset)
     msg_append_param(msg, node->fs_id);
     msg_append_param(msg, count);
     msg_append_param(msg, offset);
+    msg_append_data(msg, data, count);
     syscall_ipc_popup_request(mount->ipc.pid, mount->ipc.opcode);
 
     rwlock_wunlock(&node->rwlock);
+
+    // Response
+    msg = get_response_msg();
+    int err = msg_get_int(msg, 0);
+    if (err) {
+        return err;
+    }
+
+    size_t write_count = msg_get_param(msg, 1);
+    return write_count;
 }
 
 

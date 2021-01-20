@@ -92,7 +92,7 @@ done:
 
 
 /*
- * Device operations
+ * Device read
  */
 static unsigned long devfs_read_worker(unsigned long param)
 {
@@ -123,12 +123,13 @@ static unsigned long devfs_read_worker(unsigned long param)
 
     // Data
     size_t read_count = msg_get_param(msg, 1);
+    //int more = msg_get_int(msg, 2);
     panic_if(read_count > req_count,
              "VFS read returned (%lu) more than requested (%lu)!\n",
              read_count, req_count);
 
     if (ipc_info->buf) {
-        void *read_data = msg_get_data(msg, 2, NULL);
+        void *read_data = msg_get_data(msg, 3, NULL);
         memcpy(ipc_info->buf, read_data, read_count);
     }
 
@@ -173,10 +174,82 @@ done:
     return err;
 }
 
+
+/*
+ * Device write
+ */
+static unsigned long devfs_write_worker(unsigned long param)
+{
+    struct devfs_ipc *ipc_info = (void *)param;
+
+    // Request
+    msg_t *msg = get_empty_msg();
+    msg_append_param(msg, VFS_OP_FILE_WRITE);
+    msg_append_param(msg, ipc_info->devid);
+    msg_append_param(msg, ipc_info->count);
+    msg_append_param(msg, ipc_info->offset);
+
+    // Data
+    size_t req_count = ipc_info->count;
+    size_t max_size = msg_remain_data_size(msg);
+    panic_if(ipc_info->count > max_size, "Too much data to write!\n");
+    msg_append_data(msg, ipc_info->buf, ipc_info->count);
+
+    // Send
+    syscall_ipc_popup_request(ipc_info->pid, ipc_info->opcode);
+
+    // Response
+    msg = get_response_msg();
+    int err = msg_get_int(msg, 0);
+    if (err) {
+        ipc_info->err = err;
+        return 0;
+    }
+
+    size_t write_count = msg_get_param(msg, 1);
+    panic_if(write_count > req_count,
+             "VFS wrote (%lu) more than supplied (%lu)!\n",
+             write_count, req_count);
+
+    // Result
+    ipc_info->result->count = write_count;
+    return 0;
+}
+
 static int devfs_write(void *fs, fs_id_t id, void *buf, size_t count,
                        size_t offset, struct fs_file_op_result *result)
 {
-    return -1;
+    int err = 0;
+    struct pseudo_fs *pfs = fs;
+    rwlock_wlock(&pfs->rwlock);
+
+    struct pseudo_fs_node *pfs_node = pseudo_fs_node_find(fs, id);
+    if (!pfs_node) {
+        err = -1;
+        goto done;
+    }
+
+    struct devfs_node *node = container_of(pfs_node, struct devfs_node, fs_node);
+    if (node->type != VFS_NODE_DEV) {
+        err = -1;
+        goto done;
+    }
+
+    kth_t sender;
+    struct devfs_ipc ipc_info = {
+        .pid = node->pid, .opcode = node->opcode, .devid = node->devid,
+        .buf = buf, .count = count, .offset = offset,
+        .err = 0, .result = result,
+    };
+
+    //kprintf("here, pid: %lu, opcode: %lu\n", ipc_info.pid, ipc_info.opcode);
+
+    kth_create(&sender, devfs_write_worker, (unsigned long)&ipc_info);
+    kth_join(&sender, NULL);
+
+done:
+    rwlock_wunlock(&pfs->rwlock);
+    return err;
 }
 
 

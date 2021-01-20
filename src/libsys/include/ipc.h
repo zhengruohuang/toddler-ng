@@ -16,8 +16,8 @@ extern size_t msg_remain_data_size(msg_t *msg);
 
 extern void msg_append_param(msg_t *msg, ulong param);
 extern void msg_append_int(msg_t *msg, int param);
-extern void *msg_append_data(msg_t *msg, void *data, size_t size);
-extern void *msg_try_append_data(msg_t *msg, void *data, size_t size);
+extern void *msg_append_data(msg_t *msg, const void *data, size_t size);
+extern void *msg_try_append_data(msg_t *msg, const void *data, size_t size);
 extern char *msg_append_str(msg_t *msg, const char *str, size_t size);
 
 extern ulong msg_get_param(msg_t *msg, int idx);

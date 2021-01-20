@@ -77,9 +77,10 @@ extern int vfs_pipe_create(struct vnode *node, const char *name, unsigned int fl
 
 extern int vfs_file_open(struct vnode *node, ulong flags, ulong mode);
 extern void vfs_file_read_forward(struct vnode *node, size_t count, size_t offset);
+extern ssize_t vfs_file_write(struct vnode *node, const void *data, size_t count, size_t offset);
 
 extern int vfs_dir_open(struct vnode *node, ulong mode);
-void vfs_dir_read_forward(struct vnode *node, size_t count, ulong offset);
+extern void vfs_dir_read_forward(struct vnode *node, size_t count, ulong offset);
 
 
 /*

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
 
@@ -45,6 +46,49 @@ static void cat_dev_serial()
     fclose(f);
 }
 
+static void puts_dev_serial()
+{
+    //const char *text = "From serial!\n";
+
+    char digits[4] = { '0', '0', '0', '0' };
+    char *buf = malloc(5121);
+    char *num = buf;
+    for (int i = 0; i < 1024; i++) {
+        char *s = num;
+        s[0] = digits[0];
+        s[1] = digits[1];
+        s[2] = digits[2];
+        s[3] = digits[3];
+        s[4] = '\n';
+        num += 5;
+
+        if (digits[3] == '9') {
+            digits[3] = '0';
+            if (digits[2] == '9') {
+                digits[2] = '0';
+                if (digits[1] == '9') {
+                    digits[1] = '0';
+                    digits[0]++;
+                } else {
+                    digits[1]++;
+                }
+            } else {
+                digits[2]++;
+            }
+        } else {
+            digits[3]++;
+            //kprintf("digits: %s\n", digits);
+        }
+    }
+    buf[5120] = '\0';
+
+    FILE *f = fopen("/dev/serial", "w");
+    fwrite(buf, 1, 5121, f);
+    fclose(f);
+
+    free(buf);
+}
+
 
 /*
  * Entry
@@ -53,5 +97,6 @@ void test_dev()
 {
     cat_dev_zero();
     eof_dev_null();
-    cat_dev_serial();
+    //cat_dev_serial();
+    puts_dev_serial();
 }

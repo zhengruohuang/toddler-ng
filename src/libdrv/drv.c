@@ -60,13 +60,14 @@ static inline void dispatch_file_read(msg_t *msg, struct drv_record *record)
     // Response
     msg = dispatch_response(0);             // ok
     msg_append_param(msg, 0);               // real size
+    msg_append_int(msg, 0);                 // more
 
     // Buffer
     size_t max_size = msg_remain_data_size(msg) - 32ul; // extra safe
     if (req_size > max_size) req_size = max_size;
     void *buf = msg_append_data(msg, NULL, req_size);   // data
 
-    kprintf("driver req_size: %lu, offset: %lu\n", req_size, offset);
+    kprintf("DRV read req_size: %lu, offset: %lu\n", req_size, offset);
 
     // Read
     int err = 0;
@@ -76,6 +77,7 @@ static inline void dispatch_file_read(msg_t *msg, struct drv_record *record)
 
         if (!err) {
             msg_set_param(msg, 1, result.count);
+            //msg_set_int(msg, 2, result.more);
         }
     }
 
@@ -85,8 +87,31 @@ static inline void dispatch_file_read(msg_t *msg, struct drv_record *record)
 
 static inline void dispatch_file_write(msg_t *msg, struct drv_record *record)
 {
+    // Request
+    ulong devid = msg_get_param(msg, 1);    // devid
+    ulong req_size = msg_get_param(msg, 2); // size
+    ulong offset = msg_get_param(msg, 3);   // offset
+    void *data = msg_get_data(msg, 4, NULL);// data
+
+    kprintf("DRV write, req_size: %lu, offset: %lu\n", req_size, offset);
+
+    // Write
+    int err = 0;
+    size_t write_size = 0;
+    if (record->ops.write) {
+        struct fs_file_op_result result = { };
+        err = record->ops.write(devid, data, req_size, offset, &result);
+
+        if (!err) {
+            write_size = result.count;
+        }
+    }
+
     // Response
-    msg = dispatch_response(0);             // ok
+    msg = dispatch_response(err);           // err
+    if (!err) {
+        msg_append_param(msg, write_size);  // real size
+    }
 }
 
 

@@ -133,8 +133,43 @@ ssize_t sys_api_file_read(int fd, void *buf, size_t count, size_t offset)
 
 ssize_t sys_api_file_write(int fd, const void *buf, size_t count, size_t offset)
 {
-    panic("not implemented!\n");
-    return -1;
+    size_t write_count = 0;
+
+    while (count) {
+        // Request
+        msg_t *msg = get_empty_msg();
+        msg_append_int(msg, fd);
+        msg_append_param(msg, count);
+        msg_append_param(msg, offset);
+
+        size_t max_size = msg_remain_data_size(msg) - 32ul; // extra safe
+        size_t req_size = max_size > count ? count : max_size;
+        msg_append_data(msg, buf, req_size);
+        msg_set_param(msg, 1, req_size);
+
+        syscall_ipc_popup_request(0, SYS_API_FILE_WRITE);
+
+        // Response
+        msg = get_response_msg();
+        int err = msg_get_int(msg, 0);
+        if (err) {
+            return err;
+        }
+
+        size_t wc = msg_get_param(msg, 1);
+        panic_if(wc > count,
+                "VFS wrote (%lu) more than supplied (%lu)!\n",
+                wc, count);
+
+        // Next pass
+        count -= wc;
+        offset += wc;
+        buf += wc;
+
+        write_count += wc;
+    }
+
+    return write_count;
 }
 
 

@@ -68,7 +68,7 @@ void msg_append_int(msg_t *msg, int param)
     msg->params[msg->num_params++] = (ulong)(long)param;
 }
 
-void *msg_append_data(msg_t *msg, void *data, size_t size)
+void *msg_append_data(msg_t *msg, const void *data, size_t size)
 {
     panic_if(msg->num_params >= MAX_MSG_PARAMS, "Too many params in msg!\n");
 
@@ -89,7 +89,7 @@ void *msg_append_data(msg_t *msg, void *data, size_t size)
     return data_start;
 }
 
-void *msg_try_append_data(msg_t *msg, void *data, size_t size)
+void *msg_try_append_data(msg_t *msg, const void *data, size_t size)
 {
     if (msg->num_params >= MAX_MSG_PARAMS) {
         return NULL;

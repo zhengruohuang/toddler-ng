@@ -170,6 +170,33 @@ static ulong vfs_api_file_read(ulong opcode)
 
 static ulong vfs_api_file_write(ulong opcode)
 {
+    // Request
+    msg_t *msg = get_msg();
+    int fd = msg_get_int(msg, 0);
+    size_t count = msg_get_param(msg, 1);
+    size_t offset = msg_get_param(msg, 2);
+    void *data = msg_get_data(msg, 3, NULL);
+    pid_t pid = msg->sender.pid;
+
+    // Duplicate data
+    void *data_dup = malloc(count);
+    memcpy(data_dup, data, count);
+
+    // Write
+    struct ventry *vent = task_lookup_fd(pid, fd);
+    ssize_t wc = vfs_file_write(vent->vnode, data_dup, count, offset);
+    free(data_dup);
+
+    // Response
+    msg = get_empty_msg();
+    if (wc < 0) {
+        msg_append_int(msg, (int)wc);
+    } else {
+        msg_append_int(msg, 0);
+        msg_append_param(msg, (size_t)wc);
+    }
+
+    syscall_ipc_respond();
     return 0;
 }
 

@@ -285,25 +285,6 @@ size_t fread(void *ptr, size_t size, size_t count, FILE *f)
         f->pos += rc;
     }
 
-//     // Directly read to the user buf, bypass file buf
-//     while (total_bytes) {
-//         ssize_t rc = sys_api_file_read(f->fd, ptr, total_bytes, f->pos);
-//         if (rc < 0) {
-//             // TODO: set err code
-//             break;
-//         } else if (!rc) {
-//             f->eof = 1;
-//             break;
-//         }
-//
-//         panic_if(rc > total_bytes, "VFS returned more than requested!\n");
-//
-//         ptr += rc;
-//         read_bytes += rc;
-//         total_bytes -= rc;
-//         f->pos += rc;
-//     }
-
     // User buffer is filled
     if (!total_bytes) {
         return count;
@@ -314,9 +295,9 @@ size_t fread(void *ptr, size_t size, size_t count, FILE *f)
     div_ulong(read_bytes, size, &read_count, &tail_bytes);
     panic_if(tail_bytes > BUFSIZE, "Tail size exceeding BUFSIZE!\n");
 
-    // Put tail bytes back to internal buf
-    memcpy(f->buf, ptr + (read_bytes - tail_bytes), tail_bytes);
-    f->buf_size = tail_bytes;
+    // // Put tail bytes back to internal buf
+    //memcpy(f->buf, ptr + (read_bytes - tail_bytes), tail_bytes);
+    //f->buf_size = tail_bytes;
     f->pos -= tail_bytes;
 
     return read_count;
@@ -324,15 +305,70 @@ size_t fread(void *ptr, size_t size, size_t count, FILE *f)
 
 size_t fwrite(const void *ptr, size_t size, size_t count, FILE *f)
 {
-    panic("Not implemented!\n");
-    return 0;
+    if (!f || !ptr || !size || !count) {
+        return 0;
+    }
+
+    // TODO: replace with mul func
+    size_t total_bytes = size * count;
+
+    // Write to buffer first
+    panic_if(f->buf_size < f->buf_idx, "Inconsistent file buf size!\n");
+    size_t buf_write_bytes = f->buf_size - f->buf_idx;
+    if (buf_write_bytes > total_bytes) {
+        buf_write_bytes = total_bytes;
+    }
+    memcpy(f->buf + f->buf_idx, ptr, buf_write_bytes);
+    f->buf_dirty = 1;
+
+    if (f->buf_size == f->buf_idx) {
+        fflush(f);
+    }
+
+    // Adjust size, done if all written to the buf
+    size_t write_bytes = buf_write_bytes;
+    ptr += buf_write_bytes;
+    total_bytes -= buf_write_bytes;
+    if (!total_bytes) {
+        return write_bytes;
+    }
+
+    // Write as much as possible
+    ssize_t wc = sys_api_file_write(f->fd, ptr, total_bytes, f->pos);
+    if (wc < 0) {
+        // TODO: set err code
+        //return 0;
+    } else if (!wc) {
+        //f->eof = 1;
+    } else {
+        panic_if(wc > total_bytes, "VFS wrote more than supplied!\n");
+
+        ptr += wc;
+        write_bytes += wc;
+        total_bytes -= wc;
+        f->pos += wc;
+    }
+
+    // Done
+    return write_bytes;
 }
 
 int fflush(FILE *f)
 {
-    if (f->buf_dirty) {
-        panic("Not implemented!\n");
+    if (!f) {
         return -1;
+    }
+
+    if (f->buf_dirty) {
+        ssize_t wc = sys_api_file_write(f->fd, f->buf, f->buf_idx, f->pos);
+        if (wc < 0) {
+            // TODO: set err code
+            //return 0;
+            return -1;
+        } else {
+            panic_if(wc > f->buf_idx, "VFS wrote more than supplied!\n");
+            f->pos += wc;
+        }
     }
 
     reset_fbuf(f);

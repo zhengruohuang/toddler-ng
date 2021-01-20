@@ -229,7 +229,7 @@ static inline void dispatch_file_read(msg_t *msg, struct fs_record *record)
     if (req_size > max_size) req_size = max_size;
     void *buf = msg_append_data(msg, NULL, req_size);   // data
 
-    kprintf("req_size: %lu, offset: %lu\n", req_size, offset);
+    kprintf("FS read, req_size: %lu, offset: %lu\n", req_size, offset);
 
     // Read
     int err = 0;
@@ -249,8 +249,31 @@ static inline void dispatch_file_read(msg_t *msg, struct fs_record *record)
 
 static inline void dispatch_file_write(msg_t *msg, struct fs_record *record)
 {
+    // Request
+    ulong fs_id = msg_get_param(msg, 1);    // ent_fs_id
+    ulong req_size = msg_get_param(msg, 2); // size
+    ulong offset = msg_get_param(msg, 3);   // offset
+    void *data = msg_get_data(msg, 4, NULL);// data
+
+    kprintf("FS write, req_size: %lu, offset: %lu\n", req_size, offset);
+
+    // Read
+    int err = 0;
+    size_t write_size = 0;
+    if (record->ops.file_write) {
+        struct fs_file_op_result result = { };
+        err = record->ops.file_write(record->fs, fs_id, data, req_size, offset, &result);
+
+        if (!err) {
+            write_size = result.count;
+        }
+    }
+
     // Response
-    msg = dispatch_response(0);             // ok
+    msg = dispatch_response(err);           // err
+    if (!err) {
+        msg_append_param(msg, write_size);  // real size
+    }
 }
 
 
