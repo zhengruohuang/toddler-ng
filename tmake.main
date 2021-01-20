@@ -1,72 +1,30 @@
 #!/usr/bin/python
 
 
-def build_libk():
-    print_info('libk', 'Building libk')
+def build_lib(name, srcs, incs):
+    print_info(name, 'Building ' + name)
 
-    libk_files = get_all_arch_files('libk/', [ '.c', '.S' ])
+    files = []
+    for s in srcs:
+        files += get_all_arch_files(s, [ '.c', '.S' ])
 
-    lib_files(
-        bin_dir + 'libk.a',
-        libk_files,
-        toolchain = get_toolchain('default'),
-    )
-
-def build_libsys():
-    print_info('libk', 'Building libsys')
-
-    libsys_files = get_all_arch_files('libsys/', [ '.c', '.S' ])
+    includes = []
+    for s in incs:
+        includes += [ src_dir + s + 'include' ]
 
     lib_files(
-        bin_dir + 'libsys.a',
-        libsys_files,
+        bin_dir + name + '.a',
+        files,
         toolchain = get_toolchain('default'),
+        includes = includes,
     )
 
-def build_libc():
-    print_info('libk', 'Building libc')
-
-    libk_files = get_all_arch_files('libk/', [ '.c', '.S' ])
-    libsys_files = get_all_arch_files('libsys/', [ '.c', '.S' ])
-    libc_files = get_all_arch_files('libc/', [ '.c', '.S' ])
-
-    lib_files(
-        bin_dir + 'libc.a',
-        libk_files + libsys_files + libc_files,
-        toolchain = get_toolchain('default'),
-        includes = [ src_dir + 'libc/include' ],
-    )
-
-def build_libfs():
-    print_info('libfs', 'Building libfs')
-
-    libfs_files = get_all_arch_files('libfs/', [ '.c', '.S' ])
-
-    lib_files(
-        bin_dir + 'libfs.a',
-        libfs_files,
-        toolchain = get_toolchain('default'),
-        includes = [
-            src_dir + 'libc/include',
-            src_dir + 'libfs/include'
-        ],
-    )
-
-def build_libdrv():
-    print_info('libdrv', 'Building libdrv')
-
-    libdrv_files = get_all_arch_files('libdrv/', [ '.c', '.S' ])
-
-    lib_files(
-        bin_dir + 'libdrv.a',
-        libdrv_files,
-        toolchain = get_toolchain('default'),
-        includes = [
-            src_dir + 'libc/include',
-            src_dir + 'libfs/include',
-            src_dir + 'libdrv/include'
-        ],
-    )
+def build_libs():
+    build_lib('libk',   [ 'libk/' ],    [])
+    build_lib('libsys', [ 'libsys/' ],  [])
+    build_lib('libc',   [ 'libk/', 'libsys/', 'libc/' ], [ 'libc/' ])
+    build_lib('libfs',  [ 'libfs/' ],   [ 'libc/', 'libfs/' ])
+    build_lib('libdrv', [ 'libdrv/' ],  [ 'libc/', 'libfs/', 'libdrv/' ])
 
 def build_hal():
     print_info('hal', 'Building HAL')
@@ -113,8 +71,8 @@ def build_kernel():
         toolchain = get_toolchain('default'),
     )
 
-def build_server(name, msg, ld, libs, incs):
-    print_info(name, msg)
+def build_server(name, ld, libs, incs):
+    print_info(name, 'Building ' + name)
 
     dir_name = name + '/'
     elf_name = name + '.elf'
@@ -151,51 +109,8 @@ def build_servers():
         src_dir + 'libdrv/include',
     ]
 
-    # System
-    build_server('system', 'Building system', server_ld, libs, includes)
-
-    # Device
-    build_server('device', 'Building device', server_ld, libs, includes)
-
-    # System
-    #print_info('system', 'Building system')
-    #system_files = get_all_arch_files('system/', [ '.c', '.S' ])
-
-    #build_files(
-        #bin_dir + 'system.elf',
-        #system_files,
-        #ext_libs = [ libc ],
-        #ext_ld_deps = [ server_ld ],
-        #ld_script = server_ld,
-        #toolchain = get_toolchain('default'),
-        #includes = includes,
-    #)
-
-    #disasm_exec(
-        #disasm_dir + 'system.S',
-        #bin_dir + 'system.elf',
-        #toolchain = get_toolchain('default'),
-    #)
-
-    ## Device
-    #print_info('device', 'Building device')
-    #system_files = get_all_arch_files('device/', [ '.c', '.S' ])
-
-    #build_files(
-        #bin_dir + 'device.elf',
-        #system_files,
-        #ext_libs = [ libc ],
-        #ext_ld_deps = [ server_ld ],
-        #ld_script = server_ld,
-        #toolchain = get_toolchain('default'),
-        #includes = includes,
-    #)
-
-    #disasm_exec(
-        #disasm_dir + 'device.S',
-        #bin_dir + 'device.elf',
-        #toolchain = get_toolchain('default'),
-    #)
+    build_server('system', server_ld, libs, includes)
+    build_server('device', server_ld, libs, includes)
 
 def build_fdt():
     print_info('fdt', 'Building flattened device tree')
@@ -290,11 +205,7 @@ def build_boot():
     )
 
 def build_main():
-    build_libk()
-    build_libsys()
-    build_libc()
-    build_libfs()
-    build_libdrv()
+    build_libs()
     build_hal()
     build_kernel()
     build_servers()
