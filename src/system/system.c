@@ -41,6 +41,7 @@ static void init_system()
 
     // API
     init_vfs_api();
+    init_task_api();
 
     // File systems
     init_rootfs();

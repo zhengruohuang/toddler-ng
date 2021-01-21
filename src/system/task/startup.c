@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <sys.h>
+#include <sys/api.h>
 
 #include "system/include/task.h"
 
@@ -28,6 +29,8 @@ static int start_task(struct startup_record *record)
     record->pid = task_create(0, record->type, 1, argv, NULL);
 
     // Wait for daemon
+    sys_api_task_wait(record->pid, NULL);
+
     // TODO
 
     return 0;

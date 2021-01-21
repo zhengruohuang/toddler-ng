@@ -98,5 +98,5 @@ void test_dev()
     cat_dev_zero();
     eof_dev_null();
     //cat_dev_serial();
-    puts_dev_serial();
+    //puts_dev_serial();
 }

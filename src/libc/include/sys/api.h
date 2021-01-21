@@ -12,6 +12,12 @@
 enum system_api {
     SYS_API_PING = 16,
 
+    // Task
+    SYS_API_TASK_CREATE,
+    SYS_API_EXIT,
+    SYS_API_DETACH,
+    SYS_API_WAIT,
+
     // VFS
     SYS_API_ACQUIRE,
     SYS_API_RELEASE,
@@ -31,6 +37,14 @@ enum system_api {
     SYS_API_MOUNT,
     SYS_API_UNMOUNT,
 };
+
+
+/*
+ * Task
+ */
+extern int sys_api_task_exit(unsigned long status);
+extern int sys_api_task_detach(unsigned long status);
+extern int sys_api_task_wait(pid_t pid, unsigned long *status);
 
 
 /*

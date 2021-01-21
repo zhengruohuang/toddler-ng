@@ -3,6 +3,7 @@
 
 
 extern void init_vfs_api();
+extern void init_task_api();
 
 
 #endif

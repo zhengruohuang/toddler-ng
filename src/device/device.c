@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 #include <kth.h>
 #include <sys.h>
+#include <sys/api.h>
 #include <hal.h>
 
 #include "device/include/devtreefs.h"
@@ -53,17 +55,29 @@ static void start_drivers()
 
 
 /*
- * Main
+ * Clock
  */
-static void clock()
+static unsigned long clock_worker(unsigned long param)
 {
     ulong seconds = 0;
     while (1) {
         kprintf("Device: %lu seconds\n", seconds++);
         syscall_wait_on_timeout(1000);
     }
+
+    return 0;
 }
 
+static void clock()
+{
+    kth_t thread;
+    kth_create(&thread, clock_worker, 0);
+}
+
+
+/*
+ * Main
+ */
 int main(int argc, char **argv)
 {
     init_device();
@@ -71,9 +85,15 @@ int main(int argc, char **argv)
     test_device();
 
     kprintf("Device, argc: %d, argv[0]: %s\n", argc, argv[0]);
-
     clock();
 
+    // Detach
+    sys_api_task_detach(0);
+
+    // Daemon
+    syscall_thread_exit_self(0);
+
+    //panic("Should not reach here!\n");
     while (1);
-    return 0;
+    return -1;
 }

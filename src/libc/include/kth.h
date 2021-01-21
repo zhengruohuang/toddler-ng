@@ -154,6 +154,34 @@ typedef struct {
 
 
 /*
+ * Conditional variable
+ */
+typedef struct {
+    futex_t futex;
+    int max_spin;
+} cond_t;
+
+#define COND_MAX_SPIN 100
+#define COND_INITIALIZER { .futex = FUTEX_INITIALIZER, .max_spin = COND_MAX_SPIN }
+
+static inline int cond_is_signaled(cond_t *cond)
+{
+    return cond->futex.locked ? 1 : 0;
+}
+
+extern void cond_init(cond_t *cond);
+extern void cond_init_spin(cond_t *cond, int max_spin);
+extern void cond_destroy(cond_t *cond);
+
+extern int cond_wait(cond_t *cond);
+extern int cond_wait_spin(cond_t *cond, int max_spin);
+extern int cond_wait2(cond_t *cond, mutex_t *mutex);
+extern int cond_wait2_spin(cond_t *cond, mutex_t *mutex, int max_spin);
+
+extern int cond_signal(cond_t *cond);
+
+
+/*
  * Thread control
  */
 typedef unsigned long (*kth_entry_t)(unsigned long param);

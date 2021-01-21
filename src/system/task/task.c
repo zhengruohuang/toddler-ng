@@ -12,34 +12,9 @@
 #include "system/include/task.h"
 
 
-struct task_file {
-    int inuse;
-    struct ventry *vent;
-};
-
-struct task {
-    struct {
-        struct task *prev;
-        struct task *next;
-    } list;
-
-    const char *name;
-
-    pid_t ppid;
-    pid_t pid;
-
-    ulong owner_uid;
-    ulong run_uid;
-
-    char *work_dir;
-
-    int max_num_files;
-    struct task_file files[32];
-
-    ref_count_t ref_count;
-    rwlock_t rwlock;
-};
-
+/*
+ * Access
+ */
 struct task_list {
     unsigned long count;
     struct task *first;
@@ -47,13 +22,9 @@ struct task_list {
     rwlock_t rwlock;
 };
 
-
-/*
- * Access
- */
 static struct task_list tasks = { .count = 0, .first = NULL, .rwlock = RWLOCK_INITIALIZER };
 
-static struct task *acquire_task(pid_t pid)
+struct task *acquire_task(pid_t pid)
 {
     struct task *at = NULL;
 
@@ -70,14 +41,10 @@ static struct task *acquire_task(pid_t pid)
     return at;
 }
 
-static void release_task(struct task *t)
+void release_task(struct task *t)
 {
     ref_count_dec(&t->ref_count);
 }
-
-#define access_task(pid, task) \
-    for (struct task *task = acquire_task(pid); task; release_task(task), task = NULL) \
-        for (int __term = 0; !__term; __term = 1)
 
 
 /*
