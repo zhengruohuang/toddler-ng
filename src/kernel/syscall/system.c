@@ -220,6 +220,9 @@ int syscall_handler_vm_map(struct process *p, struct thread *t,
     case VM_MAP_DEV:
         vbase = vm_map_dev(p, ppfn, size, 0);
         break;
+    case VM_MAP_KERNEL:
+        vbase = vm_map_kernel(p, size, 0);
+        break;
     default:
         break;
     }

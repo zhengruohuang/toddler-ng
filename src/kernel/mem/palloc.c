@@ -54,6 +54,31 @@ struct palloc_region {
 
 
 /*
+ * Stats
+ */
+struct palloc_page_stats {
+    volatile u64 num_pages_total;
+    volatile u64 num_pages_alloc;
+
+    spinlock_t lock;
+};
+
+static struct palloc_page_stats page_stats = {
+    .lock = SPINLOCK_INIT,
+    .num_pages_total = 0,
+    .num_pages_alloc = 0,
+};
+
+void palloc_stats_page(u64 *total, u64 *alloc)
+{
+    spinlock_exclusive_int(&page_stats.lock) {
+        if (total) *total = page_stats.num_pages_total;
+        if (alloc) *alloc = page_stats.num_pages_alloc;
+    }
+}
+
+
+/*
  * Node manipulation
  */
 static ppfn_t pfn_entry_count = 0;
@@ -342,6 +367,11 @@ ppfn_t palloc_region(int count, int region)
     // Unlock the region
     spinlock_unlock_int(&regions[region].lock);
 
+    // Update page stats
+    spinlock_exclusive_int(&page_stats.lock) {
+        page_stats.num_pages_alloc += order_count;
+    }
+
     return pfn;
 }
 
@@ -466,6 +496,11 @@ int pfree(ppfn_t pfn)
     // Unlock the region
     spinlock_unlock_int(&regions[region].lock);
 
+    // Update page stats
+    spinlock_exclusive_int(&page_stats.lock) {
+        page_stats.num_pages_alloc -= order_count;
+    }
+
     return order_count;
 }
 
@@ -534,6 +569,9 @@ static void init_region(ppfn_t start_pfn, ulong count, int region, u32 tags)
 {
     kprintf("\tInitializing region, start PFN: %llx, len: %lx, region: %d\n",
             (u64)start_pfn, count, region);
+
+    // Update page stats
+    page_stats.num_pages_total += count;
 
     // Update page count
     regions[region].tags = tags;

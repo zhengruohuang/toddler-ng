@@ -85,4 +85,10 @@ extern void syscall_ipc_respond();
 extern void syscall_ipc_receive(ulong *opcode);
 
 
+/*
+ * Stats
+ */
+extern void syscall_stats_kernel(struct kernel_stats *buf);
+
+
 #endif

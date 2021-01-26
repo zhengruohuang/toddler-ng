@@ -7,13 +7,9 @@
 #include "common/include/errno.h"
 #include "common/include/abi.h"
 #include "common/include/elf.h"
-// #include "common/include/memory.h"
-// #include "kernel/include/hal.h"
 #include "kernel/include/mem.h"
 #include "kernel/include/lib.h"
 #include "kernel/include/struct.h"
-// #include "kernel/include/coreimg.h"
-// #include "kernel/include/exec.h"
 #include "kernel/include/kernel.h"
 #include "kernel/include/proc.h"
 
@@ -79,6 +75,17 @@ int process_exists(ulong pid)
     }
 
     return exists;
+}
+
+ulong get_num_processes()
+{
+    ulong num = 0;
+
+    list_access_exclusive(&processes) {
+        num = processes.count;
+    }
+
+    return num;
 }
 
 

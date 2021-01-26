@@ -130,6 +130,7 @@ extern void init_thread();
 
 extern struct thread *acquire_thread(ulong id);
 extern void release_thread(struct thread *t);
+extern ulong get_num_threads();
 
 extern ulong create_thread(struct process *p, ulong entry_point, ulong param,
                            struct thread_attri *attri);
@@ -262,6 +263,7 @@ extern int vm_map(struct process *p, ulong base, ulong prot);
 extern ulong vm_map_coreimg(struct process *p);
 extern ulong vm_map_devtree(struct process *p);
 extern ulong vm_map_dev(struct process *p, ulong ppfn, ulong size, ulong prot);
+extern ulong vm_map_kernel(struct process *p, ulong size, ulong prot);
 extern ulong vm_map_cross(struct process *p, ulong remote_pid, ulong remote_vbase, ulong size, ulong remote_prot);
 
 
@@ -278,6 +280,7 @@ extern ulong get_kernel_pid();
 extern struct process *acquire_process(ulong id);
 extern void release_process(struct process *p);
 extern struct thread *acquire_main_thread(ulong pid);
+extern ulong get_num_processes();
 
 extern ulong create_process(ulong parent_id, char *name, enum process_type type);
 extern int load_coreimg_elf(struct process *p, void *img);
@@ -311,6 +314,7 @@ extern void sched();
 extern void init_wait();
 extern list_t *acquire_wait_queue_exclusive();
 extern void release_wait_queue();
+extern ulong get_num_wait_threads();
 
 extern void sleep_thread(struct thread *t);
 
@@ -326,6 +330,7 @@ extern void purge_wait_queue(struct process *p);
  * IPC
  */
 extern void sleep_ipc_thread(struct thread *t);
+extern ulong get_num_ipc_threads();
 
 extern void init_ipc();
 

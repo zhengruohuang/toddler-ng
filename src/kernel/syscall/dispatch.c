@@ -48,6 +48,8 @@ void init_dispatch()
     handlers[SYSCALL_IPC_REQUEST] = syscall_handler_ipc_request;
     handlers[SYSCALL_IPC_RESPOND] = syscall_handler_ipc_respond;
     handlers[SYSCALL_IPC_RECEIVE] = syscall_handler_ipc_receive;
+
+    handlers[SYSCALL_STATS_KERNEL] = syscall_handler_stats_kernel;
 }
 
 

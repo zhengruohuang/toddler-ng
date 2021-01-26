@@ -12,5 +12,6 @@ extern int exec_external(int argc, char **argv);
 extern int exec_ls(int argc, char **argv);
 extern int exec_cat(int argc, char **argv);
 extern int exec_cd(int argc, char **argv);
+extern int exec_stats(int argc, char **argv);
 
 #endif

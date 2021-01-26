@@ -3,10 +3,11 @@
 #include <string.h>
 #include <dirent.h>
 
+#include <hal.h>
 #include <sys/api.h>
 
 
-static void cat_dev_zero()
+__unused_func static void cat_dev_zero()
 {
     static char zero_buf[129];
     memset(zero_buf, 1, 129);
@@ -21,7 +22,7 @@ static void cat_dev_zero()
     fclose(f);
 }
 
-static void eof_dev_null()
+__unused_func static void eof_dev_null()
 {
     FILE *f = fopen("/dev/null", "r");
     size_t c = fread(NULL, 1, 64, f);
@@ -30,7 +31,7 @@ static void eof_dev_null()
     fclose(f);
 }
 
-static void cat_dev_serial()
+__unused_func static void cat_dev_serial()
 {
     static char serial_buf[33];
     memset(serial_buf, 0, 33);
@@ -46,7 +47,7 @@ static void cat_dev_serial()
     fclose(f);
 }
 
-static void puts_dev_serial()
+__unused_func static void puts_dev_serial()
 {
     //const char *text = "From serial!\n";
 

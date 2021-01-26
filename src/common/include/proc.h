@@ -106,6 +106,25 @@ enum vm_map_type {
     VM_MAP_COREIMG,
     VM_MAP_DEVTREE,
     VM_MAP_DEV,
+    VM_MAP_KERNEL,
+};
+
+
+/*
+ * Stats
+ */
+struct kernel_stats {
+    // Proc
+    ulong num_procs;
+    ulong num_threads, num_threads_wait, num_threads_ipc;
+
+    // PFN DB
+    u64 paddr_start, paddr_end, paddr_len;
+    u64 pfn_offset, pfn_limit, pfn_count;
+
+    // Palloc
+    u64 num_pages_usable;
+    u64 num_pages_allocated;
 };
 
 

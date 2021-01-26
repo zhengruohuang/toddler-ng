@@ -343,9 +343,12 @@ void vm_move_sanit_to_avail(struct process *p)
 /*
  * Map
  */
+// Page fault handler
 int vm_map(struct process *p, ulong addr, ulong prot)
 {
     int err = -1;
+
+    // FIXME: move palloc out of critical section
 
     list_foreach_exclusive(&p->vm.inuse_mapped, n) {
         struct vm_block *b = list_entry(n, struct vm_block, node);
@@ -366,6 +369,7 @@ int vm_map(struct process *p, ulong addr, ulong prot)
     return err;
 }
 
+// Map coreimg into process
 ulong vm_map_coreimg(struct process *p)
 {
     void *ci = get_coreimg();
@@ -395,6 +399,7 @@ ulong vm_map_coreimg(struct process *p)
     return b->base + offset;
 }
 
+// Map devtree into process
 ulong vm_map_devtree(struct process *p)
 {
     void *dt = devtree_get_head();
@@ -426,6 +431,7 @@ ulong vm_map_devtree(struct process *p)
     return b->base + offset;
 }
 
+// Map device MMIO into process
 ulong vm_map_dev(struct process *p, ulong ppfn, ulong size, ulong prot)
 {
     paddr_t paddr_start = ppfn_to_paddr((ppfn_t)ppfn);
@@ -443,6 +449,30 @@ ulong vm_map_dev(struct process *p, ulong ppfn, ulong size, ulong prot)
     return b->base;
 }
 
+// Map kernel-accessible physical memory into process
+ulong vm_map_kernel(struct process *p, ulong size, ulong prot)
+{
+    ulong map_size = align_up_vsize(size, PAGE_SIZE);
+    struct vm_block *b = vm_alloc(p, 0, map_size, 0);
+    if (!b) {
+        return 0;
+    }
+
+    ulong num_pages = get_vpage_count(map_size);
+    paddr_t paddr = palloc_paddr_direct_mapped(num_pages);
+    if (!paddr) {
+        // TODO: free vm block
+        return 0;
+    }
+
+    get_hal_exports()->map_range(p->page_table, b->base,
+                                 paddr, b->size,
+                                 1, 1, 1, 0, 0);
+
+    return b->base;
+}
+
+// Map shared memory block in two processes
 ulong vm_map_cross(struct process *p, ulong remote_pid,
                    ulong remote_vbase, ulong size, ulong remote_prot)
 {

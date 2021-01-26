@@ -86,5 +86,7 @@ extern int syscall_handler_ipc_request(struct process *p, struct thread *t, stru
 extern int syscall_handler_ipc_respond(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 extern int syscall_handler_ipc_receive(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 
+extern int syscall_handler_stats_kernel(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
+
 
 #endif

@@ -42,6 +42,17 @@ void sleep_ipc_thread(struct thread *t)
     spinlock_unlock_int(&ipc_wait_queue.lock);
 }
 
+ulong get_num_ipc_threads()
+{
+    ulong num = 0;
+
+    list_access_exclusive(&ipc_wait_queue) {
+        num = ipc_wait_queue.count;
+    }
+
+    return num;
+}
+
 
 /*
  * Init

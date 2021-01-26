@@ -179,3 +179,12 @@ void syscall_ipc_receive(ulong *opcode)
 {
     sysenter(SYSCALL_IPC_RECEIVE, 0, 0, 0, opcode, NULL);
 }
+
+
+/*
+ * Stats
+ */
+void syscall_stats_kernel(struct kernel_stats *buf)
+{
+    sysenter(SYSCALL_STATS_KERNEL, (ulong)buf, 0, 0, NULL, NULL);
+}

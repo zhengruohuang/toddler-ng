@@ -79,6 +79,17 @@ int thread_exists(ulong tid)
     return exists;
 }
 
+ulong get_num_threads()
+{
+    ulong num = 0;
+
+    list_access_exclusive(&threads) {
+        num = threads.count;
+    }
+
+    return num;
+}
+
 
 /*
  * Init

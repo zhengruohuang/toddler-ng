@@ -57,6 +57,9 @@ enum syscall_nums {
     SYSCALL_IPC_RESPOND,    // Send a response to the sender
     SYSCALL_IPC_RECEIVE,    // Receive a serial msg
 
+    // Stats
+    SYSCALL_STATS_KERNEL,
+
     // Num syscalls
     NUM_SYSCALLS
 };

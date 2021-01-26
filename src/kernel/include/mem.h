@@ -42,6 +42,8 @@ extern void init_pfndb();
 /*
  * Page frame allocator
  */
+extern void palloc_stats_page(u64 *total, u64 *alloc);
+
 extern ppfn_t palloc_direct_mapped(int count);
 extern ppfn_t palloc(int count);
 extern int pfree(ppfn_t pfn);

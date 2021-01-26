@@ -44,6 +44,17 @@ void release_wait_queue()
     spinlock_unlock_int(&wait_queue.lock);
 }
 
+ulong get_num_wait_threads()
+{
+    ulong num = 0;
+
+    list_access_exclusive(&wait_queue) {
+        num = wait_queue.count;
+    }
+
+    return num;
+}
+
 
 /*
  * Wait object

@@ -49,7 +49,7 @@ struct pfndb_entry *get_pfn_entry_by_paddr(paddr_t paddr)
 psize_t get_mem_range(paddr_t *start, paddr_t *end)
 {
     if (start) *start = paddr_start;
-    if (end) *start = paddr_end;
+    if (end) *end = paddr_end;
 
     return paddr_len;
 }
