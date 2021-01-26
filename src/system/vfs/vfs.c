@@ -186,6 +186,13 @@ static struct ventry *lookup_ventry(struct mount_point *mount,
     if (seg_len == 1 && path && path[0] == '.') {
         return cur_vent;
     } else if (seg_len == 2 && path && path[0] == '.' && path[1] == '.') {
+        if (!cur_vent->parent) {
+            return cur_vent;
+        }
+
+        if (cur_vent->is_root) {
+            cur_vent = cur_vent->parent;
+        }
         return cur_vent->parent ? cur_vent->parent : cur_vent;
     }
 
@@ -652,6 +659,62 @@ void vfs_dir_read_forward(struct vnode *node, size_t count, ulong offset)
 /*
  * IO ops
  */
+
+
+/*
+ * Real path
+ */
+int vfs_real_path(struct ventry *vent, char *buf, size_t buf_size)
+{
+    kprintf("here??\n");
+
+    // "/"
+    if (vent->is_root && !vent->from_mount) {
+        if (!buf || buf_size < 2) {
+            return -1;
+        }
+
+        buf[0] = '/';
+        buf[1] = '\0';
+        return 0;
+    }
+
+    // total length
+    size_t real_size = 1; // '\0'
+    for (struct ventry *e = vent; e; e = e->parent) {
+        if (e->is_root && e->from_mount) {
+            e = e->from_mount->entry;
+        }
+
+        if (e->parent) {
+            real_size += strlen(e->name) + 1;
+        }
+    }
+
+    if (real_size > buf_size) {
+        return -1;
+    }
+
+    // copy
+    buf[real_size - 1] = '\0';
+    size_t pos = real_size - 1;
+    for (struct ventry *e = vent; e; e = e->parent) {
+        if (e->is_root && e->from_mount) {
+            e = e->from_mount->entry;
+        }
+
+        if (e->parent) {
+            size_t part_len = strlen(e->name);
+            pos -= part_len;
+            memcpy(buf + pos, e->name, part_len);
+            pos--;
+            buf[pos] = '/';
+        }
+    }
+
+    kprintf("pos: %lu, real path: %s\n", pos, buf);
+    return 0;
+}
 
 
 /*

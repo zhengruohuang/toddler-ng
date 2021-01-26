@@ -290,7 +290,7 @@ ulong create_thread(struct process *p, ulong entry_point, ulong param,
  */
 void exit_thread(struct thread *t)
 {
-    kprintf("Exiting thread @ %p\n", t);
+    //kprintf("Exiting thread @ %p\n", t);
 
     access_process(t->pid, proc) {
         // TODO: check thread state

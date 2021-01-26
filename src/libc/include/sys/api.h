@@ -17,6 +17,8 @@ enum system_api {
     SYS_API_EXIT,
     SYS_API_DETACH,
     SYS_API_WAIT,
+    SYS_API_TASK_SET,
+    SYS_API_TASK_GET,
 
     // VFS
     SYS_API_ACQUIRE,
@@ -42,9 +44,17 @@ enum system_api {
 /*
  * Task
  */
+enum task_attri {
+    TASK_ATTRI_NONE,
+    TASK_ATTRI_WORK_DIR,
+};
+
 extern int sys_api_task_exit(unsigned long status);
 extern int sys_api_task_detach(unsigned long status);
 extern int sys_api_task_wait(pid_t pid, unsigned long *status);
+
+extern int sys_api_task_set_work_dir(const char *pathname);
+extern int sys_api_task_get_work_dir(char *buf, size_t size);
 
 
 /*

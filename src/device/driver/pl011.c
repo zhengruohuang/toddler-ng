@@ -156,7 +156,7 @@ static void pl011_int_handler(unsigned long param)
             break;
         }
 
-        kprintf("PL011 char: %c\n", c);
+        //kprintf("PL011 char: %c\n", c);
         shiftbuf_write_one(&pl011_shiftbuf, c);
     }
 

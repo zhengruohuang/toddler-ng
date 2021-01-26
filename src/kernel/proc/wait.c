@@ -22,8 +22,8 @@ static list_t wait_queue;
 
 static int wait_queue_compare(list_node_t *a, list_node_t *b)
 {
-    struct thread *ta = list_entry(a, struct thread, node);
-    struct thread *tb = list_entry(b, struct thread, node);
+    struct thread *ta = list_entry(a, struct thread, node_wait);
+    struct thread *tb = list_entry(b, struct thread, node_wait);
     if (ta->wait_timeout_ms > tb->wait_timeout_ms) {
         return 1;
     } else if (ta->wait_timeout_ms < tb->wait_timeout_ms) {
@@ -219,8 +219,8 @@ static void timeout_wakeup_worker(ulong param)
             while (node) {
                 struct thread *wait_t = list_entry(node, struct thread, node_wait);
                 u64 counter_ms = hal_get_ms();
-                //kprintf("waiting thread: %lx, cur counter: %llu, timeout counter: %llu\n",
-                //        wait_t->tid, counter_ms, wait_t->wait_timeout_ms);
+//                 kprintf("wait q: %lu, waiting thread: %lx, cur counter: %llu, timeout counter: %llu\n",
+//                        wait_queue.count, wait_t->tid, counter_ms, wait_t->wait_timeout_ms);
 
                 if (wait_t->wait_timeout_ms > counter_ms) {
                     break;

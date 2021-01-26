@@ -64,6 +64,9 @@ static struct task *new_task()
         t->files[i].inuse = 1;
     }
 
+    // FIXME
+    t->work_dir = strdup("/");
+
     rwlock_exclusive_w(&tasks.rwlock) {
         t->list.prev = NULL;
         t->list.next = tasks.first;
@@ -184,6 +187,94 @@ int task_exit(pid_t pid, int status)
     }
 
     return 0;
+}
+
+
+/*
+ * Working dir
+ */
+char *task_abs_path(pid_t pid, const char *pathname)
+{
+    // Skip leading empty chars
+    while (*pathname == ' ' || *pathname == '\t') {
+        pathname++;
+    }
+
+    // Already abs path
+    if (*pathname == '/') {
+        return strdup(pathname);
+    }
+
+    // Abs path
+    char *abs_pathname = NULL;
+    access_task(pid, task) {
+        char cwd_buf[512 + 1];
+        rwlock_exclusive_r(&task->rwlock) {
+            strncpy(cwd_buf, task->work_dir, 510);
+            cwd_buf[512] = '\0';
+        }
+
+        size_t cwd_len = strlen(cwd_buf);
+        if (cwd_buf[cwd_len - 1] != '/') {
+            cwd_buf[cwd_len] = '/';
+            cwd_buf[cwd_len + 1] = '\0';
+        }
+
+        abs_pathname = strcatcpy(cwd_buf, pathname);
+    }
+
+    return abs_pathname;
+}
+
+int task_set_work_dir(pid_t pid, const char *pathname)
+{
+    char *abs_pathname = task_abs_path(pid, pathname);
+
+    // Acquire
+    struct ventry *vent = vfs_acquire(abs_pathname);
+    free(abs_pathname);
+    if (!vent || !vent->vnode) {
+        return -1;
+    }
+
+    // Find real path
+    char *real_pathname = malloc(1024);
+    int err = vfs_real_path(vent, real_pathname, 1024);
+    if (err) {
+        free(real_pathname);
+        return -1;
+    }
+
+    // Set work dir
+    access_task(pid, task) {
+        char *old_workdir = NULL;
+        rwlock_exclusive_w(&task->rwlock) {
+            old_workdir = task->work_dir;
+            task->work_dir = real_pathname;
+        }
+
+        free(old_workdir);
+    }
+
+    return 0;
+}
+
+int task_get_work_dir(pid_t pid, char *buf, size_t buf_size)
+{
+    int err = -1;
+
+    // Get work dir
+    access_task(pid, task) {
+        rwlock_exclusive_r(&task->rwlock) {
+            size_t len = strlen(task->work_dir);
+            if (buf && len < buf_size) {
+                strcpy(buf, task->work_dir);
+                err = 0;
+            }
+        }
+    }
+
+    return err;
 }
 
 

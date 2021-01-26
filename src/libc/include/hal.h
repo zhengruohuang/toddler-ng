@@ -3,5 +3,7 @@
 
 #include "common/include/inttypes.h"
 #include "common/include/compiler.h"
+#include "common/include/abi.h"
+#include "common/include/names.h"
 
 #endif

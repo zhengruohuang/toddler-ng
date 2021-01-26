@@ -82,6 +82,8 @@ extern ssize_t vfs_file_write(struct vnode *node, const void *data, size_t count
 extern int vfs_dir_open(struct vnode *node, ulong mode);
 extern void vfs_dir_read_forward(struct vnode *node, size_t count, ulong offset);
 
+extern int vfs_real_path(struct ventry *vent, char *buf, size_t buf_size);
+
 
 /*
  * Built-in pseudo file systems

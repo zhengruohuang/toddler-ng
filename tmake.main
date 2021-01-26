@@ -111,6 +111,7 @@ def build_servers():
 
     build_server('system', server_ld, libs, includes)
     build_server('device', server_ld, libs, includes)
+    build_server('console', server_ld, libs, includes)
 
 def build_fdt():
     print_info('fdt', 'Building flattened device tree')
@@ -134,7 +135,7 @@ def build_coreimg():
         bin_dir + 'kernel.elf',
         bin_dir + 'system.elf',
         bin_dir + 'device.elf',
-        #bin_dir + 'shell.elf',
+        bin_dir + 'console.elf',
         #src_dir + 'init/init.py',
     ]
 

@@ -30,6 +30,19 @@ char *strncat(char *dest, const char *src, size_t n)
     return NULL;
 }
 
+char *strcatcpy(const char *src1, const char *src2)
+{
+    size_t len1 = strlen(src1);
+    size_t len2 = strlen(src2);
+
+    char *dest = malloc(len1 + len2 + 1);
+    memcpy(dest, src1, len1);
+    memcpy(dest + len1, src2, len2);
+    dest[len1 + len2] = '\0';
+
+    return dest;
+}
+
 // locates byte c in a string, searching from the end
 char *strrchr(const char *str, int c)
 {

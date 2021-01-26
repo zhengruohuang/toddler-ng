@@ -53,6 +53,10 @@ extern void init_task();
 extern pid_t task_create(pid_t ppid, int type, int argc, char **argv, const char *stdio[3]);
 extern int task_exit(pid_t pid, int status);
 
+extern char *task_abs_path(pid_t pid, const char *pathname);
+extern int task_set_work_dir(pid_t pid, const char *pathname);
+extern int task_get_work_dir(pid_t pid, char *buf, size_t buf_size);
+
 extern int task_alloc_fd(pid_t pid, struct ventry *vent);
 extern int task_free_fd(pid_t pid, int fd);
 extern struct ventry *task_lookup_fd(pid_t pid, int fd);

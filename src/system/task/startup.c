@@ -15,6 +15,7 @@ struct startup_record {
 
 static struct startup_record records[] = {
     { "device", "/sys/coreimg/device.elf", PROCESS_TYPE_SYSTEM, 0 },
+    { "console", "/sys/coreimg/console.elf", PROCESS_TYPE_SYSTEM, 0 },
 };
 
 #define NUM_STARTUP_RECORDS (sizeof(records) / sizeof(struct startup_record))

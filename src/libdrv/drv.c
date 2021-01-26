@@ -67,7 +67,7 @@ static inline void dispatch_file_read(msg_t *msg, struct drv_record *record)
     if (req_size > max_size) req_size = max_size;
     void *buf = msg_append_data(msg, NULL, req_size);   // data
 
-    kprintf("DRV read req_size: %lu, offset: %lu\n", req_size, offset);
+    //kprintf("DRV read req_size: %lu, offset: %lu\n", req_size, offset);
 
     // Read
     int err = 0;
@@ -93,7 +93,7 @@ static inline void dispatch_file_write(msg_t *msg, struct drv_record *record)
     ulong offset = msg_get_param(msg, 3);   // offset
     void *data = msg_get_data(msg, 4, NULL);// data
 
-    kprintf("DRV write, req_size: %lu, offset: %lu\n", req_size, offset);
+    //kprintf("DRV write, req_size: %lu, offset: %lu\n", req_size, offset);
 
     // Write
     int err = 0;
@@ -125,7 +125,7 @@ static unsigned long dispatch(unsigned long opcode)
 
     msg_t *msg = get_msg();
     ulong vfs_op = msg_get_param(msg, 0);
-    kprintf("%s op: %lu\n", record->name, vfs_op);
+    //kprintf("%s op: %lu\n", record->name, vfs_op);
 
     switch (vfs_op) {
     case VFS_OP_MOUNT:
@@ -136,7 +136,7 @@ static unsigned long dispatch(unsigned long opcode)
         dispatch_file_write(msg, record);
         break;
     default:
-        kprintf("Unknown VFS op: %lu\n", vfs_op);
+        kprintf("Unknown VFS op: %lu in %s\n", vfs_op, record->name);
         dispatch_response(-1);
         break;
     }

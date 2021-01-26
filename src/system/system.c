@@ -50,17 +50,25 @@ static void init_system()
 
 
 /*
- * Main
+ * Clock
  */
+#define CLOCK_PERIOD_SECONDS 10
+
 static void clock()
 {
     ulong seconds = 0;
     while (1) {
-        kprintf("System: %lu seconds\n", seconds++);
-        syscall_wait_on_timeout(1000);
+        kprintf("System: %lu seconds\n", seconds);
+
+        syscall_wait_on_timeout(CLOCK_PERIOD_SECONDS * 1000);
+        seconds += CLOCK_PERIOD_SECONDS;
     }
 }
 
+
+/*
+ * Main
+ */
 int main(int argc, char **argv)
 {
     init_system();

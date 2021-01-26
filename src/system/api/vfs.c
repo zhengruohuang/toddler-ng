@@ -74,12 +74,15 @@ static ulong vfs_api_acquire(ulong opcode)
 {
     // Request
     msg_t *msg = get_msg();
-    char *pathname = strdup((char *)msg_get_data(msg, 0, NULL));
+    char *pathname = msg_get_data(msg, 0, NULL);
     pid_t pid = msg->sender.pid;
 
+    // Abs pathname
+    char *abs_pathname = task_abs_path(pid, pathname);
+
     // Acquire
-    struct ventry *vent = vfs_acquire(pathname);
-    free(pathname);
+    struct ventry *vent = vfs_acquire(abs_pathname);
+    free(abs_pathname);
 
     if (!vent || !vent->vnode) {
         _err_response(-1);

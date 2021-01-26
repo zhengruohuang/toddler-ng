@@ -19,6 +19,18 @@ extern void syscall_puts(const char *buf, size_t len);
  */
 extern thread_info_block_t *syscall_get_tib();
 
+static inline pid_t syscall_get_pid()
+{
+    thread_info_block_t *tib = syscall_get_tib();
+    return tib ? tib->pid : 0;
+}
+
+static inline tid_t syscall_get_tid()
+{
+    thread_info_block_t *tib = syscall_get_tib();
+    return tib ? tib->tid : 0;
+}
+
 
 /*
  * Interrupt

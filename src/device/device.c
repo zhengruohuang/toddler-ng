@@ -57,12 +57,16 @@ static void start_drivers()
 /*
  * Clock
  */
+#define CLOCK_PERIOD_SECONDS 10
+
 static unsigned long clock_worker(unsigned long param)
 {
     ulong seconds = 0;
     while (1) {
-        kprintf("Device: %lu seconds\n", seconds++);
-        syscall_wait_on_timeout(1000);
+        kprintf("Device: %lu seconds\n", seconds);
+
+        syscall_wait_on_timeout(CLOCK_PERIOD_SECONDS * 1000);
+        seconds += CLOCK_PERIOD_SECONDS;
     }
 
     return 0;
@@ -93,7 +97,7 @@ int main(int argc, char **argv)
     // Daemon
     syscall_thread_exit_self(0);
 
-    //panic("Should not reach here!\n");
+    panic("Should not reach here!\n");
     while (1);
     return -1;
 }
