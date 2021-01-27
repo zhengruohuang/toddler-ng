@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #include <futex.h>
 #include <sys.h>
 #include <kth.h>
@@ -239,9 +240,6 @@ void *calloc(size_t num, size_t size)
 {
     size_t total_size = num * size;
     void *ptr = malloc(total_size);
-    //if (ptr) {
-    //    memzero(ptr, total_size);
-    //}
 
     return ptr;
 }
@@ -281,7 +279,7 @@ static void putback_block(struct bucket *bucket, struct chunk *chunk, struct blo
 
 void free(void *ptr)
 {
-    // TODO: check if ptr == NULL
+    panic_if(!ptr, "Unable to free NULL pointer!\n");
 
     struct magic *magic = ptr - sizeof(struct magic);
     struct chunk *chunk = magic->chunk;
@@ -298,7 +296,12 @@ void free(void *ptr)
  */
 void *realloc(void *ptr, size_t new_size)
 {
-    // TODO: check if ptr == NULL
+    panic_if(!ptr, "Unable to realloc NULL pointer!\n");
+
+    if (!new_size) {
+        free(ptr);
+        return NULL;
+    }
 
     struct magic *magic = ptr - sizeof(struct magic);
     struct chunk *chunk = magic->chunk;
