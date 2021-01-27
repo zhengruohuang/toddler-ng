@@ -121,11 +121,16 @@ extern void rwlock_downgrade(rwlock_t *lock);
  */
 typedef struct {
     futex_t futex;
+    unsigned long max_count;
     int max_spin;
 } sema_t;
 
 #define SEMA_MAX_SPIN 100
-#define SEMA_INITIALIZER { .futex = FUTEX_INITIALIZER, .max_spin = SEMA_MAX_SPIN }
+#define SEMA_INITIALIZER(c) {   \
+    .futex = FUTEX_INITIALIZER, \
+    .max_count = (c),           \
+    .max_spin = SEMA_MAX_SPIN   \
+}
 
 extern void sema_init(sema_t *sema);
 extern void sema_init_spin(sema_t *sema, int max_spin);
@@ -135,6 +140,7 @@ extern int sema_wait(sema_t *sema);
 extern int sema_wait_spin(sema_t *sema, int max_spin);
 extern int sema_trywait(sema_t *sema);
 
+extern int sema_post_count(sema_t *sema, unsigned long count);
 extern int sema_post(sema_t *sema);
 
 

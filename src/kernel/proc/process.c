@@ -12,6 +12,7 @@
 #include "kernel/include/struct.h"
 #include "kernel/include/kernel.h"
 #include "kernel/include/proc.h"
+#include "kernel/include/syscall.h"
 
 
 /*
@@ -55,11 +56,6 @@ void release_process(struct process *p)
     ref_count_dec(&p->ref_count);
 
     //kprintf("released process: %s, int enabled: %d\n", p->name, p->lock.int_enabled);
-}
-
-struct thread *acquire_main_thread(ulong pid)
-{
-    return NULL;
 }
 
 int process_exists(ulong pid)
@@ -111,6 +107,22 @@ void init_process()
 
 
 /*
+ * Cleanup
+ */
+static void process_cleaner(ulong param)
+{
+    struct process *p = (void *)param;
+    kprintf("Cleaner for process @ %p\n", p);
+
+    do {
+        vm_move_sanit_to_avail(p);
+
+        syscall_thread_yield();
+    } while (1);
+}
+
+
+/*
  * Process creation
  */
 static ulong alloc_process_id(struct process *p)
@@ -148,6 +160,7 @@ ulong create_process(ulong parent_id, char *name, enum process_type type)
     } else {
         p->page_table = get_hal_exports()->init_addr_space();
     }
+    spinlock_init(&p->page_table_lock);
     panic_if(!p->page_table, "Unable to allocate page table");
 
     // Memory layout
@@ -203,6 +216,12 @@ ulong create_process(ulong parent_id, char *name, enum process_type type)
 
     // Insert the process into process list
     list_push_back_exclusive(&processes, &p->node);
+
+    // Create cleaner
+    if (type != PROCESS_TYPE_KERNEL) {
+        ulong param = (ulong)p;
+        create_and_run_kernel_thread(tid, t, &process_cleaner, param, NULL);
+    }
 
     // Done
     return pid;
@@ -268,7 +287,13 @@ int load_coreimg_elf(struct process *p, void *img)
             // Map
             ppfn_t ppfn = palloc_direct_mapped(vpages);
             paddr_t paddr = ppfn_to_paddr(ppfn);
-            int mapped = get_hal_exports()->map_range(p->page_table, vaddr_start, paddr, vaddr_range, 1, 1, 1, 0, 1);
+
+            int mapped = 0;
+            spinlock_exclusive_int(&p->page_table_lock) {
+                mapped = get_hal_exports()->map_range(p->page_table,
+                                                      vaddr_start, paddr, vaddr_range,
+                                                      1, 1, 1, 0, 1);
+            }
             panic_if(mapped != vpages, "Map failed");
 
             kprintf("\t\t\tMapping range @ %p - %p to %llx, num pages: %ld\n",

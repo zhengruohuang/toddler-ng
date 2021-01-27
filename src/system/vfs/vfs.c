@@ -666,19 +666,6 @@ void vfs_dir_read_forward(struct vnode *node, size_t count, ulong offset)
  */
 int vfs_real_path(struct ventry *vent, char *buf, size_t buf_size)
 {
-    kprintf("here??\n");
-
-    // "/"
-    if (vent->is_root && !vent->from_mount) {
-        if (!buf || buf_size < 2) {
-            return -1;
-        }
-
-        buf[0] = '/';
-        buf[1] = '\0';
-        return 0;
-    }
-
     // total length
     size_t real_size = 1; // '\0'
     for (struct ventry *e = vent; e; e = e->parent) {
@@ -693,6 +680,17 @@ int vfs_real_path(struct ventry *vent, char *buf, size_t buf_size)
 
     if (real_size > buf_size) {
         return -1;
+    }
+
+    // "/"
+    if (real_size == 1) {
+        if (!buf || buf_size < 2) {
+            return -1;
+        }
+
+        buf[0] = '/';
+        buf[1] = '\0';
+        return 0;
     }
 
     // copy
@@ -712,7 +710,7 @@ int vfs_real_path(struct ventry *vent, char *buf, size_t buf_size)
         }
     }
 
-    kprintf("pos: %lu, real path: %s\n", pos, buf);
+    //kprintf("pos: %lu, real path: %s\n", pos, buf);
     return 0;
 }
 

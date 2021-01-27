@@ -85,5 +85,8 @@ int console_exec(char *line, size_t line_size)
     }
 
     int err = exec(argc, argv);
+
+    // Done
+    free(argv);
     return err;
 }

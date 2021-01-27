@@ -82,7 +82,7 @@ int sema_trywait(sema_t *sema)
 /*
  * Post
  */
-int sema_post(sema_t *sema)
+int sema_post_count(sema_t *sema, unsigned long count)
 {
     futex_t *f = &sema->futex;
     futex_t f_old, f_new;
@@ -90,7 +90,10 @@ int sema_post(sema_t *sema)
     do {
         f_old.value = f->value;
         f_new.value = f_old.value;
-        f_new.locked++;
+        f_new.locked += count;
+        if (f_new.locked > sema->max_count) {
+            f_new.locked = sema->max_count;
+        }
     } while (!atomic_cas(&f->value, f_old.value, f_new.value));
 
     if (f_new.kernel) {
@@ -108,4 +111,9 @@ int sema_post(sema_t *sema)
     }
 
     return 0;
+}
+
+int sema_post(sema_t *sema)
+{
+    return sema_post_count(sema, 1);
 }

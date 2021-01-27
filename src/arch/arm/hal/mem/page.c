@@ -199,6 +199,8 @@ int map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
  */
 static void unmap_page(void *page_table, ulong vaddr, paddr_t paddr, int block)
 {
+    //kprintf("unmap page, vaddr @ %lx, paddr @ %llx\n", vaddr, (u64)paddr);
+
     // L1 table
     struct l1table *l1tab = page_table;
     int l1index = GET_L1PTE_INDEX(vaddr);
@@ -223,7 +225,7 @@ static void unmap_page(void *page_table, ulong vaddr, paddr_t paddr, int block)
         assert(l2entry->present);
 
         // Unmap L2 entry
-        assert(l2entry->pfn == (u32)paddr_to_pbfn(paddr));
+        assert(l2entry->pfn == (u32)paddr_to_ppfn(paddr));
         l2entry->value = 0;
 
         // Free L2 page if needed

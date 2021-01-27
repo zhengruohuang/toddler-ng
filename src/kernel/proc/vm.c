@@ -133,6 +133,7 @@ struct vm_block *vm_alloc_thread(struct process *p, struct thread *t,
         b->base = base;
         b->size = t->memory.block_size;
         b->type = VM_TYPE_THREAD;
+        b->map_type = VM_MAP_TYPE_OWNER;
 
         if (mapper) {
             mapper(p, t, b);
@@ -231,6 +232,7 @@ struct vm_block *vm_alloc(struct process *p, ulong base, ulong size, ulong attri
         b->proc = p;
         b->size = size;
         b->type = VM_TYPE_GENERIC;
+        b->map_type = VM_MAP_TYPE_NONE;
 
         ref_count_inc(&p->ref_count);
         list_insert_sorted_exclusive(&p->vm.inuse_mapped, &b->node, list_compare);
@@ -254,7 +256,7 @@ struct vm_block *vm_alloc(struct process *p, ulong base, ulong size, ulong attri
 
 
 /*
- * Free
+ * Free VM block
  */
 int vm_free_block(struct process *p, struct vm_block *b)
 {
@@ -262,9 +264,11 @@ int vm_free_block(struct process *p, struct vm_block *b)
     list_remove_exclusive(&p->vm.inuse_mapped, &b->node);
 
     if (b->type == VM_TYPE_THREAD) {
+        const int sanit_threshold = 0;  //hal_get_num_cpus();
+
         list_access_exclusive(&p->vm.reuse_mapped) {
             list_insert_sorted(&p->vm.reuse_mapped, &b->node, list_compare);
-            if (p->vm.reuse_mapped.count > hal_get_num_cpus()) {
+            if (p->vm.reuse_mapped.count > sanit_threshold) {
                 list_node_t *n = list_pop_front(&p->vm.reuse_mapped);
                 b_sanit = list_entry(n, struct vm_block, node);
                 break;
@@ -275,7 +279,7 @@ int vm_free_block(struct process *p, struct vm_block *b)
     }
 
     if (b_sanit) {
-        kprintf("To sanitize block @ %lx\n", b_sanit->base);
+        //kprintf("To sanitize block @ %lx\n", b_sanit->base);
         list_insert_sorted_exclusive(&p->vm.sanit_mapped, &b_sanit->node, list_compare);
         ulong wait_acks = request_tlb_shootdown(p, b_sanit);
         if (!wait_acks) {
@@ -301,35 +305,63 @@ int vm_free(struct process *p, ulong base)
     return b_free ? vm_free_block(p, b_free) : -1;
 }
 
-void vm_move_to_sanit_unmapped(struct process *p, struct vm_block *b)
+
+/*
+ * Free pages
+ */
+static void vm_free_block_pages(struct process *p, struct vm_block *b)
 {
-    list_remove_exclusive(&p->vm.sanit_mapped, &b->node);
-    list_insert_sorted_exclusive(&p->vm.sanit_unmapped, &b->node, list_compare);
+    paddr_t prev_paddr = 0;
+    for (ulong offset = 0; offset < b->size; offset += PAGE_SIZE) {
+        ulong vaddr = b->base + offset;
+        paddr_t paddr = 0;
+
+        spinlock_exclusive_int(&p->page_table_lock) {
+            paddr = get_hal_exports()->translate(p->page_table, vaddr);
+            if (paddr && paddr != prev_paddr) {
+                get_hal_exports()->unmap_range(p->page_table, vaddr, paddr, PAGE_SIZE);
+            }
+        }
+
+        if (paddr && paddr != prev_paddr) {
+            if (b->map_type == VM_MAP_TYPE_OWNER) {
+                pfree_paddr(paddr);
+            }
+
+            prev_paddr = paddr;
+        }
+    }
 }
+
 
 
 /*
- * Merge
+ * Move to avail list
  */
-void vm_move_block_to_avail(struct process *p, struct vm_block *b)
-{
-    list_insert_merge_sorted_exclusive(
-        &p->vm.avail_unmapped, &b->node,
-        list_compare, avail_list_merge, avail_list_free
-    );
-}
-
-void vm_move_sanit_block_to_avail(struct process *p, struct vm_block *b)
-{
-    list_remove_exclusive(&p->vm.sanit_unmapped, &b->node);
-    vm_move_block_to_avail(p, b);
-}
+// void vm_move_block_to_avail(struct process *p, struct vm_block *b)
+// {
+//     list_insert_merge_sorted_exclusive(
+//         &p->vm.avail_unmapped, &b->node,
+//         list_compare, avail_list_merge, avail_list_free
+//     );
+// }
+//
+// void vm_move_sanit_block_to_avail(struct process *p, struct vm_block *b)
+// {
+//     list_remove_exclusive(&p->vm.sanit_unmapped, &b->node);
+//     vm_move_block_to_avail(p, b);
+// }
 
 void vm_move_sanit_to_avail(struct process *p)
 {
     list_access_exclusive(&p->vm.sanit_unmapped) {
+        //kprintf("p @ %p, count: %lu\n", p, p->vm.sanit_unmapped.count);
+
         while (p->vm.sanit_unmapped.count) {
             list_node_t *n = list_pop_front(&p->vm.sanit_unmapped);
+
+            struct vm_block *b = list_entry(n, struct vm_block, node);
+            vm_free_block_pages(p, b);
 
             list_insert_merge_sorted_exclusive(
                 &p->vm.avail_unmapped, n,
@@ -337,6 +369,17 @@ void vm_move_sanit_to_avail(struct process *p)
             );
         }
     }
+}
+
+
+/*
+ * TLB shootdown done
+ */
+void vm_move_to_sanit_unmapped(struct process *p, struct vm_block *b)
+{
+    list_remove_exclusive(&p->vm.sanit_mapped, &b->node);
+    list_push_back_exclusive(&p->vm.sanit_unmapped, &b->node);
+    //list_insert_sorted_exclusive(&p->vm.sanit_unmapped, &b->node, list_compare);
 }
 
 
@@ -356,11 +399,24 @@ int vm_map(struct process *p, ulong addr, ulong prot)
         if (addr >= b->base && addr < end) {
             ulong page_base = align_down_ulong(addr, PAGE_SIZE);
             paddr_t paddr = palloc_paddr(1);
-            get_hal_exports()->map_range(p->page_table,
-                                         page_base,
-                                         paddr,
-                                         PAGE_SIZE,
-                                         1, 1, 1, 0, 0);
+
+            spinlock_exclusive_int(&p->page_table_lock) {
+                get_hal_exports()->map_range(p->page_table,
+                                            page_base,
+                                            paddr,
+                                            PAGE_SIZE,
+                                            1, 1, 1, 0, 0);
+            }
+
+            switch (b->map_type) {
+            case VM_MAP_TYPE_NONE:
+                b->map_type = VM_MAP_TYPE_OWNER;
+            case VM_MAP_TYPE_OWNER:
+                break;
+            default:
+                panic("Unexpected page fault!\n");
+            }
+
             err = 0;
             break;
         }
@@ -391,9 +447,12 @@ ulong vm_map_coreimg(struct process *p)
         return 0;
     }
 
-    get_hal_exports()->map_range(p->page_table, b->base,
-                                 cast_vaddr_to_paddr(paddr_start), b->size,
-                                 1, 1, 1, 0, 0);
+    b->map_type = VM_MAP_TYPE_GUEST;
+    spinlock_exclusive_int(&p->page_table_lock) {
+        get_hal_exports()->map_range(p->page_table, b->base,
+                                     cast_vaddr_to_paddr(paddr_start), b->size,
+                                     1, 1, 1, 0, 0);
+    }
 
     ulong offset = (ulong)ci - paddr_start;
     return b->base + offset;
@@ -423,9 +482,12 @@ ulong vm_map_devtree(struct process *p)
         return 0;
     }
 
-    get_hal_exports()->map_range(p->page_table, b->base,
-                                 cast_vaddr_to_paddr(paddr_start), b->size,
-                                 1, 1, 1, 0, 0);
+    b->map_type = VM_MAP_TYPE_GUEST;
+    spinlock_exclusive_int(&p->page_table_lock) {
+        get_hal_exports()->map_range(p->page_table, b->base,
+                                     cast_vaddr_to_paddr(paddr_start), b->size,
+                                     1, 1, 1, 0, 0);
+    }
 
     ulong offset = (ulong)dt - paddr_start;
     return b->base + offset;
@@ -442,9 +504,12 @@ ulong vm_map_dev(struct process *p, ulong ppfn, ulong size, ulong prot)
         return 0;
     }
 
-    get_hal_exports()->map_range(p->page_table, b->base,
-                                 paddr_start, b->size,
-                                 1, 1, 1, 0, 0);
+    b->map_type = VM_MAP_TYPE_GUEST;
+    spinlock_exclusive_int(&p->page_table_lock) {
+        get_hal_exports()->map_range(p->page_table, b->base,
+                                     paddr_start, b->size,
+                                     1, 1, 1, 0, 0);
+    }
 
     return b->base;
 }
@@ -458,16 +523,17 @@ ulong vm_map_kernel(struct process *p, ulong size, ulong prot)
         return 0;
     }
 
-    ulong num_pages = get_vpage_count(map_size);
-    paddr_t paddr = palloc_paddr_direct_mapped(num_pages);
-    if (!paddr) {
-        // TODO: free vm block
-        return 0;
-    }
+    b->map_type = VM_MAP_TYPE_OWNER;
+    for (ulong offset = 0; offset < map_size; offset += PAGE_SIZE) {
+        paddr_t paddr = palloc_paddr_direct_mapped(1);
+        panic_if(!paddr, "Unable to allocate page!\n");
 
-    get_hal_exports()->map_range(p->page_table, b->base,
-                                 paddr, b->size,
-                                 1, 1, 1, 0, 0);
+        spinlock_exclusive_int(&p->page_table_lock) {
+            get_hal_exports()->map_range(p->page_table, b->base + offset,
+                                         paddr, PAGE_SIZE,
+                                         1, 1, 1, 0, 0);
+        }
+    }
 
     return b->base;
 }
@@ -484,14 +550,16 @@ ulong vm_map_cross(struct process *p, ulong remote_pid,
         ulong remote_map_vend = align_up_vaddr(remote_vbase + size, PAGE_SIZE);
         ulong map_size = remote_map_vend - remote_map_vbase;
 
-        kprintf("remote vbase @ %lx, remote vend @ %lx\n", remote_map_vbase, remote_map_vend);
+        //kprintf("remote vbase @ %lx, remote vend @ %lx\n", remote_map_vbase, remote_map_vend);
 
         struct vm_block *remote_b = vm_alloc(remote_p, remote_map_vbase, map_size, remote_prot);
         if (!remote_b) break;
+        remote_b->map_type = VM_MAP_TYPE_OWNER;
         align_offset = remote_vbase - remote_map_vbase;
 
         struct vm_block *local_b = vm_alloc(p, 0, map_size, 0);
         panic_if(!local_b, "Unable to allocate VM block!\n");
+        local_b->map_type = VM_MAP_TYPE_GUEST;
         local_vbase = local_b->base;
 
         //kprintf("b @ %p, base: %lx, size: %lx\n", local_b, local_b->base, local_b->size);
@@ -500,18 +568,22 @@ ulong vm_map_cross(struct process *p, ulong remote_pid,
             paddr_t paddr = palloc_paddr_direct_mapped(1);
 
             ulong remote_vaddr = remote_map_vbase + offset;
-            get_hal_exports()->map_range(remote_p->page_table, remote_vaddr,
-                                         paddr, PAGE_SIZE,
-                                         1, 1, 1, 0, 0);
+            spinlock_exclusive_int(&remote_p->page_table_lock) {
+                get_hal_exports()->map_range(remote_p->page_table, remote_vaddr,
+                                             paddr, PAGE_SIZE,
+                                             1, 1, 1, 0, 0);
+            }
 
             ulong local_vaddr = local_vbase + offset;
-            get_hal_exports()->map_range(p->page_table, local_vaddr,
-                                         paddr, PAGE_SIZE,
-                                         1, 1, 1, 0, 0);
+            spinlock_exclusive_int(&p->page_table_lock) {
+                get_hal_exports()->map_range(p->page_table, local_vaddr,
+                                             paddr, PAGE_SIZE,
+                                             1, 1, 1, 0, 0);
+            }
         }
     }
 
-    kprintf("local vbase @ %lx, align offset: %lx\n", local_vbase, align_offset);
+    //kprintf("local vbase @ %lx, align offset: %lx\n", local_vbase, align_offset);
 
     return local_vbase ? local_vbase + align_offset : 0;
 

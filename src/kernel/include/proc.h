@@ -157,6 +157,12 @@ enum process_vm_type {
     VM_TYPE_THREAD,
 };
 
+enum process_vm_map_type {
+    VM_MAP_TYPE_NONE,
+    VM_MAP_TYPE_OWNER,
+    VM_MAP_TYPE_GUEST,
+};
+
 struct vm_block {
     list_node_t node;
     list_node_t node_tlb_shootdown;
@@ -165,6 +171,7 @@ struct vm_block {
     ulong base;
     ulong size;
     enum process_vm_type type;
+    enum process_vm_map_type map_type;
 
     struct {
         void *tls_start_ptr;
@@ -218,6 +225,7 @@ struct process {
 
     // Page table
     void *page_table;
+    spinlock_t page_table_lock;
 
     // Virtual memory
     struct process_memory vm;
@@ -259,6 +267,10 @@ extern int vm_free_block(struct process *p, struct vm_block *b);
 extern int vm_free(struct process *p, ulong base);
 extern void vm_move_to_sanit_unmapped(struct process *p, struct vm_block *b);
 
+// extern void vm_move_block_to_avail(struct process *p, struct vm_block *b);
+// extern void vm_move_sanit_block_to_avail(struct process *p, struct vm_block *b);
+extern void vm_move_sanit_to_avail(struct process *p);
+
 extern int vm_map(struct process *p, ulong base, ulong prot);
 extern ulong vm_map_coreimg(struct process *p);
 extern ulong vm_map_devtree(struct process *p);
@@ -279,7 +291,6 @@ extern ulong get_kernel_pid();
 
 extern struct process *acquire_process(ulong id);
 extern void release_process(struct process *p);
-extern struct thread *acquire_main_thread(ulong pid);
 extern ulong get_num_processes();
 
 extern ulong create_process(ulong parent_id, char *name, enum process_type type);

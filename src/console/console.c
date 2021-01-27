@@ -2,7 +2,30 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <sys/api.h>
+#include <hal.h>
 #include "console/include/console.h"
+
+
+/*
+ * Welcome message
+ */
+#if (ARCH_WIDTH == 64)
+static char *welcome_msg =
+    "  ______          __    ____          _____ __ __\n"
+    " /_  ______  ____/ ____/ / ___  _____/ ___// // /\n"
+    "  / / / __ )/ __  / __  / / _ )/ ___/ __ )/ // /_\n"
+    " / / / /_/ / /_/ / /_/ / /  __/ /  / /_/ /__  __/\n"
+    "/_/  (____/(__,_/(__,_/_/(___/_/   (____/  /_/   \n"
+;
+#else
+static char *welcome_msg =
+    "  ______          __    ____         \n"
+    " /_  ______  ____/ ____/ / ___  _____\n"
+    "  / / / __ )/ __  / __  / / _ )/ ___/\n"
+    " / / / /_/ / /_/ / /_/ / /  __/ /    \n"
+    "/_/  (____/(__,_/(__,_/_/(___/_/     \n"
+;
+#endif
 
 
 /*
@@ -30,7 +53,12 @@ static int console_loop()
         int ret = console_exec(line, line_size);
         fprintf(f, "(ret: %d)\n", ret);
         fflush(f);
+
+        // Done
+        free(line);
     }
+
+    fclose(f);
 }
 
 
@@ -43,6 +71,7 @@ int main(int argc, char **argv)
 
     FILE *f = fopen("/dev/serial", "rw");
     fprintf(f, "Hello from Console!\n");
+    fprintf(f, "%s", welcome_msg);
     fclose(f);
 
     int err = console_loop();

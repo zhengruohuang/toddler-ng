@@ -130,7 +130,7 @@ static inline void pl011_write_one(char ch)
 /*
  * Interrupt
  */
-static sema_t pl011_sema = SEMA_INITIALIZER;
+static sema_t pl011_sema = SEMA_INITIALIZER(sizeof(unsigned long) - 1);
 
 static void pl011_int_handler(unsigned long param)
 {
@@ -143,6 +143,7 @@ static void pl011_int_handler(unsigned long param)
     pl011.mmio->ICR = 0x7FF;
 
     // Read all
+    int rc = 0;
     while (pl011_received()) {
         int c = pl011_read_one();
         switch (c) {
@@ -158,6 +159,7 @@ static void pl011_int_handler(unsigned long param)
 
         //kprintf("PL011 char: %c\n", c);
         shiftbuf_write_one(&pl011_shiftbuf, c);
+        rc++;
     }
 
     // Enable receiving interrupt
@@ -171,8 +173,12 @@ static void pl011_int_handler(unsigned long param)
 //     pl011_write_one('b');
 //     pl011_write_one('\n');
 
+    // Wake up readers
+    if (rc) {
+        sema_post_count(&pl011_sema, rc);
+    }
+
     // Done
-    sema_post(&pl011_sema);
     syscall_thread_exit_self(0);
 }
 
