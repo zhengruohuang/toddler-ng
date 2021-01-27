@@ -10,6 +10,13 @@
 /*
  * Task
  */
+enum task_state {
+    TASK_STATE_ENTER,
+    TASK_STATE_RUN,
+    TASK_STATE_DETACH,
+    TASK_STATE_EXIT,
+};
+
 struct task_file {
     int inuse;
     struct ventry *vent;
@@ -21,7 +28,8 @@ struct task {
         struct task *next;
     } list;
 
-    const char *name;
+    int state;
+    char *name;
 
     pid_t ppid;
     pid_t pid;
@@ -51,7 +59,8 @@ extern void release_task(struct task *t);
 extern void init_task();
 
 extern pid_t task_create(pid_t ppid, int type, int argc, char **argv, const char *stdio[3]);
-extern int task_exit(pid_t pid, int status);
+extern int task_detach(pid_t pid, unsigned long status);
+extern int task_exit(pid_t pid, unsigned long status);
 
 extern char *task_abs_path(pid_t pid, const char *pathname);
 extern int task_set_work_dir(pid_t pid, const char *pathname);

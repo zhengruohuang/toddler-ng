@@ -6,10 +6,34 @@
 
 
 /*
+ * FILE struct alloc
+ */
+static int file_salloc_ctor(void *obj, size_t size)
+{
+    memzero(obj, size);
+
+    FILE *f = obj;
+    f->buf = malloc(BUFSIZE);
+
+    return 0;
+}
+
+static int file_salloc_dtor(void *obj, size_t size)
+{
+    FILE *f = obj;
+    if (f->buf) {
+        free(f->buf);
+    }
+
+    return 0;
+}
+
+static salloc_obj_t file_salloc = SALLOC_CREATE(sizeof(FILE), 0, file_salloc_ctor, file_salloc_dtor);
+
+
+/*
  * Helpers
  */
-static salloc_obj_t file_salloc = SALLOC_CREATE_DEFAULT(sizeof(FILE));
-
 static inline void reset_fbuf(FILE *f)
 {
     f->buf_idx = f->buf_size = 0;

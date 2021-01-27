@@ -23,7 +23,33 @@ static inline void _err_response(int err)
  */
 static ulong task_api_task_create(ulong opcode)
 {
-    _err_response(-1);
+    // Request
+    msg_t *msg = get_msg();
+    pid_t ppid = msg->sender.pid;
+
+    int task_type = msg_get_int(msg, 0);
+    const char *task_work_dir = msg_get_data(msg, 1, NULL);
+    const char *task_stdin = msg_get_data(msg, 2, NULL);
+    const char *task_stdout = msg_get_data(msg, 3, NULL);
+    const char *task_stderr = msg_get_data(msg, 4, NULL);
+
+    int task_argc = msg_get_int(msg, 5);
+    char **task_argv = calloc(task_argc + 1, sizeof(char *));
+    for (int i = 0; i < task_argc; i++) {
+        task_argv[i] = msg_get_data(msg, 6 + i, NULL);
+    }
+    task_argv[task_argc] = NULL;
+
+    // Create task
+    pid_t pid = task_create(ppid, task_type, task_argc, task_argv, NULL);
+    free(task_argv);
+
+    // Response
+    msg = get_empty_msg();
+    msg_append_int(msg, pid ? 0 : -1);
+    msg_append_param(msg, pid);
+    syscall_ipc_respond();
+
     return 0;
 }
 
@@ -33,7 +59,19 @@ static ulong task_api_task_create(ulong opcode)
  */
 static ulong task_api_exit(ulong opcode)
 {
-    _err_response(-1);
+    // Request
+    msg_t *msg = get_msg();
+    ulong status = msg_get_param(msg, 0);
+    pid_t pid = msg->sender.pid;
+
+    // Exit
+    int err = task_exit(pid, status);
+
+    // Response
+    msg = get_empty_msg();
+    msg_append_int(msg, err);
+    syscall_ipc_respond();
+
     return 0;
 }
 
@@ -49,12 +87,7 @@ static ulong task_api_detach(ulong opcode)
     pid_t pid = msg->sender.pid;
 
     // Detach
-    int err = -1;
-    access_task(pid, t) {
-        t->exit_status = status;
-        cond_signal(&t->exit);
-        err = 0;
-    }
+    int err = task_detach(pid, status);
 
     // Response
     msg = get_empty_msg();

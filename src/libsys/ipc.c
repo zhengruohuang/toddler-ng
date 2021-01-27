@@ -117,6 +117,13 @@ char *msg_append_str(msg_t *msg, const char *str, size_t size)
 {
     panic_if(msg->num_params >= MAX_MSG_PARAMS, "Too many params in msg!\n");
 
+    if (!str && !size) {
+        msg->params[msg->num_params] = 0;
+        msg->param_type_map |= 0x1 << msg->num_params;
+        msg->num_params++;
+        return NULL;
+    }
+
     if (!size) {
         size = strlen(str);
     }
@@ -164,6 +171,9 @@ void *msg_get_data(msg_t *msg, int idx, size_t *size)
 
     ulong data_word_idx = msg->params[idx] >> 16;
     size_t data_words = msg->params[idx] & 0xfffful;
+    if (!data_words) {
+        return NULL;
+    }
 
     if (size) {
         *size = data_words * sizeof(ulong);

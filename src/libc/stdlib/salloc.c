@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include <futex.h>
 #include <sys.h>
 
@@ -49,9 +50,7 @@ void *salloc(salloc_obj_t *obj)
 
 void sfree(void *ptr)
 {
-    if (!ptr) {
-        return; // TODO: panic
-    }
+    panic_if(!ptr, "Unable to free NULL pointer!\n");
 
     struct salloc_magic *block = ptr - sizeof(struct salloc_magic);
     salloc_obj_t *obj = block->obj;

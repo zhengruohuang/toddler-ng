@@ -7,9 +7,31 @@
 /*
  * Create and exit
  */
-int sys_api_task_create(int type, int argc, char **argv, const char *stdio[3])
+int sys_api_task_create(int argc, char **argv, struct task_attri *attri, pid_t *pid)
 {
-    return -1;
+    // Request
+    msg_t *msg = get_empty_msg();
+    msg_append_int(msg, attri ? attri->type : PROCESS_TYPE_USER);   // type
+    msg_append_str(msg, attri ? attri->work_dir : NULL, 0);         // work dir
+    msg_append_str(msg, attri ? attri->stdio[0] : NULL, 0);         // stdin
+    msg_append_str(msg, attri ? attri->stdio[1] : NULL, 0);         // stdout
+    msg_append_str(msg, attri ? attri->stdio[2] : NULL, 0);         // stderr
+
+    msg_append_int(msg, argc);                                      // argc
+    for (int i = 0; i < argc; i++) {
+        msg_append_str(msg, argv[i], 0);                            // argv
+    }
+
+    syscall_ipc_popup_request(0, SYS_API_TASK_CREATE);
+
+    // Response
+    msg = get_response_msg();
+    int err = msg_get_int(msg, 0);
+    if (!err && pid) {
+        *pid = msg_get_param(msg, 1);
+    }
+
+    return err;
 }
 
 int sys_api_task_exit(unsigned long status)

@@ -28,19 +28,19 @@ static int load_elf(pid_t pid, FILE *f, unsigned long *entry,
     fread(&elf, 1, sizeof(elf_native_header_t), f);
 
     if (entry) *entry = elf.elf_entry;
-    kprintf("\tELF entry @ %lx, phnum: %u\n", (unsigned long)elf.elf_entry, elf.elf_phnum);
+    //kprintf("\tELF entry @ %lx, phnum: %u\n", (unsigned long)elf.elf_entry, elf.elf_phnum);
 
     for (int i = 0, phoff = elf.elf_phoff; i < elf.elf_phnum;
          i++, phoff += elf.elf_phentsize
     ) {
-        kprintf("\t\tSegment #%d\n", i);
+        //kprintf("\t\tSegment #%d\n", i);
 
         elf_native_program_t prog;
         fseek(f, phoff, SEEK_SET);
         fread(&prog, 1, sizeof(elf_native_program_t), f);
-        kprintf("\t\tfilesz: %u, memsz: %u, vaddr: %lx, offset: %lx\n",
-                prog.program_filesz, prog.program_memsz,
-                (unsigned long)prog.program_vaddr, (unsigned long)prog.program_offset);
+        //kprintf("\t\tfilesz: %u, memsz: %u, vaddr: %lx, offset: %lx\n",
+        //        prog.program_filesz, prog.program_memsz,
+        //        (unsigned long)prog.program_vaddr, (unsigned long)prog.program_offset);
 
         unsigned long remote_vaddr = align_down_vaddr(prog.program_vaddr, PAGE_SIZE);
         unsigned long remote_vend = align_up_vaddr(prog.program_vaddr + prog.program_memsz, PAGE_SIZE);

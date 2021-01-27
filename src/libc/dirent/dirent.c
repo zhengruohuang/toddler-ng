@@ -4,7 +4,30 @@
 #include <sys/api.h>
 
 
-static salloc_obj_t dir_salloc = SALLOC_CREATE_DEFAULT(sizeof(DIR));
+/*
+ * DIR struct alloc
+ */
+static int dir_salloc_ctor(void *obj, size_t size)
+{
+    memzero(obj, size);
+
+    DIR *d = obj;
+    d->buf = malloc(__DIR_BUF_SIZE);
+
+    return 0;
+}
+
+static int dir_salloc_dtor(void *obj, size_t size)
+{
+    DIR *d = obj;
+    if (d->buf) {
+        free(d->buf);
+    }
+
+    return 0;
+}
+
+static salloc_obj_t dir_salloc = SALLOC_CREATE(sizeof(DIR), 0, dir_salloc_ctor, dir_salloc_dtor);
 
 
 /*
@@ -28,6 +51,7 @@ DIR *opendir(const char *pathname)
     }
 
     d->fd = fd;
+    d->dyn_alloc = 1;
     return d;
 }
 
@@ -42,7 +66,9 @@ int closedir(DIR *d)
         return err;
     }
 
-    sfree(d);
+    if (d->dyn_alloc) {
+        sfree(d);
+    }
     return 0;
 }
 

@@ -112,7 +112,7 @@ void init_process()
 static void process_cleaner(ulong param)
 {
     struct process *p = (void *)param;
-    kprintf("Cleaner for process @ %p\n", p);
+    //kprintf("Cleaner for process @ %p\n", p);
 
     do {
         vm_move_sanit_to_avail(p);

@@ -193,6 +193,10 @@ static struct block *find_block(struct bucket *bucket, struct chunk *chunk)
     chunk->num_avail_blocks--;
     chunk->num_inuse_blocks++;
 
+    //kprintf("alloc block: %lu, chunk, num_inuse_blocks: %lu, num_avail_blocks: %lu\n",
+    //        bucket->block_size,
+    //        chunk->num_inuse_blocks, chunk->num_avail_blocks);
+
     if (!chunk->num_avail_blocks) {
         detach_chunk(bucket, chunk);
     }
@@ -268,6 +272,10 @@ static void putback_block(struct bucket *bucket, struct chunk *chunk, struct blo
     chunk->block = block;
     chunk->num_inuse_blocks--;
     chunk->num_avail_blocks++;
+
+    //kprintf("free block: %lu, chunk, num_inuse_blocks: %lu, num_avail_blocks: %lu\n",
+    //        bucket->block_size,
+    //        chunk->num_inuse_blocks, chunk->num_avail_blocks);
 
     if (!chunk->num_inuse_blocks &&
         bucket->num_active_chunks > RESERVED_ACTIVE_CHUNKS

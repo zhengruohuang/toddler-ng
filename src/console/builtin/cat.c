@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <dirent.h>
 
+#include <sys/api.h>
+
 #define CAT_BUF_SIZE 512
 
 int exec_cat(int argc, char **argv)

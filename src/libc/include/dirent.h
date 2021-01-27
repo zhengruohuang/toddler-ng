@@ -2,7 +2,7 @@
 #define __LIBC_INCLUDE_DIRENT_H__
 
 
-#define __DIR_BUF_SIZE 8192
+#define __DIR_BUF_SIZE 4096
 
 
 typedef unsigned long ino_t;
@@ -20,11 +20,12 @@ typedef struct __DIR {
     int fd;
     unsigned long last_fs_id;
 
-    char buf[__DIR_BUF_SIZE];
+    char *buf; // char buf[__DIR_BUF_SIZE];
     int buf_idx;
     int buf_size;
 
     struct dirent dirent;
+    char dyn_alloc;
 } DIR;
 
 

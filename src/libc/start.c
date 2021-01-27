@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <sys.h>
 #include <crt.h>
-
-#include "common/include/compiler.h"
+#include <sys.h>
+#include <sys/api.h>
+#include <hal.h>
 
 
 /*
@@ -60,6 +60,13 @@ static int call_main(int argc, char **argv, char **envp)
  */
 static void exit_libc(int err)
 {
+    unsigned long status = (long)err;
+
+    sys_api_task_exit(status);
+    syscall_thread_exit_self(0);
+
+    panic("Should never reach here!\n");
+    while (1);
 }
 
 

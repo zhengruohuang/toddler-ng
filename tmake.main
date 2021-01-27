@@ -71,12 +71,12 @@ def build_kernel():
         toolchain = get_toolchain('default'),
     )
 
-def build_server(name, ld, libs, incs):
+def build_bin(name, dir, ld, libs, incs):
     print_info(name, 'Building ' + name)
 
-    dir_name = name + '/'
-    elf_name = name + '.elf'
-    asm_name = name + '.S'
+    dir_name = dir + name + '/'
+    elf_name = dir + name + '.elf'
+    asm_name = dir + name + '.S'
 
     files = get_all_arch_files(dir_name, [ '.c', '.S' ])
 
@@ -97,21 +97,28 @@ def build_server(name, ld, libs, incs):
     )
 
 def build_servers():
-    server_ld = find_deepest_arch_file('libc/user.ld')
+    ld = find_deepest_arch_file('libc/user.ld')
     libs = [
         bin_dir + 'libdrv.a',
         bin_dir + 'libfs.a',
         bin_dir + 'libc.a',
     ]
-    includes = [
+    incs = [
         src_dir + 'libc/include',
         src_dir + 'libfs/include',
         src_dir + 'libdrv/include',
     ]
 
-    build_server('system', server_ld, libs, includes)
-    build_server('device', server_ld, libs, includes)
-    build_server('console', server_ld, libs, includes)
+    build_bin('system', '', ld, libs, incs)
+    build_bin('device', '', ld, libs, incs)
+    build_bin('console', '', ld, libs, incs)
+
+def build_bins():
+    ld = find_deepest_arch_file('libc/user.ld')
+    libs = [ bin_dir + 'libc.a' ]
+    incs = [ src_dir + 'libc/include' ]
+
+    build_bin('hello', 'bin/', ld, libs, incs)
 
 def build_fdt():
     print_info('fdt', 'Building flattened device tree')
@@ -136,7 +143,7 @@ def build_coreimg():
         bin_dir + 'system.elf',
         bin_dir + 'device.elf',
         bin_dir + 'console.elf',
-        #src_dir + 'init/init.py',
+        bin_dir + 'bin/hello.elf',
     ]
 
     coreimg_gen = tools_bin_dir + 'coreimg'
@@ -210,6 +217,7 @@ def build_main():
     build_hal()
     build_kernel()
     build_servers()
+    build_bins()
     build_fdt()
     build_coreimg()
     build_loader()

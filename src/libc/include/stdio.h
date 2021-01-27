@@ -17,7 +17,7 @@ extern int kprintf_unlocked(const char *fmt, ...);
 // size_t and ssize_t
 #include "common/include/inttypes.h"
 
-#define BUFSIZE         8192
+#define BUFSIZE         4096
 #define EOF             (-1)
 #define FILENAME_MAX    256
 #define FOPEN_MAX       32
@@ -37,7 +37,7 @@ typedef struct __FILE {
     unsigned long fs_id;
     unsigned long pos;
 
-    char buf[BUFSIZE];
+    char *buf; // char buf[BUFSIZE]
     int buf_size;
     int buf_idx;
     char buf_dirty;

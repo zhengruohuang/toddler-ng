@@ -44,11 +44,18 @@ enum system_api {
 /*
  * Task
  */
-enum task_attri {
+enum task_attri_sel {
     TASK_ATTRI_NONE,
     TASK_ATTRI_WORK_DIR,
 };
 
+struct task_attri {
+    int type;
+    char *work_dir;
+    char *stdio[3];
+};
+
+extern int sys_api_task_create(int argc, char **argv, struct task_attri *attri, pid_t *pid);
 extern int sys_api_task_exit(unsigned long status);
 extern int sys_api_task_detach(unsigned long status);
 extern int sys_api_task_wait(pid_t pid, unsigned long *status);

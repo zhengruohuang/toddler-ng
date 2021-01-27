@@ -50,7 +50,29 @@ void release_task(struct task *t)
 /*
  * Allocation
  */
-static salloc_obj_t task_salloc = SALLOC_CREATE_DEFAULT(sizeof(struct task));
+static int task_salloc_ctor(void *obj, size_t size)
+{
+    memzero(obj, size);
+
+    struct task *t = obj;
+    t->work_dir = malloc(1024);
+
+    return 0;
+}
+
+static int task_salloc_dtor(void *obj, size_t size)
+{
+    struct task *t = obj;
+    if (t->work_dir) {
+        free(t->work_dir);
+    }
+
+    return 0;
+}
+
+static salloc_obj_t task_salloc = SALLOC_CREATE(sizeof(struct task), 0,
+                                                task_salloc_ctor,
+                                                task_salloc_dtor);
 
 static struct task *new_task()
 {
@@ -64,8 +86,8 @@ static struct task *new_task()
         t->files[i].inuse = 1;
     }
 
-    // FIXME
-    t->work_dir = strdup("/");
+    strcpy(t->work_dir, "/");
+    t->state = TASK_STATE_ENTER;
 
     rwlock_exclusive_w(&tasks.rwlock) {
         t->list.prev = NULL;
@@ -91,6 +113,10 @@ static int del_task(struct task *task)
         tasks.count--;
     }
 
+    if (task->name) {
+        free(task->name);
+    }
+
     sfree(task);
     return 0;
 }
@@ -104,7 +130,8 @@ static inline void _create_init_task(pid_t pid, const char *name)
     struct task *t = new_task();
     t->ppid = 0;
     t->pid = pid;
-    t->name = name;
+    t->name = strdup(name);
+    t->state = TASK_STATE_RUN;
 }
 
 void init_task()
@@ -131,10 +158,16 @@ pid_t task_create(pid_t ppid, int type, int argc, char **argv, const char *stdio
 
     // Load ELF
     const char *path = argv[0];
-    kprintf("path: %s\n", path);
+    char *abs_path = task_abs_path(ppid, path);
+    //kprintf("ELF abs path: %s\n", abs_path);
+
     unsigned long entry = 0, free_start = 0;
-    int err = exec_elf(pid, path, &entry, &free_start);
+    int err = exec_elf(pid, abs_path, &entry, &free_start);
+    free(abs_path);
+
     if (err) {
+        kprintf("Unable to load ELF @ %s\n", path);
+        task_exit(pid, -1ul);
         return -1;
     }
 
@@ -167,26 +200,60 @@ pid_t task_create(pid_t ppid, int type, int argc, char **argv, const char *stdio
     }
 
     // Start
+    t->state = TASK_STATE_RUN;
     tid_t tid = syscall_thread_create_cross(pid, entry, entry_struct_addr);
     if (!tid) {
+        t->state = TASK_STATE_ENTER;
+        kprintf("Unable to run new task @ %s\n", path);
+        task_exit(pid, -1ul);
         return -1;
     }
 
     return pid;
 }
 
-int task_exit(pid_t pid, int status)
+int task_detach(pid_t pid, unsigned long status)
 {
-    struct task *t = NULL;
+    int err = -1;
+
     access_task(pid, task) {
-        t = task;
+        rwlock_exclusive_w(&task->rwlock) {
+            if (task->state == TASK_STATE_RUN) {
+                task->state = TASK_STATE_DETACH;
+                err = 0;
+            }
+        }
+
+        if (!err) {
+            task->exit_status = status;
+            cond_signal(&task->exit);
+        }
     }
 
-    if (t) {
-        del_task(t);
+    return err;
+}
+
+int task_exit(pid_t pid, unsigned long status)
+{
+    int err = -1;
+
+    access_task(pid, task) {
+        rwlock_exclusive_w(&task->rwlock) {
+            if (task->state != TASK_STATE_EXIT) {
+                task->state = TASK_STATE_EXIT;
+                err = 0;
+            }
+        }
+
+        if (!err) {
+            task->exit_status = status;
+            cond_signal(&task->exit);
+
+            // TODO: syscall_process_exit
+        }
     }
 
-    return 0;
+    return err;
 }
 
 
@@ -247,15 +314,12 @@ int task_set_work_dir(pid_t pid, const char *pathname)
 
     // Set work dir
     access_task(pid, task) {
-        char *old_workdir = NULL;
         rwlock_exclusive_w(&task->rwlock) {
-            old_workdir = task->work_dir;
-            task->work_dir = real_pathname;
+            strcpy(task->work_dir, real_pathname);
         }
-
-        free(old_workdir);
     }
 
+    free(real_pathname);
     return 0;
 }
 
