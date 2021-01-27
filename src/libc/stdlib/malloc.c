@@ -250,6 +250,8 @@ void *calloc(size_t num, size_t size)
 /*
  * free
  */
+#define RESERVED_ACTIVE_CHUNKS 0
+
 static void putback_chunk(struct bucket *bucket, struct chunk *chunk)
 {
     chunk->prev = NULL;
@@ -269,7 +271,9 @@ static void putback_block(struct bucket *bucket, struct chunk *chunk, struct blo
     chunk->num_inuse_blocks--;
     chunk->num_avail_blocks++;
 
-    if (!chunk->num_inuse_blocks && bucket->num_active_chunks > 1) {
+    if (!chunk->num_inuse_blocks &&
+        bucket->num_active_chunks > RESERVED_ACTIVE_CHUNKS
+    ) {
         detach_chunk(bucket, chunk);
         syscall_vm_free((ulong)chunk);
     }

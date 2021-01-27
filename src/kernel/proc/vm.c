@@ -264,6 +264,7 @@ int vm_free_block(struct process *p, struct vm_block *b)
     list_remove_exclusive(&p->vm.inuse_mapped, &b->node);
 
     if (b->type == VM_TYPE_THREAD) {
+        // TODO: use num cpus when debugged
         const int sanit_threshold = 0;  //hal_get_num_cpus();
 
         list_access_exclusive(&p->vm.reuse_mapped) {
