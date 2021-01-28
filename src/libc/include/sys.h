@@ -26,8 +26,8 @@
 typedef ulong (*msg_handler_t)(ulong opcode);
 
 extern void init_ipc();
-extern void register_msg_handler(ulong port, msg_handler_t handler);
-extern void cancel_msg_handler(ulong port);
+extern int register_msg_handler(ulong port, msg_handler_t handler);
+extern int cancel_msg_handler(ulong port);
 
 
 #endif

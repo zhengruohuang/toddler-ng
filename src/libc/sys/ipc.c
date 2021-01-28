@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <kth.h>
 #include <sys.h>
 
@@ -8,28 +9,53 @@
 /*
  * Handlers
  */
-static rwlock_t global_rwlock = RWLOCK_INITIALIZER;
+#define DEFAULT_NUM_HANDLERS 256
 
-// TODO: use hashtable
-static msg_handler_t handlers[255] = { 0 };
+static rwlock_t ipc_handler_rwlock = RWLOCK_INITIALIZER;
+
+static ulong num_handlers = 0;
+static msg_handler_t *handlers = NULL; //[255] = { 0 };
 static msg_handler_t global_handler = NULL;
 
-static inline msg_handler_t find_handler(ulong port)
+static inline void init_handlers(ulong count)
 {
-    if (port == GLOBAL_MSG_PORT) {
-        return global_handler;
+    if (handlers) {
+        handlers = realloc(handlers, sizeof(msg_handler_t) * count);
     } else {
-        return handlers[port];
+        handlers = calloc(count, sizeof(msg_handler_t));
     }
+    num_handlers = count;
 }
 
 static inline void update_handler(ulong port, msg_handler_t handler)
 {
+    if (!num_handlers) {
+        init_handlers(DEFAULT_NUM_HANDLERS);
+    }
+
     if (port == GLOBAL_MSG_PORT) {
         global_handler = handler;
     } else {
+        if (port >= num_handlers) {
+            init_handlers(port + 1);
+        }
         handlers[port] = handler;
     }
+}
+
+static inline msg_handler_t find_handler(ulong port)
+{
+    if (!num_handlers) {
+        return NULL;
+    }
+
+    if (port == GLOBAL_MSG_PORT) {
+        return global_handler;
+    } else if (port < num_handlers) {
+        return handlers[port];
+    }
+
+    return NULL;
 }
 
 
@@ -43,11 +69,11 @@ static inline ulong get_port(ulong opcode)
 
 static msg_handler_t acquire_handler(ulong port)
 {
-    rwlock_rlock(&global_rwlock);
+    rwlock_rlock(&ipc_handler_rwlock);
 
     msg_handler_t handler = find_handler(port);
     if (!handler) {
-        rwlock_runlock(&global_rwlock);
+        rwlock_runlock(&ipc_handler_rwlock);
         return NULL;
     }
 
@@ -56,7 +82,7 @@ static msg_handler_t acquire_handler(ulong port)
 
 static void release_handler(ulong port)
 {
-    rwlock_runlock(&global_rwlock);
+    rwlock_runlock(&ipc_handler_rwlock);
 }
 
 static void dispatch(ulong opcode)
@@ -89,14 +115,20 @@ void init_ipc()
 /*
  * Register
  */
-void register_msg_handler(ulong port, msg_handler_t handler)
+int register_msg_handler(ulong port, msg_handler_t handler)
 {
-    rwlock_wlock(&global_rwlock);
-    update_handler(port, handler);
-    rwlock_wunlock(&global_rwlock);
+    if (port > GLOBAL_MSG_PORT) {
+        return -1;
+    }
+
+    rwlock_exclusive_w(&ipc_handler_rwlock) {
+        update_handler(port, handler);
+    }
+
+    return 0;
 }
 
-void cancel_msg_handler(ulong port)
+int cancel_msg_handler(ulong port)
 {
-    register_msg_handler(port, NULL);
+    return register_msg_handler(port, NULL);
 }
