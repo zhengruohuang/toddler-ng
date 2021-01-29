@@ -246,6 +246,18 @@ void list_display_exclusive(list_t *l, list_node_display_t d)
     spinlock_unlock_int(&l->lock);
 }
 
+ulong list_count_exclusive(list_t *l)
+{
+    ulong count = 0;
+
+    spinlock_lock_int(&l->lock);
+    count = l->count;
+    spinlock_unlock_int(&l->lock);
+
+    return count;
+}
+
+
 
 /*
  * Test

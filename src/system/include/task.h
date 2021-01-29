@@ -62,6 +62,9 @@ extern pid_t task_create(pid_t ppid, int type, int argc, char **argv, const char
 extern int task_detach(pid_t pid, unsigned long status);
 extern int task_exit(pid_t pid, unsigned long status);
 
+extern int task_cleanup(pid_t pid);
+extern int task_crash(pid_t pid);
+
 extern char *task_abs_path(pid_t pid, const char *pathname);
 extern int task_set_work_dir(pid_t pid, const char *pathname);
 extern int task_get_work_dir(pid_t pid, char *buf, size_t buf_size);

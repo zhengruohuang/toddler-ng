@@ -10,6 +10,7 @@
 #include "kernel/include/mem.h"
 #include "kernel/include/atomic.h"
 #include "kernel/include/proc.h"
+#include "libsys/include/ipc.h"
 
 
 /*
@@ -73,7 +74,7 @@ int ipc_reg_popup_handler(struct process *p, struct thread *t, ulong entry)
     int err = -1;
 
     spinlock_exclusive_int(&p->lock) {
-        kprintf("reg, is_main: %d, count: %d\n", t->is_main, p->threads.count);
+        //kprintf("reg, is_main: %d, count: %d\n", t->is_main, p->threads.count);
         //if (t->is_main && p->threads.count == 1) {
             err = 0;
             p->popup_msg_handler = entry;
@@ -248,12 +249,13 @@ int ipc_respond(struct process *p, struct thread *t)
                 cur_t->wait_type == IPC_WAIT_FOR_RESP
             ) {
                 dst_t = cur_t;
+                list_remove(&ipc_wait_queue, &dst_t->node_wait);
                 break;
             }
         }
 
         if (dst_t) {
-            list_remove_exclusive(&ipc_wait_queue, &dst_t->node_wait);
+            //list_remove_exclusive(&ipc_wait_queue, &dst_t->node_wait);
 
             copy_msg(dst_t, t);
             ref_count_dec(&dst_t->ref_count);
@@ -321,6 +323,75 @@ int ipc_receive(struct process *p, struct thread *t, ulong timeout_ms,
     }
 
     err = 0;
+
+    return err;
+}
+
+
+/*
+ * Purge
+ */
+ulong purge_ipc_queue(struct process *p)
+{
+    ulong count = 0;
+
+    list_access_exclusive(&ipc_wait_queue) {
+        list_foreach(&ipc_wait_queue, node) {
+            struct thread *wait_t = list_entry(node, struct thread, node_wait);
+            if (wait_t->pid == p->pid) {
+                list_remove_in_foreach(&ipc_wait_queue, node);
+                ref_count_dec(&wait_t->ref_count);
+
+                if (wait_t->wait_type == IPC_WAIT_FOR_RESP) {
+                    ulong sender_tid = wait_t->ipc_wait.tid;
+                    if (sender_tid) {
+                        access_thread(sender_tid, sender_t) {
+                            spinlock_exclusive_int(&sender_t->lock) {
+                                sender_t->ipc_reply_to.pid = 0;
+                                sender_t->ipc_reply_to.tid = 0;
+                            }
+                            ref_count_dec(&sender_t->ref_count);
+                        }
+                    }
+                }
+
+                wakeup_thread(wait_t);
+                count++;
+            }
+        }
+    }
+
+    return count;
+}
+
+
+/*
+ * Notification to system
+ */
+int ipc_notify_system(ulong opcode, ulong pid)
+{
+    int err = -1;
+    ulong dst_pid = get_system_pid();
+    panic_if(!dst_pid, "Unknown PID: %lu\n", dst_pid);
+
+    access_process(dst_pid, dst_proc) {
+        ulong popup_entry = 0;
+        spinlock_exclusive_int(&dst_proc->lock) {
+            popup_entry = dst_proc->popup_msg_handler;
+        }
+
+        if (popup_entry) {
+            create_and_run_thread(dst_tid, dst_t, dst_proc, popup_entry, opcode, NULL) {
+                msg_t *msg = dst_t->memory.msg.start_paddr_ptr;
+                clear_msg(msg);
+                msg->sender.pid = 0;
+                msg->sender.tid = 0;
+                msg_append_param(msg, pid);
+                atomic_mb();
+                err = 0;
+            }
+        }
+    }
 
     return err;
 }

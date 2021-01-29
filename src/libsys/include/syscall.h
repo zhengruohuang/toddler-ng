@@ -43,6 +43,8 @@ extern int syscall_int_eoi(ulong seq);
  * Process
  */
 extern pid_t syscall_process_create(int type);
+extern int syscall_process_exit(pid_t pid, ulong status);
+extern int syscall_process_recycle(pid_t pid);
 
 
 /*

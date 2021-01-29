@@ -33,6 +33,8 @@ enum syscall_nums {
 
     // Process
     SYSCALL_PROCESS_CREATE,
+    SYSCALL_PROCESS_EXIT,
+    SYSCALL_PROCESS_RECYCLE,
 
     // VM
     SYSCALL_VM_ALLOC,

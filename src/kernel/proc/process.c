@@ -90,12 +90,17 @@ ulong get_num_processes()
  */
 static salloc_obj_t proc_salloc_obj;
 
+static void proc_salloc_ctor(void *entry)
+{
+    memzero(entry, sizeof(struct process));
+}
+
 void init_process()
 {
     kprintf("Initializing process manager\n");
 
     // Create salloc obj
-    salloc_create(&proc_salloc_obj, sizeof(struct process), 0, 0, NULL, NULL);
+    salloc_create(&proc_salloc_obj, sizeof(struct process), 0, 0, proc_salloc_ctor, NULL);
 
     // Init process list
     list_init(&processes);
@@ -109,16 +114,89 @@ void init_process()
 /*
  * Cleanup
  */
+static inline int _stop_all_threads(struct process *p)
+{
+    int all_threads_stopped = 0;
+
+    int state = -1;
+    spinlock_exclusive_int(&p->lock) {
+        state = p->state;
+    }
+
+    if (state == PROCESS_STATE_STOPPED) {
+        ulong thread_count = list_count_exclusive(&p->threads);
+
+        if (thread_count) {
+            purge_wait_queue(p);
+            purge_ipc_queue(p);
+        } else {
+            all_threads_stopped = 1;
+        }
+    }
+
+    return all_threads_stopped;
+}
+
+static inline int _free_all_vm_blocks(struct process *p)
+{
+    int all_vm_blocks_freed = 0;
+
+    int state = -1;
+    spinlock_exclusive_int(&p->lock) {
+        state = p->state;
+    }
+
+    if (state == PROCESS_STATE_ZOMBIE) {
+        if (ref_count_is_zero(&p->vm.num_active_blocks)) {
+            all_vm_blocks_freed = 1;
+        } else {
+            vm_purge(p);
+        }
+    }
+
+    return all_vm_blocks_freed;
+}
+
 static void process_cleaner(ulong param)
 {
     struct process *p = (void *)param;
     //kprintf("Cleaner for process @ %p\n", p);
 
-    do {
+    int all_threads_stopped = 0;
+    int all_vm_blocks_freed = 0;
+
+    while (!all_threads_stopped || !all_vm_blocks_freed) {
+        // Free up unused VM blocks
         vm_move_sanit_to_avail(p);
 
+        // Stop all threads
+        if (!all_threads_stopped && p->state == PROCESS_STATE_STOPPED) {
+            all_threads_stopped = _stop_all_threads(p);
+            if (all_threads_stopped) {
+                //kprintf("All threads stopped for process %p\n", p);
+                ipc_notify_system(SYS_NOTIF_PROCESS_STOPPED, p->pid);
+            }
+        }
+
+        // Free up all VM blocks
+        if (!all_vm_blocks_freed && p->state == PROCESS_STATE_ZOMBIE) {
+            all_vm_blocks_freed = _free_all_vm_blocks(p);
+            //if (all_vm_blocks_freed) {
+            //    kprintf("All VM blocks stopped for process %p\n", p);
+            //}
+        }
+
+        // Next pass
         syscall_thread_yield();
-    } while (1);
+    }
+
+    // Free process data structure
+    list_remove_exclusive(&processes, &p->node);
+    sfree(p);
+
+    // Done
+    kprintf("Clean for process %p done\n", p);
+    syscall_thread_exit_self(0);
 }
 
 
@@ -172,6 +250,7 @@ ulong create_process(ulong parent_id, char *name, enum process_type type)
     p->vm.dynamic.start = 0x100000ul;   // 1MB
     p->vm.dynamic.end = USER_VADDR_LIMIT;
 
+    ref_count_init(&p->vm.num_active_blocks, 0);
     list_init(&p->vm.avail_unmapped);
     list_init(&p->vm.inuse_mapped);
     list_init(&p->vm.sanit_unmapped);
@@ -229,6 +308,28 @@ ulong create_process(ulong parent_id, char *name, enum process_type type)
 
 
 /*
+ * Process exit
+ */
+int exit_process(struct process *proc, ulong status)
+{
+    spinlock_exclusive_int(&proc->lock) {
+        proc->state = PROCESS_STATE_STOPPED;
+    }
+
+    return 0;
+}
+
+int recycle_process(struct process *proc)
+{
+    spinlock_exclusive_int(&proc->lock) {
+        proc->state = PROCESS_STATE_ZOMBIE;
+    }
+
+    return 0;
+}
+
+
+/*
  * Load image from coreimg
  */
 #if ARCH_WIDTH == 32
@@ -250,11 +351,11 @@ int load_coreimg_elf(struct process *p, void *img)
 
     elf_native_program_t *prog_header = NULL;
     elf_native_header_t *elf_header = (elf_native_header_t *)img;
-    kprintf("\tLoad ELF image @ %p, page table @ %p\n", img, p->page_table);
+    kprintf("Load ELF image @ %p, page table @ %p\n", img, p->page_table);
 
     // For every segment, map and load
     for (int i = 0; i < elf_header->elf_phnum; i++) {
-        kprintf("\t\tSegment #%d\n", i);
+        //kprintf("\tSegment #%d\n", i);
 
         // Get program header
         if (i) {
@@ -296,8 +397,8 @@ int load_coreimg_elf(struct process *p, void *img)
             }
             panic_if(mapped != vpages, "Map failed");
 
-            kprintf("\t\t\tMapping range @ %p - %p to %llx, num pages: %ld\n",
-                    vaddr_start, vaddr_end, (u64)paddr, vpages);
+            //kprintf("\t\tMapping range @ %p - %p to %llx, num pages: %ld\n",
+            //        vaddr_start, vaddr_end, (u64)paddr, vpages);
 
             //paddr_t paddr3 = get_hal_exports()->translate(p->page_table, vaddr_start);
             //kprintf("New map: %x\n", paddr3);
@@ -310,7 +411,7 @@ int load_coreimg_elf(struct process *p, void *img)
             if (prog_header->program_filesz) {
                 void *paddr_win_copy = paddr_win + ((ulong)prog_header->program_vaddr - vaddr_start);
                 void *vaddr_copy = (void *)((ulong)img + (ulong)prog_header->program_offset);
-                kprintf("\t\t\tCopying from %p -> %p, size: %lx\n", vaddr_copy, paddr_win_copy, prog_header->program_filesz);
+                //kprintf("\t\tCopying from %p -> %p, size: %lx\n", vaddr_copy, paddr_win_copy, prog_header->program_filesz);
                 memcpy(paddr_win_copy, vaddr_copy, prog_header->program_filesz);
             }
         }
@@ -321,7 +422,7 @@ int load_coreimg_elf(struct process *p, void *img)
     p->vm.program.start = vrange_start;
     p->vm.program.end = vrange_end;
 
-    kprintf("\t\tEntry @ %p\n", p->vm.entry_point);
+    //kprintf("\tEntry @ %p\n", p->vm.entry_point);
 
     struct vm_block *b = vm_alloc(p, vrange_start, vrange_end - vrange_start, 0);
     panic_if(!b, "Unable to allocate VM block for program code!\n");

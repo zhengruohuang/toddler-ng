@@ -66,6 +66,8 @@ extern int syscall_handler_int_eoi(struct process *p, struct thread *t, struct k
 extern int syscall_handler_fault_page(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 
 extern int syscall_handler_process_create(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
+extern int syscall_handler_process_exit(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
+extern int syscall_handler_process_recycle(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 
 extern int syscall_handler_vm_alloc(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 extern int syscall_handler_vm_map(struct process *p, struct thread *t, struct kernel_dispatch *kdi);

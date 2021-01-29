@@ -201,10 +201,40 @@ static ulong task_api_get_attri(ulong opcode)
 
 
 /*
+ * System notifications
+ */
+static ulong task_notify_process_stopped(ulong opcode)
+{
+    // Request
+    msg_t *msg = get_msg();
+    pid_t pid = msg_get_param(msg, 0);
+
+    //kprintf("Process stopped: %lx\n", pid);
+    task_cleanup(pid);
+
+    return 0;
+}
+
+static ulong task_notify_process_crashed(ulong opcode)
+{
+    // Request
+    msg_t *msg = get_msg();
+    pid_t pid = msg_get_param(msg, 0);
+
+    kprintf("Process crashed: %lu\n", pid);
+
+    return 0;
+}
+
+
+/*
  * Init
  */
 void init_task_api()
 {
+    register_msg_handler(SYS_NOTIF_PROCESS_STOPPED, task_notify_process_stopped);
+    register_msg_handler(SYS_NOTIF_PROCESS_CRASHED, task_notify_process_crashed);
+
     register_msg_handler(SYS_API_TASK_CREATE, task_api_task_create);
     register_msg_handler(SYS_API_EXIT, task_api_exit);
     register_msg_handler(SYS_API_DETACH, task_api_detach);

@@ -222,6 +222,12 @@ static inline void wakeup_thread(struct thread *t)
     sched_put(t);
 }
 
+static inline void wakeup_thread_as_exit(struct thread *t)
+{
+    set_thread_state(t, THREAD_STATE_EXIT);
+    sched_put(t);
+}
+
 static void timeout_wakeup_worker(ulong param)
 {
     while (1) {
@@ -317,8 +323,24 @@ ulong wake_on_object_exclusive(struct process *p, struct thread *t, int wait_typ
 /*
  * Purge
  */
-void purge_wait_queue(struct process *p)
+ulong purge_wait_queue(struct process *p)
 {
+    ulong count = 0;
+
+    list_access_exclusive(&wait_queue) {
+        list_foreach(&wait_queue, node) {
+            struct thread *wait_t = list_entry(node, struct thread, node_wait);
+            if (wait_t->pid == p->pid) {
+                list_remove_in_foreach(&wait_queue, node);
+                wakeup_thread(wait_t);
+
+                count++;
+                //break;
+            }
+        }
+    }
+
+    return count;
 }
 
 

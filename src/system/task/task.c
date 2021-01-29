@@ -63,8 +63,13 @@ static int task_salloc_ctor(void *obj, size_t size)
 static int task_salloc_dtor(void *obj, size_t size)
 {
     struct task *t = obj;
+
     if (t->work_dir) {
         free(t->work_dir);
+    }
+
+    if (t->name) {
+        free(t->name);
     }
 
     return 0;
@@ -111,10 +116,6 @@ static int del_task(struct task *task)
         if (task->list.next) task->list.next->list.prev = task->list.prev;
         if (tasks.first == task) tasks.first = task->list.next;
         tasks.count--;
-    }
-
-    if (task->name) {
-        free(task->name);
     }
 
     sfree(task);
@@ -249,9 +250,49 @@ int task_exit(pid_t pid, unsigned long status)
             task->exit_status = status;
             cond_signal(&task->exit);
 
-            // TODO: syscall_process_exit
+            // Ask kernel to stop the process
+            err = syscall_process_exit(pid, status);
         }
     }
+
+    return err;
+}
+
+int task_cleanup(pid_t pid)
+{
+    // Process stopped by kernel, cleanup all memory used
+
+    int err = -1;
+
+    struct task *t = NULL;
+    access_task(pid, task) {
+        t = task;
+    }
+
+    //kprintf("To delete task\n");
+    del_task(t);
+
+    // Ask kernel to free all kernel data
+    err = syscall_process_recycle(pid);
+
+    return err;
+}
+
+int task_crash(pid_t pid)
+{
+    // Process stopped by kernel, cleanup all memory used
+
+    int err = -1;
+
+    struct task *t = NULL;
+    access_task(pid, task) {
+        t = task;
+    }
+
+    del_task(t);
+
+    // Ask kernel to free all kernel data
+    err = syscall_process_recycle(pid);
 
     return err;
 }

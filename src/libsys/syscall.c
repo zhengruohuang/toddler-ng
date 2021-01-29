@@ -56,6 +56,18 @@ pid_t syscall_process_create(int type)
     return pid;
 }
 
+int syscall_process_exit(pid_t pid, ulong status)
+{
+    int err = sysenter(SYSCALL_PROCESS_EXIT, pid, status, 0, NULL, NULL);
+    return err;
+}
+
+int syscall_process_recycle(pid_t pid)
+{
+    int err = sysenter(SYSCALL_PROCESS_RECYCLE, pid, 0, 0, NULL, NULL);
+    return err;
+}
+
 
 /*
  * Thread

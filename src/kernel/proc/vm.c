@@ -17,10 +17,15 @@
  */
 static salloc_obj_t vm_salloc_obj;
 
+static void vm_salloc_ctor(void *entry)
+{
+    memzero(entry, sizeof(struct vm_block));
+}
+
 void init_vm()
 {
     kprintf("Initializing dynamic VM allocator\n");
-    salloc_create(&vm_salloc_obj, sizeof(struct vm_block), 0, 0, NULL, NULL);
+    salloc_create(&vm_salloc_obj, sizeof(struct vm_block), 0, 0, vm_salloc_ctor, NULL);
 }
 
 
@@ -128,6 +133,7 @@ struct vm_block *vm_alloc_thread(struct process *p, struct thread *t,
         }
     }
 
+    // FIXME: move this inside ``list_access_exclusive(&p->vm.avail_unmapped)''?
     if (base) {
         b->proc = p;
         b->base = base;
@@ -139,6 +145,7 @@ struct vm_block *vm_alloc_thread(struct process *p, struct thread *t,
             mapper(p, t, b);
         }
 
+        ref_count_inc(&p->vm.num_active_blocks);
         ref_count_inc(&p->ref_count);
         list_insert_sorted_exclusive(&p->vm.inuse_mapped, &b->node, list_compare);
     } else {
@@ -211,6 +218,7 @@ struct vm_block *vm_alloc(struct process *p, ulong base, ulong size, ulong attri
                 extra_b->base = end;
                 extra_b->size = target_end - end;
 
+                // FIXME: is ref_count_inc really necessary?
                 ref_count_inc(&p->ref_count);
                 list_insert(&p->vm.avail_unmapped, &target_block->node, &extra_b->node);
                 extra_used = 1;
@@ -228,12 +236,14 @@ struct vm_block *vm_alloc(struct process *p, ulong base, ulong size, ulong attri
         }
     }
 
+    // FIXME: move this inside ``list_access_exclusive(&p->vm.avail_unmapped)''?
     if (found) {
         b->proc = p;
         b->size = size;
         b->type = VM_TYPE_GENERIC;
         b->map_type = VM_MAP_TYPE_NONE;
 
+        ref_count_inc(&p->vm.num_active_blocks);
         ref_count_inc(&p->ref_count);
         list_insert_sorted_exclusive(&p->vm.inuse_mapped, &b->node, list_compare);
     } else {
@@ -258,10 +268,9 @@ struct vm_block *vm_alloc(struct process *p, ulong base, ulong size, ulong attri
 /*
  * Free VM block
  */
-int vm_free_block(struct process *p, struct vm_block *b)
+static int _vm_free_removed_block(struct process *p, struct vm_block *b)
 {
     struct vm_block *b_sanit = NULL;
-    list_remove_exclusive(&p->vm.inuse_mapped, &b->node);
 
     if (b->type == VM_TYPE_THREAD) {
         // TODO: use num cpus when debugged
@@ -289,6 +298,12 @@ int vm_free_block(struct process *p, struct vm_block *b)
     }
 
     return 0;
+}
+
+int vm_free_block(struct process *p, struct vm_block *b)
+{
+    list_remove_exclusive(&p->vm.inuse_mapped, &b->node);
+    return _vm_free_removed_block(p, b);
 }
 
 int vm_free(struct process *p, ulong base)
@@ -339,37 +354,42 @@ static void vm_free_block_pages(struct process *p, struct vm_block *b)
 /*
  * Move to avail list
  */
-// void vm_move_block_to_avail(struct process *p, struct vm_block *b)
-// {
-//     list_insert_merge_sorted_exclusive(
-//         &p->vm.avail_unmapped, &b->node,
-//         list_compare, avail_list_merge, avail_list_free
-//     );
-// }
-//
-// void vm_move_sanit_block_to_avail(struct process *p, struct vm_block *b)
-// {
-//     list_remove_exclusive(&p->vm.sanit_unmapped, &b->node);
-//     vm_move_block_to_avail(p, b);
-// }
-
 void vm_move_sanit_to_avail(struct process *p)
 {
-    list_access_exclusive(&p->vm.sanit_unmapped) {
-        //kprintf("p @ %p, count: %lu\n", p, p->vm.sanit_unmapped.count);
+    list_node_t *n = list_pop_front_exclusive(&p->vm.sanit_unmapped);
+    while (n) {
+        struct vm_block *b = list_entry(n, struct vm_block, node);
+        vm_free_block_pages(p, b);
 
-        while (p->vm.sanit_unmapped.count) {
-            list_node_t *n = list_pop_front(&p->vm.sanit_unmapped);
+        list_insert_merge_sorted_exclusive(
+            &p->vm.avail_unmapped, n,
+            list_compare, avail_list_merge, avail_list_free
+        );
 
-            struct vm_block *b = list_entry(n, struct vm_block, node);
-            vm_free_block_pages(p, b);
+        ref_count_dec(&p->vm.num_active_blocks);
 
-            list_insert_merge_sorted_exclusive(
-                &p->vm.avail_unmapped, n,
-                list_compare, avail_list_merge, avail_list_free
-            );
-        }
+        n = list_pop_front_exclusive(&p->vm.sanit_unmapped);
     }
+}
+
+
+/*
+ * Free up all inuse blocks
+ */
+ulong vm_purge(struct process *p)
+{
+    ulong count = 0;
+
+    list_node_t *n = list_pop_front_exclusive(&p->vm.inuse_mapped);
+    while (n) {
+        struct vm_block *b = list_entry(n, struct vm_block, node);
+        _vm_free_removed_block(p, b);
+        count++;
+
+        n = list_pop_front_exclusive(&p->vm.inuse_mapped);
+    }
+
+    return count;
 }
 
 

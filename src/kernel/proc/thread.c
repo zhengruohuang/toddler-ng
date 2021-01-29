@@ -96,6 +96,11 @@ ulong get_num_threads()
  */
 static salloc_obj_t thread_salloc_obj;
 
+static void thread_salloc_ctor(void *entry)
+{
+    memzero(entry, sizeof(struct thread));
+}
+
 void init_thread()
 {
     kprintf("Initializing thread manager\n");
@@ -274,6 +279,9 @@ static struct thread *create_exec_context(struct process *p,
     // Insert the thread into global and the process local thread lists
     list_push_back_exclusive(&threads, &t->node);
     list_push_back_exclusive(&p->threads, &t->node_proc);
+
+    // Test
+    //memzero(&t->context, sizeof(struct reg_context));
 
     // Done
     return t;

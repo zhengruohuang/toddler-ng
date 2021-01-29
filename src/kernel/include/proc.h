@@ -146,9 +146,11 @@ extern void run_thread(struct thread *t);
  * Process
  */
 enum process_state {
-    PROCESS_STATE_ENTER,
-    PROCESS_STATE_NORMAL,
-    PROCESS_STATE_EXIT,
+    PROCESS_STATE_ENTER,    // Process just created, waiting to start the first thread
+    PROCESS_STATE_NORMAL,   // Process running
+    PROCESS_STATE_CRASHED,  // Process crashed, waiting for system to send STOP
+    PROCESS_STATE_STOPPED,  // STOP received from system, stopping all running threads
+    PROCESS_STATE_ZOMBIE,   // RECYCLE received from system, freeing up all memory blocks
 };
 
 enum process_vm_type {
@@ -178,7 +180,7 @@ struct vm_block {
         void *stack_top_ptr;
     } thread_map;
 
-    ulong tlb_shootdown_seq;
+    volatile ulong tlb_shootdown_seq;
     volatile ulong wait_acks;
 };
 
@@ -203,6 +205,9 @@ struct process_memory {
     list_t reuse_mapped;    // Blocks ready for reuse, mapped
                             // Only thread blocks can be reused
     list_t inuse_mapped;    // Blocks inuse, mapped
+
+    // Total number of blocks that don't belong to avail_unmapped
+    ref_count_t num_active_blocks;
 };
 
 struct process {
@@ -266,10 +271,9 @@ extern struct vm_block *vm_alloc(struct process *p, ulong base, ulong size, ulon
 extern int vm_free_block(struct process *p, struct vm_block *b);
 extern int vm_free(struct process *p, ulong base);
 extern void vm_move_to_sanit_unmapped(struct process *p, struct vm_block *b);
-
-// extern void vm_move_block_to_avail(struct process *p, struct vm_block *b);
-// extern void vm_move_sanit_block_to_avail(struct process *p, struct vm_block *b);
 extern void vm_move_sanit_to_avail(struct process *p);
+
+extern ulong vm_purge(struct process *p);
 
 extern int vm_map(struct process *p, ulong base, ulong prot);
 extern ulong vm_map_coreimg(struct process *p);
@@ -294,6 +298,9 @@ extern void release_process(struct process *p);
 extern ulong get_num_processes();
 
 extern ulong create_process(ulong parent_id, char *name, enum process_type type);
+extern int exit_process(struct process *proc, ulong status);
+extern int recycle_process(struct process *proc);
+
 extern int load_coreimg_elf(struct process *p, void *img);
 
 
@@ -334,7 +341,7 @@ extern int wait_on_object(struct process *p, struct thread *t, int wait_type, ul
 extern ulong wake_on_object(struct process *p, struct thread *t, int wait_type, ulong wait_obj, ulong wait_value, ulong max_wakeup_count);
 extern ulong wake_on_object_exclusive(struct process *p, struct thread *t, int wait_type, ulong wait_obj, ulong wait_value, ulong max_wakeup_count);
 
-extern void purge_wait_queue(struct process *p);
+extern ulong purge_wait_queue(struct process *p);
 
 
 /*
@@ -350,6 +357,10 @@ extern int ipc_reg_popup_handler(struct process *p, struct thread *t, ulong entr
 extern int ipc_request(struct process *p, struct thread *t, ulong dst_pid, ulong opcode, ulong flags, int *wait);
 extern int ipc_respond(struct process *p, struct thread *t);
 extern int ipc_receive(struct process *p, struct thread *t, ulong timeout_ms, ulong *opcode, int *wait);
+
+extern ulong purge_ipc_queue(struct process *p);
+
+extern int ipc_notify_system(ulong opcode, ulong pid);
 
 
 /*

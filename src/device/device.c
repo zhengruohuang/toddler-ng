@@ -19,7 +19,7 @@ extern void test_dev();
 __unused_func static void test_device()
 {
     //test_devtree();
-    test_dev();
+    //test_dev();
 }
 
 

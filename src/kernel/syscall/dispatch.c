@@ -29,6 +29,8 @@ void init_dispatch()
     handlers[SYSCALL_FAULT_PAGE] = syscall_handler_fault_page;
 
     handlers[SYSCALL_PROCESS_CREATE] = syscall_handler_process_create;
+    handlers[SYSCALL_PROCESS_EXIT] = syscall_handler_process_exit;
+    handlers[SYSCALL_PROCESS_RECYCLE] = syscall_handler_process_recycle;
 
     handlers[SYSCALL_VM_ALLOC] = syscall_handler_vm_alloc;
     handlers[SYSCALL_VM_MAP] = syscall_handler_vm_map;
@@ -79,7 +81,7 @@ void dispatch(ulong thread_id, struct kernel_dispatch *kdi)
             }
 
             // The process is waiting to exit
-            else if (p->state == PROCESS_STATE_EXIT) {
+            else if (p->state == PROCESS_STATE_STOPPED) {
                 set_thread_state(t, THREAD_STATE_EXIT);
                 do_exit = 1;
             }

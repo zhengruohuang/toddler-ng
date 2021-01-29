@@ -19,16 +19,30 @@ static list_t tlb_shootdown_reqs;
 static volatile ulong tlb_shootdown_seq = 1;
 static decl_per_cpu(ulong, local_tlb_shootdown_seq);
 
+static int tlb_shootdown_list_compare(list_node_t *a, list_node_t *b)
+{
+    struct vm_block *ba = list_entry(a, struct vm_block, node_tlb_shootdown);
+    struct vm_block *bb = list_entry(b, struct vm_block, node_tlb_shootdown);
+    if (ba->tlb_shootdown_seq > bb->tlb_shootdown_seq) {
+        return 1;
+    } else if (ba->tlb_shootdown_seq < bb->tlb_shootdown_seq) {
+        return -1;
+    } else {
+        return 0;
+    }
+}
+
 static inline ulong get_my_cpu_seq()
 {
     ulong *my_seq_ptr = get_per_cpu(ulong, local_tlb_shootdown_seq);
     return *my_seq_ptr;
 }
 
-static inline void set_my_cpu_seq(ulong seq)
+static inline ulong set_my_cpu_seq(ulong seq)
 {
     ulong *my_seq_ptr = get_per_cpu(ulong, local_tlb_shootdown_seq);
     *my_seq_ptr = seq;
+    return seq;
 }
 
 static inline ulong alloc_tlb_shootdown_seq()
@@ -76,7 +90,7 @@ int request_tlb_shootdown(struct process *p, struct vm_block *b)
     b->tlb_shootdown_seq = alloc_tlb_shootdown_seq();
     b->wait_acks = num_cpus;
 
-    list_push_back_exclusive(&tlb_shootdown_reqs, &b->node_tlb_shootdown);
+    list_insert_sorted_exclusive(&tlb_shootdown_reqs, &b->node_tlb_shootdown, tlb_shootdown_list_compare);
     return num_cpus;
 }
 
@@ -84,15 +98,21 @@ int request_tlb_shootdown(struct process *p, struct vm_block *b)
 /*
  * Service
  */
+//static volatile long debug_print_count = 1000;
+
 void service_tlb_shootdown_requests()
 {
+    atomic_mb();
     ulong my_seq = get_my_cpu_seq();
+
     list_foreach_exclusive(&tlb_shootdown_reqs, n) {
         struct vm_block *b = list_entry(n, struct vm_block, node_tlb_shootdown);
         if (my_seq < b->tlb_shootdown_seq) {
             shootdown(b->proc->asid, b->base, b->size);
-            set_my_cpu_seq(b->tlb_shootdown_seq);
-            b->wait_acks--;
+            atomic_dec(&b->wait_acks);
+            atomic_mb();
+
+            my_seq = set_my_cpu_seq(b->tlb_shootdown_seq);
         }
     }
 
@@ -100,11 +120,14 @@ void service_tlb_shootdown_requests()
         while (tlb_shootdown_reqs.count) {
             list_node_t *n = list_front(&tlb_shootdown_reqs);
             struct vm_block *b = list_entry(n, struct vm_block, node_tlb_shootdown);
+
+            atomic_mb();
             if (b->wait_acks) {
                 break;
             }
 
-            //kprintf("VM block unmapped @ %lx, seq: %lu, awaiting: %d\n", b->base, b->tlb_shootdown_seq, tlb_shootdown_reqs.count);
+            //kprintf("VM block unmapped @ %lx, seq: %lu, awaiting: %d\n",
+            //        b->base, b->tlb_shootdown_seq, tlb_shootdown_reqs.count);
 
             list_pop_front(&tlb_shootdown_reqs);
             vm_move_to_sanit_unmapped(b->proc, b);

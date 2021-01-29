@@ -41,4 +41,11 @@ typedef volatile struct {
 } natural_struct msg_t;
 
 
+enum system_notif_opcodes {
+    SYS_NOTIF_PROCESS_NONE = 1,
+    SYS_NOTIF_PROCESS_CRASHED,
+    SYS_NOTIF_PROCESS_STOPPED,
+};
+
+
 #endif

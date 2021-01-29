@@ -99,6 +99,7 @@ extern list_node_t *list_pop_back_exclusive(list_t *l);
 extern list_node_t *list_pop_front_exclusive(list_t *l);
 
 extern void list_display_exclusive(list_t *l, list_node_display_t d);
+extern ulong list_count_exclusive(list_t *l);
 
 extern void test_list();
 

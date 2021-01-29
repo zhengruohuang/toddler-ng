@@ -185,6 +185,35 @@ int syscall_handler_process_create(struct process *p, struct thread *t,
     return SYSCALL_HANDLED_CONTINUE;
 }
 
+int syscall_handler_process_exit(struct process *p, struct thread *t,
+                                 struct kernel_dispatch *kdi)
+{
+    ulong pid = kdi->param0;
+    ulong status = kdi->param1;
+
+    int err = -1;
+    access_process(pid, proc) {
+        err = exit_process(proc, status);
+    }
+
+    hal_set_syscall_return(kdi->regs, err, 0, 0);
+    return SYSCALL_HANDLED_CONTINUE;
+}
+
+int syscall_handler_process_recycle(struct process *p, struct thread *t,
+                                    struct kernel_dispatch *kdi)
+{
+    ulong pid = kdi->param0;
+
+    int err = -1;
+    access_process(pid, proc) {
+        err = recycle_process(proc);
+    }
+
+    hal_set_syscall_return(kdi->regs, err, 0, 0);
+    return SYSCALL_HANDLED_CONTINUE;
+}
+
 
 /*
  * VM
