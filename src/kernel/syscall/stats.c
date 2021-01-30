@@ -27,6 +27,10 @@ int syscall_handler_stats_kernel(struct process *p, struct thread *t,
     stats->num_threads = get_num_threads();
     stats->num_threads_wait = get_num_wait_threads();
     stats->num_threads_ipc = get_num_ipc_threads();
+    process_stats(&stats->num_procs, stats->procs, NUM_PROC_STATS);
+
+    // TLB
+    tlb_shootdown_stats(&stats->num_tlb_shootdown_reqs, &stats->global_tlb_shootdown_seq);
 
     // PFN
     paddr_t paddr_start = 0, paddr_end = 0;
@@ -43,6 +47,9 @@ int syscall_handler_stats_kernel(struct process *p, struct thread *t,
 
     // Palloc
     palloc_stats_page(&stats->num_pages_usable, &stats->num_pages_allocated);
+
+    // Salloc
+    salloc_stats(&stats->num_salloc_objs, stats->salloc_objs, NUM_SALLOC_OBJ_STATS);
 
     hal_set_syscall_return(kdi->regs, 0, 0, 0);
     return SYSCALL_HANDLED_CONTINUE;

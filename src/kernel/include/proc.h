@@ -208,6 +208,11 @@ struct process_memory {
 
     // Total number of blocks that don't belong to avail_unmapped
     ref_count_t num_active_blocks;
+
+    // Total number of physical pages allocated
+    ref_count_t num_palloc_pages;
+
+    ref_count_t num_salloc_objs;
 };
 
 struct process {
@@ -274,6 +279,7 @@ extern void vm_move_to_sanit_unmapped(struct process *p, struct vm_block *b);
 extern void vm_move_sanit_to_avail(struct process *p);
 
 extern ulong vm_purge(struct process *p);
+extern void vm_destory(struct process *p);
 
 extern int vm_map(struct process *p, ulong base, ulong prot);
 extern ulong vm_map_coreimg(struct process *p);
@@ -295,7 +301,9 @@ extern ulong get_kernel_pid();
 
 extern struct process *acquire_process(ulong id);
 extern void release_process(struct process *p);
+
 extern ulong get_num_processes();
+extern void process_stats(ulong *count, struct proc_stat *buf, size_t buf_size);
 
 extern ulong create_process(ulong parent_id, char *name, enum process_type type);
 extern int exit_process(struct process *proc, ulong status);
@@ -370,6 +378,8 @@ extern void init_tlb_shootdown();
 
 extern int request_tlb_shootdown(struct process *p, struct vm_block *b);
 extern void service_tlb_shootdown_requests();
+
+extern void tlb_shootdown_stats(ulong *count, ulong *global_seq);
 
 
 /*

@@ -113,10 +113,31 @@ enum vm_map_type {
 /*
  * Stats
  */
+#define NUM_SALLOC_OBJ_STATS 32
+#define NUM_PROC_STATS       32
+
+struct salloc_stat_obj {
+    char name[32];
+    ulong block_size;
+    ulong num_objs;
+    u64 num_pages_allocated;
+};
+
+struct proc_stat {
+    char name[32];
+    ulong num_inuse_vm_blocks;
+    ulong num_pages;
+};
+
 struct kernel_stats {
     // Proc
     ulong num_procs;
     ulong num_threads, num_threads_wait, num_threads_ipc;
+    struct proc_stat procs[NUM_PROC_STATS];
+
+    // TLB
+    ulong num_tlb_shootdown_reqs;
+    ulong global_tlb_shootdown_seq;
 
     // PFN DB
     u64 paddr_start, paddr_end, paddr_len;
@@ -125,6 +146,10 @@ struct kernel_stats {
     // Palloc
     u64 num_pages_usable;
     u64 num_pages_allocated;
+
+    // Salloc
+    ulong num_salloc_objs;
+    struct salloc_stat_obj salloc_objs[NUM_SALLOC_OBJ_STATS];
 };
 
 

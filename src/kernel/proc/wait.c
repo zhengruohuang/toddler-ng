@@ -352,7 +352,7 @@ void init_wait()
     kprintf("Initializing wait queue\n");
     list_init(&wait_queue);
     list_init(&wait_objects);
-    salloc_create(&wait_object_salloc_obj, sizeof(struct wait_object), 0, 0, NULL, NULL);
+    salloc_create_default(&wait_object_salloc_obj, "wait", sizeof(struct wait_object));
 
     create_and_run_kernel_thread(tid, t, &timeout_wakeup_worker, 0, NULL) {
         kprintf("\tWait timeout wakeup worker created, tid: %lx, thread block base: %p\n",

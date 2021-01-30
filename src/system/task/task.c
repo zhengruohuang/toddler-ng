@@ -200,6 +200,8 @@ pid_t task_create(pid_t ppid, int type, int argc, char **argv, const char *stdio
         }
     }
 
+    syscall_vm_free((unsigned long)param);
+
     // Start
     t->state = TASK_STATE_RUN;
     tid_t tid = syscall_thread_create_cross(pid, entry, entry_struct_addr);

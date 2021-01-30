@@ -96,17 +96,17 @@ ulong get_num_threads()
  */
 static salloc_obj_t thread_salloc_obj;
 
-static void thread_salloc_ctor(void *entry)
-{
-    memzero(entry, sizeof(struct thread));
-}
+// static void thread_salloc_ctor(void *entry)
+// {
+//     memzero(entry, sizeof(struct thread));
+// }
 
 void init_thread()
 {
     kprintf("Initializing thread manager\n");
 
     // Create salloc obj
-    salloc_create(&thread_salloc_obj, sizeof(struct thread), 0, 0, NULL, NULL);
+    salloc_create_default(&thread_salloc_obj, "thread", sizeof(struct thread));
 
     // Init thread list
     list_init(&threads);
@@ -141,6 +141,9 @@ static int thread_block_mapper(struct process *p, struct thread *t, struct vm_bl
     t->memory.tls.start_paddr_ptr = palloc_ptr(1);
     void *initial_stack_paddr_ptr = palloc_ptr(1);
     t->memory.stack.top_paddr_ptr = initial_stack_paddr_ptr + PAGE_SIZE;
+
+    ref_count_inc(&p->vm.num_palloc_pages);
+    ref_count_inc(&p->vm.num_palloc_pages);
 
     b->thread_map.tls_start_ptr = t->memory.tls.start_paddr_ptr;
     b->thread_map.stack_top_ptr = t->memory.stack.top_paddr_ptr;
@@ -280,9 +283,6 @@ static struct thread *create_exec_context(struct process *p,
     list_push_back_exclusive(&threads, &t->node);
     list_push_back_exclusive(&p->threads, &t->node_proc);
 
-    // Test
-    //memzero(&t->context, sizeof(struct reg_context));
-
     // Done
     return t;
 }
@@ -342,78 +342,6 @@ void exit_thread(struct thread *t)
         ref_count_dec(&proc->ref_count);
     }
 }
-
-// static void destroy_thread(struct process *p, struct thread *t)
-// {
-//     //kprintf("[Thread] To destory absent thread, process: %s\n", p->name);
-//
-//     spin_lock_int(&t->lock);
-//
-//     // Scheduling
-//     clean_sched(t->sched);
-//
-//     // FIXME: Temporarily disable this part to avoid some weird issues
-// #if 1
-//     // Dynamic area
-//     if (p->type == process_kernel) {
-//         pfree(ADDR_TO_PFN(t->memory.block_base));
-//     } else {
-//         ulong vaddr = 0;
-//         ulong paddr = 0;
-//
-//         assert(t->memory.block_base != 0xeffbe000);
-//
-//         // TLB shootdown first
-//         trigger_tlb_shootdown(p->asid, t->memory.block_base, t->memory.block_size);
-//
-//         // Msg send
-//         vaddr = t->memory.block_base + t->memory.msg_send_offset;
-//         paddr = t->memory.msg_send_paddr;
-//         //kprintf("To unmap msg send, vaddr @ %p, paddr @ %p\n", (void *)vaddr, (void *)paddr);
-//         hal->unmap_user(p->page_dir_pfn, vaddr, paddr, t->memory.msg_send_size);
-//         pfree(ADDR_TO_PFN(paddr));
-//
-//         // Msg recv
-//         vaddr = t->memory.block_base + t->memory.msg_recv_offset;
-//         paddr = t->memory.msg_recv_paddr;
-//         //kprintf("To unmap msg recv, vaddr @ %p, paddr @ %p\n", (void *)vaddr, (void *)paddr);
-//         hal->unmap_user(p->page_dir_pfn, vaddr, paddr, t->memory.msg_recv_size);
-//         pfree(ADDR_TO_PFN(paddr));
-//
-//         // TLS
-//         vaddr = t->memory.block_base + t->memory.tls_start_offset;
-//         paddr = t->memory.tls_start_paddr;
-//         vaddr = ALIGN_DOWN(vaddr, PAGE_SIZE);
-//         paddr = ALIGN_DOWN(paddr, PAGE_SIZE);
-//         //kprintf("To unmap tls, vaddr @ %p, paddr @ %p\n", (void *)vaddr, (void *)paddr);
-//         hal->unmap_user(p->page_dir_pfn, vaddr, paddr, t->memory.tls_size);
-//         pfree(ADDR_TO_PFN(paddr));
-//
-//         // Stack
-//         vaddr = t->memory.block_base + t->memory.stack_limit_offset;
-//         paddr = hal->get_paddr(p->page_dir_pfn, vaddr);
-//         //kprintf("To unmap stack, vaddr @ %p, paddr @ %p\n", (void *)vaddr, (void *)paddr);
-//         hal->unmap_user(p->page_dir_pfn, vaddr, paddr, t->memory.stack_size);
-//         pfree(ADDR_TO_PFN(paddr));
-//
-//         // Free dynamic area
-//         dfree(p, t->memory.block_base);
-//     }
-// #endif
-//
-//     spin_unlock_int(&t->lock);
-//
-//     sfree(t);
-// }
-//
-// void destroy_absent_threads(struct process *p)
-// {
-//     struct thread *t = pop_front(&p->threads.absent);
-//     while (t) {
-//         destroy_thread(p, t);
-//         t = pop_front(&p->threads.absent);
-//     }
-// }
 
 
 /*

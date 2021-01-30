@@ -180,6 +180,11 @@ static void *init_user_page_table()
     return page_table;
 }
 
+static void free_user_page_table(void *ptr)
+{
+    kernel_pfree_ptr(ptr);
+}
+
 static void set_thread_context_param(struct reg_context *context, ulong param)
 {
     context->r0 = param;
@@ -246,6 +251,7 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.arch_enable_local_int = enable_local_int;
 
     funcs.init_addr_space = init_user_page_table;
+    funcs.free_addr_space = free_user_page_table;
     funcs.init_context = init_thread_context;
     funcs.set_context_param = set_thread_context_param;
     funcs.switch_to = switch_to;

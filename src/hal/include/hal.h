@@ -60,6 +60,7 @@ struct hal_arch_funcs {
 
     // Address space
     init_addr_space_t init_addr_space;
+    free_addr_space_t free_addr_space;
 
     // Context
     init_context_t init_context;

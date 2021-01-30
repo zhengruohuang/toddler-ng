@@ -115,6 +115,7 @@ static void fill_hal_exports()
     //hexp.user_page_dir_page_count = 0;     // TODO: funcs->exports.user_page_dir_page_count;
     hexp.vaddr_space_end = 0;  // TODO: funcs->exports.vaddr_space_end;
     hexp.init_addr_space = funcs->init_addr_space;
+    hexp.free_addr_space = funcs->free_addr_space;
 
     // Context
     hexp.init_context = funcs->init_context;

@@ -8,6 +8,7 @@
 #include "libk/include/memmap.h"
 #include "libk/include/mem.h"
 #include "kernel/include/atomic.h"
+#include "kernel/include/proc.h"
 
 
 /*
@@ -66,11 +67,17 @@ extern void test_palloc();
 /*
  * Struct allocator
  */
-typedef void (*salloc_callback_t)(void *entry);
+typedef void (*salloc_callback_t)(void *obj, size_t size);
 
 struct salloc_bucket;
 
 typedef struct salloc_obj {
+    // List
+    struct salloc_obj *next;
+
+    // Name
+    const char *name;
+
     // Sizes
     size_t struct_size;
     size_t block_size;
@@ -99,6 +106,12 @@ typedef struct salloc_obj {
     // The spin lock that protects the entire salloc obj
     // not very efficient, but it does the job
     spinlock_t lock;
+
+    // Total number of physical pages allocated
+    ref_count_t num_palloc_pages;
+
+    // Total number of active objs
+    ref_count_t num_active_objs;
 } salloc_obj_t;
 
 #define SALLOC_OBJ_INIT { \
@@ -107,9 +120,19 @@ typedef struct salloc_obj {
         .lock = SPINLOCK_INIT \
     }
 
-extern void salloc_create(salloc_obj_t *obj, size_t size, size_t align, int count, salloc_callback_t ctor, salloc_callback_t dtor);
+extern void salloc_default_ctor(void *obj, size_t size);
+
+extern void salloc_create(salloc_obj_t *obj, const char *name, size_t size,
+                          size_t align, int count, salloc_callback_t ctor, salloc_callback_t dtor);
+extern void salloc_create_default(salloc_obj_t *obj, const char *name, size_t size);
+
 extern void *salloc(salloc_obj_t *obj);
+extern void *salloc_audit(salloc_obj_t *obj, ref_count_t *rc);
+
 extern void sfree(void *ptr);
+extern void sfree_audit(void *ptr, ref_count_t *rc);
+
+extern void salloc_stats(ulong *count, struct salloc_stat_obj *buf, size_t buf_size);
 
 
 /*

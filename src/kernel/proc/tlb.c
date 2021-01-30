@@ -19,19 +19,6 @@ static list_t tlb_shootdown_reqs;
 static volatile ulong tlb_shootdown_seq = 1;
 static decl_per_cpu(ulong, local_tlb_shootdown_seq);
 
-static int tlb_shootdown_list_compare(list_node_t *a, list_node_t *b)
-{
-    struct vm_block *ba = list_entry(a, struct vm_block, node_tlb_shootdown);
-    struct vm_block *bb = list_entry(b, struct vm_block, node_tlb_shootdown);
-    if (ba->tlb_shootdown_seq > bb->tlb_shootdown_seq) {
-        return 1;
-    } else if (ba->tlb_shootdown_seq < bb->tlb_shootdown_seq) {
-        return -1;
-    } else {
-        return 0;
-    }
-}
-
 static inline ulong get_my_cpu_seq()
 {
     ulong *my_seq_ptr = get_per_cpu(ulong, local_tlb_shootdown_seq);
@@ -87,10 +74,13 @@ int request_tlb_shootdown(struct process *p, struct vm_block *b)
         return 0;
     }
 
-    b->tlb_shootdown_seq = alloc_tlb_shootdown_seq();
     b->wait_acks = num_cpus;
 
-    list_insert_sorted_exclusive(&tlb_shootdown_reqs, &b->node_tlb_shootdown, tlb_shootdown_list_compare);
+    list_access_exclusive(&tlb_shootdown_reqs) {
+        b->tlb_shootdown_seq = alloc_tlb_shootdown_seq();
+        list_push_back(&tlb_shootdown_reqs, &b->node_tlb_shootdown);
+    }
+
     return num_cpus;
 }
 
@@ -132,5 +122,20 @@ void service_tlb_shootdown_requests()
             list_pop_front(&tlb_shootdown_reqs);
             vm_move_to_sanit_unmapped(b->proc, b);
         }
+    }
+}
+
+
+/*
+ * Stats
+ */
+void tlb_shootdown_stats(ulong *count, ulong *global_seq)
+{
+    if (count) {
+        *count = list_count_exclusive(&tlb_shootdown_reqs);
+    }
+
+    if (global_seq) {
+        *global_seq = tlb_shootdown_seq;
     }
 }

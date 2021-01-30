@@ -35,7 +35,7 @@ void init_malloc()
     int entry_count = sizeof(malloc_entries) / sizeof(struct malloc_entry);
 
     for (i = 0; i < entry_count; i++) {
-        salloc_create(&malloc_entries[i].salloc_obj,
+        salloc_create(&malloc_entries[i].salloc_obj, "malloc",
             malloc_entries[i].block_size, 0, malloc_entries[i].block_count,
             NULL, NULL
         );

@@ -65,6 +65,7 @@ typedef paddr_t (*page_translate_t)(void *page_table, ulong vaddr);
 
 // Address space
 typedef void *(*init_addr_space_t)();
+typedef void (*free_addr_space_t)(void *ptr);
 
 // Context
 typedef void (*init_context_t)(struct reg_context *context, ulong entry,
@@ -130,6 +131,7 @@ struct hal_exports {
     //int user_page_dir_page_count;
     ulong vaddr_space_end;
     init_addr_space_t init_addr_space;
+    free_addr_space_t free_addr_space;
 
     // Context
     init_context_t init_context;

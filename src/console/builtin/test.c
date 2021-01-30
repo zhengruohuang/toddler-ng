@@ -1,5 +1,9 @@
 #include <stdio.h>
+#include <kth.h>
 #include <sys/api.h>
+
+static volatile int stop = 0;
+static ref_count_t rounds;
 
 static int test_hello(int idx, int total)
 {
@@ -24,6 +28,34 @@ static int test_hello(int idx, int total)
     return err;
 }
 
+static unsigned long monitor_worker(unsigned long param)
+{
+    ulong last_round = 0;
+    ulong seconds = 0;
+    while (!stop) {
+        ulong cur_round = ref_count_read(&rounds);
+        if (cur_round && cur_round - last_round < 10) {
+            stop = 1;
+            kprintf("Too slow!\n");
+        }
+
+        kprintf("Monitor: %lu seconds, %lu rounds per second\n", seconds, cur_round - last_round);
+        last_round = cur_round;
+
+        syscall_wait_on_timeout(1000);
+        seconds++;
+    }
+
+    return 0;
+}
+
+static void monitor()
+{
+    kth_t thread;
+    kth_create(&thread, monitor_worker, 0);
+    kth_join(&thread, NULL);
+}
+
 int exec_test(int argc, char **argv)
 {
     int repeat = 0;
@@ -42,9 +74,21 @@ int exec_test(int argc, char **argv)
         repeat = 1;
     }
 
-    for (int i = 0; i < repeat; i++) {
+    kth_t monitor;
+
+    stop = 0;
+    ref_count_init(&rounds, 0);
+
+    atomic_mb();
+    kth_create(&monitor, monitor_worker, 0);
+
+    for (int i = 0; i < repeat && !stop; i++) {
         test_hello(i + 1, repeat);
+        ref_count_inc(&rounds);
     }
+
+    stop = 1;
+    kth_join(&monitor, NULL);
 
     return 0;
 }

@@ -38,6 +38,9 @@ static void stats_kernel()
         "  num wait threads: %lu\n"
         "  num IPC threads:  %lu\n"
 
+        "  TLB shootdown reqs:       %lu\n"
+        "  global TLB shootdown seq: %lu\n"
+
         "  physical addr start @ %llx\n"
         "  physical addr end   @ %llx\n"
         "  physical addr range:  %llu\n"
@@ -54,6 +57,9 @@ static void stats_kernel()
         stats->kernel.num_threads_wait,
         stats->kernel.num_threads_ipc,
 
+        stats->kernel.num_tlb_shootdown_reqs,
+        stats->kernel.global_tlb_shootdown_seq,
+
         stats->kernel.paddr_start,
         stats->kernel.paddr_end,
         stats->kernel.paddr_len,
@@ -65,6 +71,23 @@ static void stats_kernel()
         stats->kernel.num_pages_usable,
         stats->kernel.num_pages_allocated
     );
+
+    kprintf("  num salloc objs: %lu\n", stats->kernel.num_salloc_objs);
+    for (ulong i = 0; i < stats->kernel.num_salloc_objs; i++) {
+        kprintf("    #%d: %s, block size: %lu, num objs: %lu, num pages: %llu\n", i,
+                stats->kernel.salloc_objs[i].name,
+                stats->kernel.salloc_objs[i].block_size,
+                stats->kernel.salloc_objs[i].num_objs,
+                stats->kernel.salloc_objs[i].num_pages_allocated);
+    }
+
+    kprintf("  num processes: %lu\n", stats->kernel.num_procs);
+    for (ulong i = 0; i < stats->kernel.num_procs; i++) {
+        kprintf("    #%d: %s, VM blocks: %lu, num pages: %lu\n", i,
+                stats->kernel.procs[i].name,
+                stats->kernel.procs[i].num_inuse_vm_blocks,
+                stats->kernel.procs[i].num_pages);
+    }
 }
 
 

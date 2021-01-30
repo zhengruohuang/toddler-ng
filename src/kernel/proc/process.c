@@ -84,23 +84,46 @@ ulong get_num_processes()
     return num;
 }
 
+void process_stats(ulong *count, struct proc_stat *buf, size_t buf_size)
+{
+    list_access_exclusive(&processes) {
+        if (count) {
+            *count = processes.count;
+        }
+
+        ulong i = 0;
+        list_foreach(&processes, n) {
+            if (i >= buf_size) {
+                break;
+            }
+
+            struct process *p = list_entry(n, struct process, node);
+            strcpy(buf[i].name, p->name);
+            buf[i].num_inuse_vm_blocks = ref_count_read(&p->vm.num_active_blocks);
+            buf[i].num_pages = ref_count_read(&p->vm.num_palloc_pages);
+
+            i++;
+        }
+    }
+}
+
 
 /*
  * Init
  */
 static salloc_obj_t proc_salloc_obj;
 
-static void proc_salloc_ctor(void *entry)
-{
-    memzero(entry, sizeof(struct process));
-}
+// static void proc_salloc_ctor(void *entry)
+// {
+//     memzero(entry, sizeof(struct process));
+// }
 
 void init_process()
 {
     kprintf("Initializing process manager\n");
 
     // Create salloc obj
-    salloc_create(&proc_salloc_obj, sizeof(struct process), 0, 0, proc_salloc_ctor, NULL);
+    salloc_create_default(&proc_salloc_obj, "process", sizeof(struct process));
 
     // Init process list
     list_init(&processes);
@@ -190,8 +213,15 @@ static void process_cleaner(ulong param)
         syscall_thread_yield();
     }
 
+    // Free VM block structs
+    vm_destory(p);
+
+    // Free page table
+    get_hal_exports()->free_addr_space(p->page_table);
+
     // Free process data structure
     list_remove_exclusive(&processes, &p->node);
+    free(p->name);
     sfree(p);
 
     // Done

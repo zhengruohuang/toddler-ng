@@ -59,12 +59,13 @@ static int load_elf(pid_t pid, FILE *f, unsigned long *entry,
         //kprintf("\t\tlocal vaddr @ %lx\n", local_vaddr);
         memzero((void *)local_vaddr, map_size);
 
-        if (!prog.program_filesz) {
-            continue;
+        if (prog.program_filesz) {
+            unsigned long copy_vaddr = local_vaddr + (prog.program_vaddr - remote_vaddr);
+            fseek(f, prog.program_offset, SEEK_SET);
+            fread((void *)copy_vaddr, 1, prog.program_filesz, f);
         }
-        unsigned long copy_vaddr = local_vaddr + (prog.program_vaddr - remote_vaddr);
-        fseek(f, prog.program_offset, SEEK_SET);
-        fread((void *)copy_vaddr, 1, prog.program_filesz, f);
+
+        syscall_vm_free(local_vaddr);
 
         //kprintf("Copy vaddr @ %lx: %lx, prog offset: %u\n", copy_vaddr, *(unsigned long *)copy_vaddr, prog.program_offset);
     }

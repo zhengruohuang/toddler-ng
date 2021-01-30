@@ -224,8 +224,14 @@ int syscall_handler_vm_alloc(struct process *p, struct thread *t,
     ulong base = kdi->param0;
     ulong size = kdi->param1;
     ulong attri = kdi->param2;
+
     struct vm_block *b = vm_alloc(p, base, size, attri);
-    base = b ? b->base : 0;
+    if (b) {
+        b->map_type = VM_MAP_TYPE_OWNER;
+        base = b->base;
+    } else {
+        base = 0;
+    }
 
     hal_set_syscall_return(kdi->regs, 0, base, 0);
     return SYSCALL_HANDLED_CONTINUE;

@@ -10,6 +10,7 @@
 #include "kernel/include/kernel.h"
 #include "kernel/include/atomic.h"
 #include "kernel/include/lib.h"
+#include "kernel/include/proc.h"
 #include "kernel/include/mem.h"
 
 
@@ -68,6 +69,8 @@ static struct salloc_bucket *alloc_bucket(salloc_obj_t *obj)
     ppfn_t bucket_pfn = palloc_direct_mapped(obj->bucket_page_count);
     paddr_t bucket_paddr = ppfn_to_paddr(bucket_pfn);
 
+    ref_count_add(&obj->num_palloc_pages, obj->bucket_page_count);
+
     struct salloc_bucket *bucket = cast_paddr_to_ptr(bucket_paddr);
     if (!bucket) {
         return NULL;
@@ -102,11 +105,13 @@ static struct salloc_bucket *alloc_bucket(salloc_obj_t *obj)
     return bucket;
 }
 
-static void free_bucket(struct salloc_bucket *bucket)
+static void free_bucket(salloc_obj_t *obj, struct salloc_bucket *bucket)
 {
     paddr_t paddr = cast_ptr_to_paddr(bucket);
     ppfn_t pfn = paddr_to_ppfn(paddr);
     pfree(pfn);
+
+    ref_count_sub(&obj->num_palloc_pages, obj->bucket_page_count);
 
     //ulong addr = (ulong)bucket;
     //pfree(ADDR_TO_PFN(addr));
@@ -144,8 +149,20 @@ static void remove_bucket(salloc_obj_t *obj, struct salloc_bucket *bucket)
 /*
  * Create a salloc object
  */
-void salloc_create(salloc_obj_t *obj, size_t size, size_t align, int count, salloc_callback_t ctor, salloc_callback_t dtor)
+static ref_count_t num_salloc_objs = REF_COUNT_INIT(0);
+static salloc_obj_t *all_salloc_objs = NULL;
+
+void salloc_create(salloc_obj_t *obj, const char *name, size_t size,
+                   size_t align, int count, salloc_callback_t ctor, salloc_callback_t dtor)
 {
+    memzero(obj, sizeof(salloc_obj_t));
+    obj->next = all_salloc_objs;
+    all_salloc_objs = obj;
+    ref_count_inc(&num_salloc_objs);
+
+    // Name
+    obj->name = name;
+
     // Calculate alignment
     if (!align) {
         align = DATA_ALIGNMENT;
@@ -207,6 +224,16 @@ void salloc_create(salloc_obj_t *obj, size_t size, size_t align, int count, sall
 //     kprintf("\t\tDestructor: %p\n", obj->destructor);
 }
 
+void salloc_default_ctor(void *obj, size_t size)
+{
+    memzero(obj, size);
+}
+
+void salloc_create_default(salloc_obj_t *obj, const char *name, size_t size)
+{
+    salloc_create(obj, name, size, 0, 0, salloc_default_ctor, NULL);
+}
+
 
 /*
  * Allocate and deallocate
@@ -253,6 +280,9 @@ void *salloc(salloc_obj_t *obj)
         insert_bucket(obj, bucket);
     }
 
+    // Stats
+    ref_count_inc(&obj->num_active_objs);
+
     // Unlock the salloc obj
     spinlock_unlock_int(&obj->lock);
 
@@ -261,7 +291,17 @@ void *salloc(salloc_obj_t *obj)
 
     // Call the constructor
     if (obj->constructor) {
-        obj->constructor(ptr);
+        obj->constructor(ptr, obj->struct_size);
+    }
+
+    return ptr;
+}
+
+void *salloc_audit(salloc_obj_t *obj, ref_count_t *rc)
+{
+    void *ptr = salloc(obj);
+    if (ptr) {
+        ref_count_inc(rc);
     }
 
     return ptr;
@@ -281,7 +321,7 @@ void sfree(void *ptr)
 
     // Call the destructor
     if (obj->destructor) {
-        obj->destructor(ptr);
+        obj->destructor(ptr, obj->struct_size);
     }
 
     // Lock the salloc obj
@@ -296,12 +336,43 @@ void sfree(void *ptr)
     if (bucket->avail_count == bucket->entry_count) {
         bucket->state = bucket_empty;
         remove_bucket(obj, bucket);
-        free_bucket(bucket);
+        free_bucket(obj, bucket);
     } else if (1 == bucket->avail_count) {
         bucket->state = bucket_partial;
         insert_bucket(obj, bucket);
     }
 
+    // Stats
+    ref_count_dec(&obj->num_active_objs);
+
     // Unlock the salloc obj
     spinlock_unlock_int(&obj->lock);
+}
+
+void sfree_audit(void *ptr, ref_count_t *rc)
+{
+    sfree(ptr);
+    ref_count_dec(rc);
+}
+
+
+/*
+ * Stats
+ */
+void salloc_stats(ulong *count, struct salloc_stat_obj *buf, size_t buf_size)
+{
+    ulong num_objs = num_salloc_objs.value;
+    if (count) {
+        *count = num_objs;
+    }
+
+    if (buf && buf_size) {
+        salloc_obj_t *obj = all_salloc_objs;
+        for (ulong i = 0; i < num_objs && i < buf_size && obj; i++, obj = obj->next) {
+            buf[i].num_pages_allocated = obj->num_palloc_pages.value;
+            buf[i].block_size = obj->block_size;
+            buf[i].num_objs = obj->num_active_objs.value;
+            strcpy(buf[i].name, obj->name);
+        }
+    }
 }

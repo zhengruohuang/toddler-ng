@@ -17,15 +17,15 @@
  */
 static salloc_obj_t vm_salloc_obj;
 
-static void vm_salloc_ctor(void *entry)
-{
-    memzero(entry, sizeof(struct vm_block));
-}
+// static void vm_salloc_ctor(void *entry)
+// {
+//     memzero(entry, sizeof(struct vm_block));
+// }
 
 void init_vm()
 {
     kprintf("Initializing dynamic VM allocator\n");
-    salloc_create(&vm_salloc_obj, sizeof(struct vm_block), 0, 0, vm_salloc_ctor, NULL);
+    salloc_create_default(&vm_salloc_obj, "vm", sizeof(struct vm_block));
 }
 
 
@@ -62,7 +62,7 @@ static void avail_list_free(list_node_t *n)
 {
     struct vm_block *b = list_entry(n, struct vm_block, node);
     ref_count_dec(&b->proc->ref_count);
-    sfree(b);
+    sfree_audit(b, &b->proc->vm.num_salloc_objs);
 }
 
 
@@ -71,7 +71,7 @@ static void avail_list_free(list_node_t *n)
  */
 int vm_create(struct process *p)
 {
-    struct vm_block *b = salloc(&vm_salloc_obj);
+    struct vm_block *b = salloc_audit(&vm_salloc_obj, &p->vm.num_salloc_objs);
     panic_if(!b, "Unable to allocate VM block!\n");
 
     b->proc = p;
@@ -107,7 +107,7 @@ struct vm_block *vm_alloc_thread(struct process *p, struct thread *t,
     }
 
     // Allocate a new block
-    struct vm_block *b = salloc(&vm_salloc_obj);
+    struct vm_block *b = salloc_audit(&vm_salloc_obj, &p->vm.num_salloc_objs);
     panic_if(!b, "Unable to allocate VM block!\n");
 
     ulong base = 0;
@@ -131,6 +131,10 @@ struct vm_block *vm_alloc_thread(struct process *p, struct thread *t,
             delete_block = last;
             list_remove(&p->vm.avail_unmapped, &last->node);
         }
+
+        // Increament ref count so that process cleaner won't miss this block
+        ref_count_inc(&p->vm.num_active_blocks);
+        ref_count_inc(&p->ref_count);
     }
 
     // FIXME: move this inside ``list_access_exclusive(&p->vm.avail_unmapped)''?
@@ -145,16 +149,14 @@ struct vm_block *vm_alloc_thread(struct process *p, struct thread *t,
             mapper(p, t, b);
         }
 
-        ref_count_inc(&p->vm.num_active_blocks);
-        ref_count_inc(&p->ref_count);
         list_insert_sorted_exclusive(&p->vm.inuse_mapped, &b->node, list_compare);
     } else {
-        sfree(b);
+        sfree_audit(b, &p->vm.num_salloc_objs);
         b = NULL;
     }
 
     if (delete_block) {
-        sfree(delete_block);
+        sfree_audit(delete_block, &p->vm.num_salloc_objs);
         delete_block = NULL;
         ref_count_dec(&p->ref_count);
     }
@@ -168,11 +170,11 @@ struct vm_block *vm_alloc(struct process *p, ulong base, ulong size, ulong attri
     base = align_down_vsize(base, PAGE_SIZE);
     size = end - base;
 
-    struct vm_block *b = salloc(&vm_salloc_obj);
+    struct vm_block *b = salloc_audit(&vm_salloc_obj, &p->vm.num_salloc_objs);
     panic_if(!b, "Unable to allocate VM block!\n");
 
-    struct vm_block *extra_b = salloc(&vm_salloc_obj);
-    panic_if(!b, "Unable to allocate VM block!\n");
+    struct vm_block *extra_b = salloc_audit(&vm_salloc_obj, &p->vm.num_salloc_objs);
+    panic_if(!extra_b, "Unable to allocate VM block!\n");
 
     int found = 0, extra_used = 0;
     struct vm_block *delete_block = NULL;
@@ -200,6 +202,11 @@ struct vm_block *vm_alloc(struct process *p, ulong base, ulong size, ulong attri
         }
 
         found = 1;
+
+        // Increament ref count so that the process cleaner won't miss this block
+        ref_count_inc(&p->vm.num_active_blocks);
+        ref_count_inc(&p->ref_count);
+
         if (base) {
             b->base = base;
 
@@ -215,8 +222,10 @@ struct vm_block *vm_alloc(struct process *p, ulong base, ulong size, ulong attri
                 target_block->size -= size;
             } else {
                 target_block->size = base - target_block->base;
+                extra_b->proc = p;
                 extra_b->base = end;
                 extra_b->size = target_end - end;
+                extra_b->type = VM_TYPE_AVAIL;
 
                 // FIXME: is ref_count_inc really necessary?
                 ref_count_inc(&p->ref_count);
@@ -236,28 +245,25 @@ struct vm_block *vm_alloc(struct process *p, ulong base, ulong size, ulong attri
         }
     }
 
-    // FIXME: move this inside ``list_access_exclusive(&p->vm.avail_unmapped)''?
     if (found) {
         b->proc = p;
         b->size = size;
         b->type = VM_TYPE_GENERIC;
         b->map_type = VM_MAP_TYPE_NONE;
 
-        ref_count_inc(&p->vm.num_active_blocks);
-        ref_count_inc(&p->ref_count);
         list_insert_sorted_exclusive(&p->vm.inuse_mapped, &b->node, list_compare);
     } else {
-        sfree(b);
+        sfree_audit(b, &p->vm.num_salloc_objs);
         b = NULL;
     }
 
     if (delete_block) {
-        sfree(delete_block);
+        sfree_audit(delete_block, &p->vm.num_salloc_objs);
         delete_block = NULL;
         ref_count_dec(&p->ref_count);
     }
     if (!extra_used) {
-        sfree(extra_b);
+        sfree_audit(extra_b, &p->vm.num_salloc_objs);
         extra_b = NULL;
     }
 
@@ -318,6 +324,7 @@ int vm_free(struct process *p, ulong base)
         }
     }
 
+    panic_if(!b_free, "Unable to free VM block @ %lx\n", base);
     return b_free ? vm_free_block(p, b_free) : -1;
 }
 
@@ -342,6 +349,7 @@ static void vm_free_block_pages(struct process *p, struct vm_block *b)
         if (paddr && paddr != prev_paddr) {
             if (b->map_type == VM_MAP_TYPE_OWNER) {
                 pfree_paddr(paddr);
+                ref_count_dec(&p->vm.num_palloc_pages);
             }
 
             prev_paddr = paddr;
@@ -392,6 +400,29 @@ ulong vm_purge(struct process *p)
     return count;
 }
 
+void vm_destory(struct process *p)
+{
+    if (p->vm.avail_unmapped.count > 1) {
+        kprintf("VM block may not have been purged!\n");
+    }
+
+    if (!ref_count_is_zero(&p->vm.num_palloc_pages)) {
+        kprintf("Remaining unfreed pages: %lu\n", p->vm.num_palloc_pages.value);
+    }
+
+    list_node_t *n = list_pop_front_exclusive(&p->vm.avail_unmapped);
+    while (n) {
+        struct vm_block *b = list_entry(n, struct vm_block, node);
+        sfree_audit(b, &p->vm.num_salloc_objs);
+
+        n = list_pop_front_exclusive(&p->vm.avail_unmapped);
+    }
+
+    if (!ref_count_is_zero(&p->vm.num_salloc_objs)) {
+        kprintf("Remaining unfreed salloc objs: %lu\n", p->vm.num_salloc_objs.value);
+    }
+}
+
 
 /*
  * TLB shootdown done
@@ -419,7 +450,9 @@ int vm_map(struct process *p, ulong addr, ulong prot)
         ulong end = b->base + b->size;
         if (addr >= b->base && addr < end) {
             ulong page_base = align_down_ulong(addr, PAGE_SIZE);
+
             paddr_t paddr = palloc_paddr(1);
+            ref_count_inc(&p->vm.num_palloc_pages);
 
             spinlock_exclusive_int(&p->page_table_lock) {
                 get_hal_exports()->map_range(p->page_table,
@@ -549,6 +582,7 @@ ulong vm_map_kernel(struct process *p, ulong size, ulong prot)
         paddr_t paddr = palloc_paddr_direct_mapped(1);
         panic_if(!paddr, "Unable to allocate page!\n");
 
+        ref_count_inc(&p->vm.num_palloc_pages);
         spinlock_exclusive_int(&p->page_table_lock) {
             get_hal_exports()->map_range(p->page_table, b->base + offset,
                                          paddr, PAGE_SIZE,
@@ -587,6 +621,7 @@ ulong vm_map_cross(struct process *p, ulong remote_pid,
 
         for (ulong offset = 0; offset < map_size; offset += PAGE_SIZE) {
             paddr_t paddr = palloc_paddr_direct_mapped(1);
+            ref_count_inc(&remote_p->vm.num_palloc_pages);
 
             ulong remote_vaddr = remote_map_vbase + offset;
             spinlock_exclusive_int(&remote_p->page_table_lock) {
