@@ -44,7 +44,6 @@ struct process *acquire_process(ulong id)
         }
     }
 
-    //kprintf("acquired process @ %s\n", p->name);
     return p;
 }
 
@@ -54,8 +53,6 @@ void release_process(struct process *p)
     panic_if(p->ref_count.value <= 0, "Inconsistent ref_count\n");
 
     ref_count_dec(&p->ref_count);
-
-    //kprintf("released process: %s, int enabled: %d\n", p->name, p->lock.int_enabled);
 }
 
 int process_exists(ulong pid)
@@ -112,11 +109,6 @@ void process_stats(ulong *count, struct proc_stat *buf, size_t buf_size)
  * Init
  */
 static salloc_obj_t proc_salloc_obj;
-
-// static void proc_salloc_ctor(void *entry)
-// {
-//     memzero(entry, sizeof(struct process));
-// }
 
 void init_process()
 {
@@ -289,26 +281,6 @@ ulong create_process(ulong parent_id, char *name, enum process_type type)
 
     vm_create(p);
 
-//     // Memory layout
-//     p->vm.entry_point = 0;
-//
-//     p->vm.program.start = 0;
-//     p->vm.program.end = 0;
-//
-//     p->vm.heap.start = 0;
-//     p->vm.heap.end = 0;
-//
-//     p->vm.dynamic.top = 0;
-//     p->vm.dynamic.bottom = 0;
-//
-//     // Set VM list locks as locked so that the list functions are happy
-//     list_init(&p->vm.dynamic.blocks);
-//     list_init(&p->vm.dynamic.free);
-//     list_init(&p->vm.dynamic.mapped);
-//     spinlock_lock(&p->vm.dynamic.blocks.lock);
-//     spinlock_lock(&p->vm.dynamic.free.lock);
-//     spinlock_lock(&p->vm.dynamic.mapped.lock);
-
     // Thread list
     list_init(&p->threads);
 
@@ -407,14 +379,6 @@ int load_coreimg_elf(struct process *p, void *img)
             if (vaddr_start < vrange_start) vrange_start = vaddr_start;
             if (vaddr_end > vrange_end) vrange_end = vaddr_end;
 
-//             for (ulong vaddr2 = 0; vaddr2 < 0x80000000ul; vaddr2 += PAGE_SIZE) {
-//                 paddr_t paddr2 = get_hal_exports()->translate(p->page_table, vaddr2);
-//                 kprintf("Old map: %x\n", paddr2);
-//             }
-
-            //paddr_t paddr2 = get_hal_exports()->translate(p->page_table, vaddr_start);
-            //kprintf("Old map: %x\n", paddr2);
-
             // Map
             ppfn_t ppfn = palloc_direct_mapped(vpages);
             paddr_t paddr = ppfn_to_paddr(ppfn);
@@ -429,9 +393,6 @@ int load_coreimg_elf(struct process *p, void *img)
 
             //kprintf("\t\tMapping range @ %p - %p to %llx, num pages: %ld\n",
             //        vaddr_start, vaddr_end, (u64)paddr, vpages);
-
-            //paddr_t paddr3 = get_hal_exports()->translate(p->page_table, vaddr_start);
-            //kprintf("New map: %x\n", paddr3);
 
             // Zero memory
             void *paddr_win = cast_paddr_to_ptr(paddr);
@@ -456,13 +417,6 @@ int load_coreimg_elf(struct process *p, void *img)
 
     struct vm_block *b = vm_alloc(p, vrange_start, vrange_end - vrange_start, 0);
     panic_if(!b, "Unable to allocate VM block for program code!\n");
-
-//     // Set up initial heap
-//     ulong heap_vaddr = align_up_vaddr(vrange_end + PAGE_SIZE, PAGE_SIZE);
-//     p->vm.heap.start = p->vm.heap.end = heap_vaddr;
-//
-//     // Set up dynamic VM
-//     p->vm.dynamic.top = p->vm.dynamic.bottom = USER_VADDR_LIMIT;
 
     return EOK;
 }

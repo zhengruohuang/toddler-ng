@@ -105,62 +105,83 @@ extern void test_list();
 
 
 /*
- * Hash table
+ * Dictionary -- Hashtable
  */
-typedef ulong (*hashtable_func_t)(int num_buckets_order, void *key);
-typedef int (*hashtable_cmp_t)(void *a, void *b);
-                            // key(a) > key(b) ? 1 : (key(a) < key(b) ? -1 : 0)
+struct dict;
+typedef ulong (*dict_hash_t)(struct dict *d, ulong key);
 
-typedef struct hashtable_node {
-    void *key;
-    struct hashtable_node *prev;
-    struct hashtable_node *next;
-} hashtable_node_t;
+typedef struct dict_node {
+    ulong key;
+    list_node_t node;
+    list_node_t seq_node;
 
-typedef struct hashtable_bucket {
-    ulong count;
-    struct hashtable_node head;
-    struct hashtable_node tail;
-} hashtable_bucket_t;
+    struct dict_bucket *bucket;
+    struct dict *dict;
+} dict_node_t;
 
-typedef struct hashtable {
-    ulong count;
+typedef struct dict_bucket {
+    list_t nodes;
+} dict_bucket_t;
 
-    int num_buckets_order;
-    hashtable_bucket_t *buckets;
+typedef struct dict {
+    int rehashable;
+    dict_hash_t hash_func;
+    ulong hash_func_temp;
 
-    hashtable_func_t hash_func;
-    hashtable_cmp_t key_cmp;
+    list_t seq_nodes;
+    volatile ulong count;
+
+    dict_bucket_t *buckets;
+    volatile ulong bucket_count;
+    ulong min_bucket_count;
 
     spinlock_t lock;
-} hashtable_t;
+    spinlock_t rehash_lock;
+} dict_t;
 
-#define hashtable_entry(ptr, type, member) \
+#define dict_entry(ptr, type, member) \
     container_of(ptr, type, member)
 
-#define hashtable_access_exclusive(t) \
-    for (spinlock_t *__lock = &(t)->lock; __lock; __lock = NULL) \
+#define dict_access_exclusive(d) \
+    for (spinlock_t *__lock = &(d)->lock; __lock; __lock = NULL) \
         for (spinlock_lock_int(__lock); __lock; spinlock_unlock_int(__lock), __lock = NULL) \
             for (int __term = 0; !__term; __term = 1)
 
-#define hashtable_foreach_bucket(t, b) \
-    for (hashtable_bucket_t *b = &(t)->buckets[0]; b < &(t)->buckets[0x1ul << (t)->num_buckets_order]; b++)
+#define dict_foreach(d, node) \
+    for (list_node_t *__ln = (d)->seq_nodes.head.next; __ln != &(d)->seq_nodes.tail; __ln = __ln->next) \
+        for (dict_node_t *node = list_entry(__ln, dict_node_t, seq_node); node; node = NULL)
 
-#define hashtable_foreach_node(b, n) \
-    for (hashtable_node_t *n = (b)->head.next; n != &(b)->tail; n = n->next)
+#define dict_foreach_exclusive(d, node) \
+    dict_access_exclusive(d) \
+        dict_foreach(d, node)
 
-extern void hashtable_init(hashtable_t *t, int num_buckets, hashtable_func_t hash, hashtable_cmp_t cmp);
-extern void hashtable_init_default(hashtable_t *t);
+#define dict_remove_in_foreach(d, node) \
+    do { \
+        if (node) { \
+            list_node_t *__removed_ln = &(node)->seq_node; \
+            __ln = __removed_ln->prev; \
+            dict_remove(d, node); \
+        } \
+    } while (0)
 
-extern void hashtable_insert(hashtable_t *t, void *key, hashtable_node_t *n);
-extern hashtable_node_t *hashtable_get(hashtable_t *t, void *key);
-extern int hashtable_contains(hashtable_t *t, void *key);
-extern hashtable_node_t *hashtable_remove(hashtable_t *t, void *key);
+extern ulong dict_default_hash(dict_t *d, ulong key);
 
-extern void hashtable_insert_exlusive(hashtable_t *t, void *key, hashtable_node_t *n);
-extern hashtable_node_t *hashtable_get_exclusive(hashtable_t *t, void *key);
-extern int hashtable_contains_exclusive(hashtable_t *t, void *key);
-extern hashtable_node_t *hashtable_remove_exclusive(hashtable_t *t, void *key);
+extern void dict_init(dict_t *d, ulong num_buckets, dict_hash_t hash_func, int rehashable);
+extern void dict_init_default(dict_t *d);
+
+extern void dict_rehash(dict_t *d);
+extern void dict_rehash_exclusive(dict_t *d);
+
+extern dict_node_t *dict_find(dict_t *d, ulong key);
+extern int dict_contains(dict_t *d, ulong key);
+extern dict_node_t *dict_remove_key(dict_t *d, ulong key);
+extern dict_node_t *dict_remove(dict_t *d, dict_node_t *n);
+extern void dict_insert(dict_t *d, ulong key, dict_node_t *n);
+
+extern int dict_contains_exclusive(dict_t *d, ulong key);
+extern dict_node_t *dict_remove_key_exclusive(dict_t *d, ulong key);
+extern dict_node_t *dict_remove_exclusive(dict_t *d, dict_node_t *n);
+extern void dict_insert_exclusive(dict_t *d, ulong key, dict_node_t *n);
 
 
 #endif

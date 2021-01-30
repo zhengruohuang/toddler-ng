@@ -19,8 +19,6 @@
  */
 __unused_func static void kernel_demo_thread(ulong param)
 {
-    //while (1);
-
     do {
         __unused_var int index = param;
         __unused_var int cpu_id = hal_get_cur_mp_seq();
@@ -49,7 +47,6 @@ struct thread *acquire_thread(ulong id)
         }
     }
 
-    //kprintf("acquired thread @ %p\n", t);
     return t;
 }
 
@@ -60,8 +57,6 @@ void release_thread(struct thread *t)
              t->ref_count.value, t->tid);
 
     ref_count_dec(&t->ref_count);
-
-    //kprintf("release thread @ %p, int enabled: %d\n", t, t->lock.int_enabled);
 }
 
 int thread_exists(ulong tid)
@@ -95,11 +90,6 @@ ulong get_num_threads()
  * Init
  */
 static salloc_obj_t thread_salloc_obj;
-
-// static void thread_salloc_ctor(void *entry)
-// {
-//     memzero(entry, sizeof(struct thread));
-// }
 
 void init_thread()
 {
@@ -326,11 +316,6 @@ void exit_thread(struct thread *t)
         access_wait_queue_exclusive(wait_queue) {
             list_remove_exclusive(&threads, &t->node);
             list_remove_exclusive(&proc->threads, &t->node_proc);
-
-            //wake_on_object(proc, t, WAIT_ON_THREAD, t->tid, 0, 0);
-            //if (t->is_main) {
-            //    wake_on_object(proc, t, WAIT_ON_MAIN_THREAD, t->tid, 0, 0);
-            //}
         }
 
         ref_count_dec(&t->ref_count);
