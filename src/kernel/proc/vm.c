@@ -369,7 +369,7 @@ void vm_move_sanit_to_avail(struct process *p)
         struct vm_block *b = list_entry(n, struct vm_block, node);
         vm_free_block_pages(p, b);
 
-        list_insert_merge_sorted_exclusive(
+        list_insert_merge_free_sorted_exclusive(
             &p->vm.avail_unmapped, n,
             list_compare, avail_list_merge, avail_list_free
         );

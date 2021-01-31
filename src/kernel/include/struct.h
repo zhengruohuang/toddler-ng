@@ -19,7 +19,7 @@
 /*
  * List - doubly linked list
  */
-#define LIST_CHECK_OWNER    1
+#define LIST_CHECK_OWNER 1
 
 typedef struct list_node {
     struct list_node *prev;
@@ -73,7 +73,10 @@ extern list_node_t *list_remove(list_t *l, list_node_t *n);
 extern void list_insert(list_t *l, list_node_t *prev, list_node_t *n);
 extern void list_insert_sorted(list_t *l, list_node_t *n, list_cmp_t cmp);
 extern void list_insert_merge_sorted(list_t *l, list_node_t *n, list_cmp_t cmp,
-                                     list_merge_t merger, list_free_t freer);
+                                     list_merge_t merger,
+                                     list_node_t **free1, list_node_t **free2);
+extern void list_insert_merge_free_sorted(list_t *l, list_node_t *n, list_cmp_t cmp,
+                                          list_merge_t merger, list_free_t freer);
 
 extern void list_push_back(list_t *l, list_node_t *n);
 extern void list_push_front(list_t *l, list_node_t *n);
@@ -90,7 +93,10 @@ extern list_node_t *list_remove_exclusive(list_t *l, list_node_t *n);
 extern void list_insert_exclusive(list_t *l, list_node_t *prev, list_node_t *n);
 extern void list_insert_sorted_exclusive(list_t *l, list_node_t *n, list_cmp_t cmp);
 extern void list_insert_merge_sorted_exclusive(list_t *l, list_node_t *n, list_cmp_t cmp,
-                                               list_merge_t merger, list_free_t freer);
+                                               list_merge_t merger,
+                                               list_node_t **free1, list_node_t **free2);
+extern void list_insert_merge_free_sorted_exclusive(list_t *l, list_node_t *n, list_cmp_t cmp,
+                                                    list_merge_t merger, list_free_t freer);
 
 extern void list_push_back_exclusive(list_t *l, list_node_t *n);
 extern void list_push_front_exclusive(list_t *l, list_node_t *n);
@@ -107,6 +113,8 @@ extern void test_list();
 /*
  * Dictionary -- Hashtable
  */
+#define DICT_CHECK_OWNER 1
+
 struct dict;
 typedef ulong (*dict_hash_t)(struct dict *d, ulong key);
 
@@ -116,7 +124,10 @@ typedef struct dict_node {
     list_node_t seq_node;
 
     struct dict_bucket *bucket;
-    struct dict *dict;
+
+#if (defined(DICT_CHECK_OWNER) && DICT_CHECK_OWNER)
+    struct dict *owner;
+#endif
 } dict_node_t;
 
 typedef struct dict_bucket {
@@ -166,10 +177,10 @@ typedef struct dict {
 
 extern ulong dict_default_hash(dict_t *d, ulong key);
 
-extern void dict_init(dict_t *d, ulong num_buckets, dict_hash_t hash_func, int rehashable);
-extern void dict_init_default(dict_t *d);
+extern void dict_create(dict_t *d, ulong num_buckets, dict_hash_t hash_func, int rehashable);
+extern void dict_create_default(dict_t *d);
+extern void dict_destroy(dict_t *d);
 
-extern void dict_rehash(dict_t *d);
 extern void dict_rehash_exclusive(dict_t *d);
 
 extern dict_node_t *dict_find(dict_t *d, ulong key);
@@ -177,11 +188,14 @@ extern int dict_contains(dict_t *d, ulong key);
 extern dict_node_t *dict_remove_key(dict_t *d, ulong key);
 extern dict_node_t *dict_remove(dict_t *d, dict_node_t *n);
 extern void dict_insert(dict_t *d, ulong key, dict_node_t *n);
+extern dict_node_t *dict_front(dict_t *d);
+extern dict_node_t *dict_pop_front(dict_t *d);
 
 extern int dict_contains_exclusive(dict_t *d, ulong key);
 extern dict_node_t *dict_remove_key_exclusive(dict_t *d, ulong key);
 extern dict_node_t *dict_remove_exclusive(dict_t *d, dict_node_t *n);
 extern void dict_insert_exclusive(dict_t *d, ulong key, dict_node_t *n);
+extern dict_node_t *dict_pop_front_exclusive(dict_t *d);
 
 
 #endif

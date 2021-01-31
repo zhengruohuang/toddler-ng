@@ -106,18 +106,25 @@ static void list_merge(list_t *l, list_node_t *n, list_merge_t merger,
 }
 
 void list_insert_merge_sorted(list_t *l, list_node_t *n, list_cmp_t cmp,
-                              list_merge_t merger, list_free_t freer)
+                              list_merge_t merger,
+                              list_node_t **free1, list_node_t **free2)
 {
     // Insert
     list_insert_sorted(l, n, cmp);
 
     // Merge
+    list_merge(l, n, merger, free1, free2);
+}
+
+void list_insert_merge_free_sorted(list_t *l, list_node_t *n, list_cmp_t cmp,
+                                   list_merge_t merger, list_free_t freer)
+{
     list_node_t *free1 = NULL, *free2 = NULL;
-    list_merge(l, n, merger, &free1, &free2);
+    list_insert_merge_sorted(l, n, cmp, merger, &free1, &free2);
 
     // Free
-    if (free1) freer(free1);
-    if (free2) freer(free2);
+    if (free1 && freer) freer(free1);
+    if (free2 && freer) freer(free2);
 }
 
 list_node_t *list_front(list_t *l)
@@ -172,91 +179,98 @@ void list_display(list_t *l, list_node_display_t d)
  */
 list_node_t *list_remove_exclusive(list_t *l, list_node_t *n)
 {
-    spinlock_lock_int(&l->lock);
-    list_node_t *r = list_remove(l, n);
-    spinlock_unlock_int(&l->lock);
+    list_node_t *r = NULL;
+    list_access_exclusive(l) {
+        r = list_remove(l, n);
+    }
 
     return r;
 }
 
 void list_insert_exclusive(list_t *l, list_node_t *prev, list_node_t *n)
 {
-    spinlock_lock_int(&l->lock);
-    list_insert(l, prev, n);
-    spinlock_unlock_int(&l->lock);
+    list_access_exclusive(l) {
+        list_insert(l, prev, n);
+    }
 }
 
 void list_insert_sorted_exclusive(list_t *l, list_node_t *n, list_cmp_t cmp)
 {
-    spinlock_lock_int(&l->lock);
-    list_insert_sorted(l, n, cmp);
-    spinlock_unlock_int(&l->lock);
+    list_access_exclusive(l) {
+        list_insert_sorted(l, n, cmp);
+    }
 }
 
 void list_insert_merge_sorted_exclusive(list_t *l, list_node_t *n, list_cmp_t cmp,
-                                        list_merge_t merger, list_free_t freer)
+                                        list_merge_t merger,
+                                        list_node_t **free1, list_node_t **free2)
+{
+    list_access_exclusive(l) {
+        list_insert_sorted(l, n, cmp);
+        list_merge(l, n, merger, free1, free2);
+    }
+}
+
+void list_insert_merge_free_sorted_exclusive(list_t *l, list_node_t *n, list_cmp_t cmp,
+                                             list_merge_t merger, list_free_t freer)
 {
     list_node_t *free1 = NULL, *free2 = NULL;
+    list_insert_merge_sorted_exclusive(l, n, cmp, merger, &free1, &free2);
 
-    spinlock_lock_int(&l->lock);
-    list_insert_sorted(l, n, cmp);
-    list_merge(l, n, merger, &free1, &free2);
-    spinlock_unlock_int(&l->lock);
-
-    if (free1) freer(free1);
-    if (free2) freer(free2);
+    if (free1 && freer) freer(free1);
+    if (free2 && freer) freer(free2);
 }
 
 void list_push_front_exclusive(list_t *l, list_node_t *n)
 {
-    spinlock_lock_int(&l->lock);
-    list_push_front(l, n);
-    spinlock_unlock_int(&l->lock);
+    list_access_exclusive(l) {
+        list_push_front(l, n);
+    }
 }
 
 void list_push_back_exclusive(list_t *l, list_node_t *n)
 {
-    spinlock_lock_int(&l->lock);
-    list_push_back(l, n);
-    spinlock_unlock_int(&l->lock);
+    list_access_exclusive(l) {
+        list_push_back(l, n);
+    }
 }
 
 list_node_t *list_pop_front_exclusive(list_t *l)
 {
-    spinlock_lock_int(&l->lock);
-    list_node_t *n = list_remove(l, l->head.next);
-    spinlock_unlock_int(&l->lock);
+    list_node_t *n = NULL;
+    list_access_exclusive(l) {
+        n = list_remove(l, l->head.next);
+    }
 
     return n;
 }
 
 list_node_t *list_pop_back_exclusive(list_t *l)
 {
-    spinlock_lock_int(&l->lock);
-    list_node_t *n = list_remove(l, l->tail.prev);
-    spinlock_unlock_int(&l->lock);
+    list_node_t *n = NULL;
+    list_access_exclusive(l) {
+        n = list_remove(l, l->tail.prev);
+    }
 
     return n;
 }
 
 void list_display_exclusive(list_t *l, list_node_display_t d)
 {
-    spinlock_lock_int(&l->lock);
-    list_display(l, d);
-    spinlock_unlock_int(&l->lock);
+    list_access_exclusive(l) {
+        list_display(l, d);
+    }
 }
 
 ulong list_count_exclusive(list_t *l)
 {
     ulong count = 0;
-
-    spinlock_lock_int(&l->lock);
-    count = l->count;
-    spinlock_unlock_int(&l->lock);
+    list_access_exclusive(l) {
+        count = l->count;
+    }
 
     return count;
 }
-
 
 
 /*

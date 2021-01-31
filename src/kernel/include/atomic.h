@@ -21,6 +21,7 @@ typedef struct {
 } spinlock_t;
 
 #define SPINLOCK_INIT { .value = 0 }
+#define SPINLOCK_INIT_LOCKED { .value = 1 }
 
 #define spinlock_exclusive(l) \
     for (spinlock_t *__lock = l; __lock; __lock = NULL) \
@@ -38,11 +39,14 @@ static inline int spinlock_is_locked(spinlock_t *lock)
 }
 
 extern void spinlock_init(spinlock_t *lock);
+extern void spinlock_init_locked(spinlock_t *lock);
 
 extern void spinlock_lock(spinlock_t *lock);
+extern int spinlock_trylock(spinlock_t *lock);
 extern void spinlock_unlock(spinlock_t *lock);
 
 extern void spinlock_lock_int(spinlock_t *lock);
+extern int spinlock_trylock_int(spinlock_t *lock);
 extern void spinlock_unlock_int(spinlock_t *lock);
 
 
