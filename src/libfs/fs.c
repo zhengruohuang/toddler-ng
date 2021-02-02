@@ -113,6 +113,7 @@ static inline void dispatch_lookup(msg_t *msg, struct fs_record *record)
     msg = dispatch_response(err);
     msg_append_param(msg, result.id);       // ent_fs_id
     msg_append_int(msg, result.cacheable);  // cacheable
+    msg_append_int(msg, result.node_type);  // node type
 }
 
 
@@ -350,6 +351,45 @@ static inline void dispatch_dir_read(msg_t *msg, struct fs_record *record)
 
 
 /*
+ * Symlink ops
+ */
+static inline void dispatch_symlink_read(msg_t *msg, struct fs_record *record)
+{
+    // Request
+    ulong fs_id = msg_get_param(msg, 1);    // ent_fs_id
+    ulong req_size = msg_get_param(msg, 2); // size
+    ulong offset = msg_get_param(msg, 3);   // offset
+
+    // Response
+    msg = dispatch_response(0);             // ok
+    msg_append_param(msg, 0);               // real size
+    msg_append_int(msg, 0);                 // more
+
+    // Buffer
+    size_t max_size = msg_remain_data_size(msg) - 32ul; // extra safe
+    if (req_size > max_size) req_size = max_size;
+    void *buf = msg_append_data(msg, NULL, req_size);   // data
+
+    //kprintf("FS symlink read, req_size: %lu\n", req_size);
+
+    // Read
+    int err = 0;
+    if (record->ops.symlink_read) {
+        struct fs_file_op_result result = { };
+        err = record->ops.symlink_read(record->fs, fs_id, buf, req_size, offset, &result);
+
+        if (!err) {
+            msg_set_param(msg, 1, result.count);
+            msg_set_int(msg, 2, result.more);
+        }
+    }
+
+    // Response
+    msg_set_int(msg, 0, err);
+}
+
+
+/*
  * Dispatch
  */
 static unsigned long dispatch(unsigned long opcode)
@@ -411,6 +451,9 @@ static unsigned long dispatch(unsigned long opcode)
     case VFS_OP_DIR_REMOVE:
         //dispatch_dir_remove(msg, record);
         break;
+    case VFS_OP_SYMLINK_READ:
+        dispatch_symlink_read(msg, record);
+        break;
     default:
         kprintf("Unknown VFS op: %lu in %s\n", vfs_op, record->name);
         dispatch_response(-1);
@@ -449,6 +492,8 @@ static inline unsigned long get_ignored_ops_map(const struct fs_ops *ops)
     if (!ops || !ops->dir_read)     mask |= 0x1 << VFS_OP_DIR_READ;
     if (!ops || !ops->dir_create)   mask |= 0x1 << VFS_OP_DIR_CREATE;
     if (!ops || !ops->dir_remove)   mask |= 0x1 << VFS_OP_DIR_REMOVE;
+
+    if (!ops || !ops->symlink_read) mask |= 0x1 << VFS_OP_SYMLINK_READ;
 
     return mask;
 }

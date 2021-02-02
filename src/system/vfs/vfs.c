@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <atomic.h>
+#include <assert.h>
 #include <kth.h>
 #include <sys.h>
 #include <sys/api.h>
@@ -118,6 +119,10 @@ static struct ventry *trim_ventries(struct ventry *vent)
         //        vent->name, parent_vent->child);
 
         forget_ipc(vent);
+
+        if (vent->name) {
+            free(vent->name);
+        }
         sfree(vent);
         vent = parent_vent;
     }
@@ -151,6 +156,9 @@ static struct ventry *lookup_ipc(struct mount_point *mount,
     struct ventry *vent = salloc(&ventry_salloc);
     vent->fs_id = msg_get_param(msg, 1);
     vent->cacheable = msg_get_int(msg, 2);
+
+    int node_type = msg_get_int(msg, 3);
+    vent->is_symlink = node_type == VFS_NODE_SYMLINK;
 
     vent->mount = NULL;
     vent->vnode = NULL;
@@ -210,10 +218,9 @@ static struct ventry *lookup_ventry(struct mount_point *mount,
     return lookup_ipc(mount, cur_vent, path, seg_len);
 }
 
-static struct ventry *walk_path(struct ventry *root, const char *path)
+static struct ventry *_try_walk_path(struct ventry *root, const char *path,
+                                     const char **remain_path)
 {
-    //kprintf("Walk path!\n");
-
     if (!root->mount) {
         kprintf("Root must be a mount point!\n");
         return NULL;
@@ -221,7 +228,7 @@ static struct ventry *walk_path(struct ventry *root, const char *path)
 
     struct mount_point *cur_mount = root->mount;
 
-    struct ventry *prev_vent = cur_mount->root; // root;
+    struct ventry *prev_vent = cur_mount->root;
     struct ventry *cur_vent = NULL;
 
     if (!path || *path == '\0') {
@@ -283,17 +290,166 @@ static struct ventry *walk_path(struct ventry *root, const char *path)
         }
 
         next_path = strchr(cur_path, '/');
-    } while (cur_path);
+    } while (cur_path && !cur_vent->is_symlink);
 
     //kprintf("Done walk path @ %p: %s\n", cur_vent, cur_vent->name);
 
     if (cur_vent) {
+        if (cur_vent->is_symlink && remain_path) {
+            *remain_path = cur_path;
+        }
+
         rwlock_rlock(&cur_vent->rwlock);
     }
     rwlock_wunlock(&cur_mount->rwlock);
 
     return cur_vent;
 }
+
+static struct ventry *walk_path(struct ventry *root, const char *path)
+{
+    struct ventry *vent = _try_walk_path(root, path, &path);
+
+    int level = 0;
+    char *prev_path_buf = NULL;
+    while (vent && vent->is_symlink) {
+        kprintf("Symlink @ %s, remain path: %s\n", vent->name, path ? path : "");
+
+        // Read symlink
+        // FIXME: Symlink currently must be abs path
+        // FIXME: path_buf size may not be enough to hold the entire symlink
+        char *path_buf = malloc(512);
+        vfs_symlink_read_to_buf(vent, path_buf, 512);
+        kprintf("link to: %s\n", path_buf);
+
+        // Append remain path to the abs path
+        // TODO: check if buf size is enough
+        size_t len = strlen(path_buf);
+        path_buf[len] = '/';
+        if (path)
+            strcpy(&path_buf[len + 1], path);
+
+        // Done with current vent
+        rwlock_runlock(&vent->rwlock);
+        trim_ventries(vent);
+
+        if (prev_path_buf) {
+            free(prev_path_buf);
+        }
+        prev_path_buf = path_buf;
+
+        // Walk again
+        if (++level >= 10) {
+            vent = NULL;
+        } else {
+            const char *link_to_path = path_buf;
+            while (link_to_path && *link_to_path == '/') {
+                // skip '/'
+                link_to_path++;
+            }
+            vent = _try_walk_path(root, link_to_path, &path);
+        }
+    }
+
+    if (prev_path_buf) {
+        free(prev_path_buf);
+    }
+
+    return vent;
+}
+
+// static struct ventry *walk_path(struct ventry *root, const char *path)
+// {
+//     //kprintf("Walk path!\n");
+//
+//     if (!root->mount) {
+//         kprintf("Root must be a mount point!\n");
+//         return NULL;
+//     }
+//
+//     struct mount_point *cur_mount = root->mount;
+//
+//     struct ventry *prev_vent = cur_mount->root; // root;
+//     struct ventry *cur_vent = NULL;
+//
+//     if (!path || *path == '\0') {
+//         rwlock_rlock(&prev_vent->rwlock);
+//         return prev_vent;
+//     }
+//
+//     const char *cur_path = path;
+//     const char *next_path = strchr(cur_path, '/');
+//
+//     rwlock_wlock(&cur_mount->rwlock);
+//
+//     do {
+//         size_t seg_len = 0;
+//
+//         // something like ".../a/..."
+//         if (next_path) {
+//             seg_len = next_path - cur_path;
+//         }
+//
+//         // something like ".../a"
+//         else {
+//             seg_len = strlen(cur_path);
+//
+//             // something like ".../"
+//             if (!seg_len) {
+//                 cur_vent = prev_vent;
+//                 break;
+//             }
+//         }
+//
+//         //kprintf("Cur: %s, next: %s, strchr @ %p\n",
+//         //      cur_path, next_path ? next_path : "(NULL)",
+//         //      strchr(cur_path, '/'));
+//
+//         // Move to "a"
+//         cur_vent = lookup_ventry(cur_mount, prev_vent, cur_path, seg_len);
+//         if (!cur_vent) {
+//             trim_ventries(prev_vent);
+//             break;
+//         }
+//
+//         // Encountered a new mount point
+//         if (cur_vent->mount) {
+//             struct mount_point *last_mount = cur_mount;
+//             cur_mount = cur_vent->mount;
+//             cur_vent = cur_mount->root;
+//
+//             rwlock_wlock(&cur_mount->rwlock);
+//             rwlock_wunlock(&last_mount->rwlock);
+//         }
+//
+//         // Encountered a symlink
+//         if (cur_vent->is_symlink) {
+//             // FIXME: memory leak: old cur_vent never gets freed
+//             kprintf("Symlink @ %s\n", cur_vent->name);
+//             cur_vent = walk_path(vroot, "about");
+//             kprintf("Symlink done: %s\n", cur_vent->name);
+//         }
+//
+//         // Next path
+//         prev_vent = cur_vent;
+//         cur_path = next_path;
+//         while (cur_path && *cur_path == '/') {
+//             // skip '/'
+//             cur_path++;
+//         }
+//
+//         next_path = strchr(cur_path, '/');
+//     } while (cur_path);
+//
+//     //kprintf("Done walk path @ %p: %s\n", cur_vent, cur_vent->name);
+//
+//     if (!symlink_level && cur_vent) {
+//         rwlock_rlock(&cur_vent->rwlock);
+//     }
+//     rwlock_wunlock(&cur_mount->rwlock);
+//
+//     return cur_vent;
+// }
 
 
 /*
@@ -375,6 +531,7 @@ struct ventry *vfs_acquire(const char *path)
     if (!vent->vnode) {
         struct vnode *node = vent->vnode = acquire_ipc(vent);
         if (!node) {
+            rwlock_runlock(&vent->rwlock);
             trim_ventries(vent);
             return NULL;
         }
@@ -653,6 +810,85 @@ void vfs_dir_read_forward(struct vnode *node, size_t count, ulong offset)
     syscall_ipc_popup_request(mount->ipc.pid, mount->ipc.opcode);
 
     rwlock_runlock(&node->rwlock);
+}
+
+
+/*
+ * Symlink
+ */
+void vfs_symlink_read_forward(struct ventry *vent, size_t count)
+{
+    struct mount_point *mount = vent->from_mount;
+    if (ignore_op_ipc(mount, VFS_OP_SYMLINK_READ)) {
+        return;
+    }
+
+    rwlock_rlock(&vent->rwlock);
+
+    // Request
+    msg_t *msg = get_empty_msg();
+    msg_append_param(msg, VFS_OP_SYMLINK_READ);
+    msg_append_param(msg, vent->fs_id);
+    msg_append_param(msg, count);
+    msg_append_param(msg, 0);
+    syscall_ipc_popup_request(mount->ipc.pid, mount->ipc.opcode);
+
+    rwlock_runlock(&vent->rwlock);
+}
+
+ssize_t vfs_symlink_read_to_buf(struct ventry *vent, char *buf, size_t buf_size)
+{
+    struct mount_point *mount = vent->from_mount;
+    if (ignore_op_ipc(mount, VFS_OP_SYMLINK_READ)) {
+        if (buf && buf_size) {
+            *buf = '\0';
+        }
+        return 0;
+    }
+
+    rwlock_rlock(&vent->rwlock);
+
+    int err = 0;
+    int more = 1;
+    size_t read_count = 0;
+
+    while (buf_size && more) {
+        // Request
+        msg_t *msg = get_empty_msg();
+        msg_append_param(msg, VFS_OP_SYMLINK_READ);
+        msg_append_param(msg, vent->fs_id);
+        msg_append_param(msg, buf_size);
+        msg_append_param(msg, read_count);
+        syscall_ipc_popup_request(mount->ipc.pid, mount->ipc.opcode);
+
+        // Response
+        msg = get_response_msg();
+        err = msg_get_int(msg, 0);
+        if (err) {
+            break;
+        }
+
+        size_t rc = msg_get_param(msg, 1);
+        panic_if(rc > buf_size,
+                "VFS symlink read returned (%lu) more than requested (%lu)!\n",
+                rc, buf_size);
+
+        more = msg_get_int(msg, 2);
+        void *read_data = msg_get_data(msg, 3, NULL);
+        memcpy(buf, read_data, rc);
+
+        buf_size -= rc;
+        buf += rc;
+
+        read_count += rc;
+    }
+
+    rwlock_runlock(&vent->rwlock);
+
+    if (err && buf && buf_size) {
+        *buf = '\0';
+    }
+    return err ? err : read_count;
 }
 
 

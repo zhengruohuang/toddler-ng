@@ -18,6 +18,7 @@ static struct builtin_exec builtin_execs[] = {
     { .cmd = "ls", exec_ls },
     { .cmd = "cat", exec_cat },
     { .cmd = "cd", exec_cd },
+    { .cmd = "tree", exec_tree },
     { .cmd = "stats", exec_stats },
     { .cmd = "test", exec_test },
     { .cmd = NULL, NULL }

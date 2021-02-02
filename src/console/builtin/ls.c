@@ -27,6 +27,10 @@ int exec_ls(int argc, char **argv)
             break;
         case VFS_NODE_PIPE:
             prefix = '|';
+            break;
+        case VFS_NODE_SYMLINK:
+            prefix = '~';
+            break;
         default:
             break;
         }

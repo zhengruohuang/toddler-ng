@@ -2,18 +2,16 @@
 #include <kth.h>
 #include <sys/api.h>
 
-static volatile int stop = 0;
-static ref_count_t rounds;
 
-static int test_hello(int idx, int total)
+/*
+ * Run test program
+ */
+static inline int run_test(int argc, char **argv, int idx, int total)
 {
-    int exec_argc = 1;
-    char *exec_argv[] = { "/sys/coreimg/hello.elf", NULL };
-
     kprintf("====== %d / %d ======\n", idx, total);
 
     pid_t pid = 0;
-    int err = sys_api_task_create(exec_argc, exec_argv, NULL, &pid);
+    int err = sys_api_task_create(argc, argv, NULL, &pid);
     kprintf("New task created: %d, pid: %lx\n", err, pid);
 
     if (!err) {
@@ -27,6 +25,13 @@ static int test_hello(int idx, int total)
 
     return err;
 }
+
+
+/*
+ * Monitor
+ */
+static volatile int stop = 0;
+static ref_count_t rounds;
 
 static unsigned long monitor_worker(unsigned long param)
 {
@@ -49,12 +54,6 @@ static unsigned long monitor_worker(unsigned long param)
     return 0;
 }
 
-static void monitor()
-{
-    kth_t thread;
-    kth_create(&thread, monitor_worker, 0);
-    kth_join(&thread, NULL);
-}
 
 int exec_test(int argc, char **argv)
 {
@@ -82,8 +81,10 @@ int exec_test(int argc, char **argv)
     atomic_mb();
     kth_create(&monitor, monitor_worker, 0);
 
+    int exec_argc = 1;
+    char *exec_argv[] = { "/sys/coreimg/hello.elf", NULL };
     for (int i = 0; i < repeat && !stop; i++) {
-        test_hello(i + 1, repeat);
+        run_test(exec_argc, exec_argv, i + 1, repeat);
         ref_count_inc(&rounds);
     }
 

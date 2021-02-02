@@ -47,6 +47,8 @@ struct ventry {
     } sibling;
 
     int is_root;
+    int is_symlink;
+
     char *name;
     ulong fs_id;
     int cacheable;
@@ -81,6 +83,9 @@ extern ssize_t vfs_file_write(struct vnode *node, const void *data, size_t count
 
 extern int vfs_dir_open(struct vnode *node, ulong mode);
 extern void vfs_dir_read_forward(struct vnode *node, size_t count, ulong offset);
+
+extern void vfs_symlink_read_forward(struct ventry *vent, size_t count);
+extern ssize_t vfs_symlink_read_to_buf(struct ventry *vent, char *buf, size_t buf_size);
 
 extern int vfs_real_path(struct ventry *vent, char *buf, size_t buf_size);
 

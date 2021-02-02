@@ -36,6 +36,9 @@ enum system_api {
     SYS_API_DIR_CREATE,
     SYS_API_DIR_REMOVE,
 
+    SYS_API_SYMLINK_READ,
+    SYS_API_SYMLINK_CREATE,
+
     SYS_API_MOUNT,
     SYS_API_UNMOUNT,
 };
@@ -71,6 +74,7 @@ enum vfs_node_type {
     VFS_NODE_DUMMY,
 
     VFS_NODE_FILE,
+    VFS_NODE_SYMLINK,
     VFS_NODE_DIR,
 
     VFS_NODE_DEV,
@@ -103,6 +107,9 @@ extern int sys_api_dir_open(int fd, unsigned int flags);
 extern ssize_t sys_api_dir_read(int fd, struct sys_dir_ent *dirp, size_t count, unsigned long offset);
 extern int sys_api_dir_create(int dirfd, const char *pathname, unsigned int mode);
 extern int sys_api_dir_remove(int dirfd);
+
+// Symlink
+extern ssize_t sys_api_symlink_read(int fd, void *buf, size_t count);
 
 // Mount
 extern int sys_api_mount(int fd, const char *name,

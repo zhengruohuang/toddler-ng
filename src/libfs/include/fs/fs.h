@@ -19,6 +19,7 @@ struct fs_mount_config {
 struct fs_lookup_result {
     fs_id_t id;
     int cacheable;
+    int node_type;
 };
 
 struct fs_file_op_result {
@@ -57,6 +58,9 @@ struct fs_ops {
                     struct fs_dir_read_result *result);
     int (*dir_create)(void *fs, fs_id_t id, const char *name, unsigned long flags);
     int (*dir_remove)(void *fs, fs_id_t id);
+
+    int (*symlink_read)(void *fs, fs_id_t id, void *buf, size_t count, size_t offset,
+                        struct fs_file_op_result *result);
 };
 
 

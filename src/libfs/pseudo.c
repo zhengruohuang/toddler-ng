@@ -189,6 +189,11 @@ static inline int _is_dir(struct pseudo_fs_node *node)
     return node->type == VFS_NODE_DIR;
 }
 
+static inline int _is_symlink(struct pseudo_fs_node *node)
+{
+    return node->type == VFS_NODE_SYMLINK;
+}
+
 int pseudo_fs_mount(void *fs, struct fs_mount_config *cfg)
 {
     struct pseudo_fs *pfs = fs;
@@ -236,6 +241,7 @@ int pseudo_fs_lookup(void *fs, fs_id_t id, const char *name, struct fs_lookup_re
 
     result->id = node->id;
     result->cacheable = 1;
+    result->node_type = node->type;
 
 done:
     rwlock_runlock(&pfs->rwlock);
@@ -376,6 +382,31 @@ int pseudo_fs_dir_remove(void *fs, fs_id_t id)
     return -1;
 }
 
+int pseudo_fs_symlink_read(void *fs, fs_id_t id, void *buf, size_t count,
+                           size_t offset, struct fs_file_op_result *result)
+{
+    int err = 0;
+    struct pseudo_fs *pfs = fs;
+    rwlock_rlock(&pfs->rwlock);
+
+    struct pseudo_fs_node *node = pseudo_fs_node_find(fs, id);
+    if (!node || !_is_symlink(node)) {
+        err = -1;
+        goto done;
+    }
+
+    result->more = 0;
+    result->count = pseudo_fs_read_data(node, buf, count, offset, &result->more);
+    if (result->count < 0) {
+        err = result->count;
+        goto done;
+    }
+
+done:
+    rwlock_runlock(&pfs->rwlock);
+    return err;
+}
+
 
 /*
  * Create
@@ -398,4 +429,6 @@ const struct fs_ops pseudo_fs_ops = {
     .dir_read = pseudo_fs_dir_read,
     .dir_create = pseudo_fs_dir_create,
     .dir_remove = pseudo_fs_dir_remove,
+
+    .symlink_read = pseudo_fs_symlink_read,
 };

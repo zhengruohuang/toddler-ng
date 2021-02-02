@@ -12,6 +12,7 @@ struct bucket {
     ulong block_size;
     ulong num_blocks_per_chunk;
 
+    ulong num_allocated_chunks;
     ulong num_active_chunks;
     struct chunk *chunk;
 
@@ -88,8 +89,8 @@ void display_malloc()
 {
     for (int i = 0; i < num_buckets; i++) {
         struct bucket *bucket = &buckets[i];
-        kprintf("Bucket #%d, block: %lu bytes, blocks/chunk: %lu, active chunks: %lu\n",
-                i, bucket->block_size, bucket->num_blocks_per_chunk, bucket->num_active_chunks);
+        kprintf("Bucket #%d, block: %lu bytes, blocks/chunk: %lu, active chunks: %lu, allocated chunks: %lu\n",
+                i, bucket->block_size, bucket->num_blocks_per_chunk, bucket->num_active_chunks, bucket->num_allocated_chunks);
     }
 }
 
@@ -172,6 +173,7 @@ static struct chunk *find_chunk(struct bucket *bucket)
     chunk = create_chunk(bucket);
     if (chunk) {
         attach_chunk(bucket, chunk);
+        bucket->num_allocated_chunks++;
     }
 
     return chunk;
@@ -282,6 +284,7 @@ static void putback_block(struct bucket *bucket, struct chunk *chunk, struct blo
     ) {
         detach_chunk(bucket, chunk);
         syscall_vm_free((ulong)chunk);
+        bucket->num_allocated_chunks--;
     }
 }
 

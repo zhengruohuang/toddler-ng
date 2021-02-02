@@ -14,12 +14,10 @@
 static salloc_obj_t entry_salloc = SALLOC_CREATE_DEFAULT(sizeof(struct pseudo_fs_node));
 static struct pseudo_fs coreimg_fs;
 
-static struct pseudo_fs_node *new_node(struct pseudo_fs_node *parent, const char *name, int dir)
+static struct pseudo_fs_node *new_node(struct pseudo_fs_node *parent, const char *name, int type)
 {
     struct pseudo_fs_node *node = salloc(&entry_salloc);
-    pseudo_fs_node_setup(&coreimg_fs, node, name,
-                         dir ? VFS_NODE_DIR : VFS_NODE_FILE,
-                         0, 0, 0);
+    pseudo_fs_node_setup(&coreimg_fs, node, name, type, 0, 0, 0);
     pseudo_fs_node_attach(&coreimg_fs, parent, node);
 
     return node;
@@ -27,12 +25,12 @@ static struct pseudo_fs_node *new_node(struct pseudo_fs_node *parent, const char
 
 static void setup_root()
 {
-    new_node(NULL, "/", 1);
+    new_node(NULL, "/", VFS_NODE_DIR);
 }
 
 static void setup_file(const char *name, void *data, size_t size)
 {
-    struct pseudo_fs_node *node = new_node(coreimg_fs.root, name, 0);
+    struct pseudo_fs_node *node = new_node(coreimg_fs.root, name, VFS_NODE_FILE);
     pseudo_fs_set_data(node, PSEUDO_FS_DATA_FIXED, (void *)data, size);
 }
 

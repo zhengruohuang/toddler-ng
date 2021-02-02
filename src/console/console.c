@@ -49,12 +49,10 @@ static int console_loop()
             return -1;
         }
 
-        //fprintf(f, "# Line: %s", line);
         int ret = console_exec(line, line_size);
         fprintf(f, "(ret: %d)\n", ret);
         fflush(f);
 
-        // Done
         free(line);
     }
 

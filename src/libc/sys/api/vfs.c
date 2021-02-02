@@ -259,6 +259,45 @@ int sys_api_dir_remove(int dirfd)
 
 
 /*
+ * Symlink
+ */
+ssize_t sys_api_symlink_read(int fd, void *buf, size_t count)
+{
+    int more = 1;
+    size_t read_count = 0;
+
+    while (count && more) {
+        msg_t *msg = get_empty_msg();
+        msg_append_int(msg, fd);
+        msg_append_param(msg, count);
+        syscall_ipc_popup_request(0, SYS_API_SYMLINK_READ);
+
+        msg = get_response_msg();
+        int err = msg_get_int(msg, 0);
+        if (err) {
+            return err;
+        }
+
+        size_t rc = msg_get_param(msg, 1);
+        panic_if(rc > count,
+                "VFS symlink read returned (%lu) more than requested (%lu)!\n",
+                rc, count);
+
+        more = msg_get_param(msg, 2);
+        void *read_data = msg_get_data(msg, 3, NULL);
+        memcpy(buf, read_data, rc);
+
+        count -= rc;
+        buf += rc;
+
+        read_count += rc;
+    }
+
+    return read_count;
+}
+
+
+/*
  * Mount and unmount
  */
 int sys_api_mount(int fd, const char *name,

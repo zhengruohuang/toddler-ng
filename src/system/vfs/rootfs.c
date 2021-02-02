@@ -12,12 +12,10 @@
 static salloc_obj_t entry_salloc = SALLOC_CREATE_DEFAULT(sizeof(struct pseudo_fs_node));
 static struct pseudo_fs root_fs;
 
-static struct pseudo_fs_node *new_node(struct pseudo_fs_node *parent, const char *name, int dir)
+static struct pseudo_fs_node *new_node(struct pseudo_fs_node *parent, const char *name, int type)
 {
     struct pseudo_fs_node *node = salloc(&entry_salloc);
-    pseudo_fs_node_setup(&root_fs, node, name,
-                         dir ? VFS_NODE_DIR : VFS_NODE_FILE,
-                         0, 0, 0);
+    pseudo_fs_node_setup(&root_fs, node, name, type, 0, 0, 0);
     pseudo_fs_node_attach(&root_fs, parent, node);
 
     return node;
@@ -48,6 +46,8 @@ static const struct fs_ops rootfs_ops = {
     .dir_read = pseudo_fs_dir_read,
     .dir_create = pseudo_fs_dir_create,
     .dir_remove = pseudo_fs_dir_remove,
+
+    .symlink_read = pseudo_fs_symlink_read,
 };
 
 
@@ -62,24 +62,28 @@ void init_rootfs()
     pseudo_fs_setup(&root_fs);
 
     // Root
-    struct pseudo_fs_node *root = new_node(NULL, "/", 1);
+    struct pseudo_fs_node *root = new_node(NULL, "/", VFS_NODE_DIR);
 
     // Subdirs
-    new_node(root, "proc", 1);
-    new_node(root, "dev", 1);
-    new_node(root, "ipc", 1);
+    new_node(root, "proc", VFS_NODE_DIR);
+    new_node(root, "dev", VFS_NODE_DIR);
+    new_node(root, "ipc", VFS_NODE_DIR);
 
-    struct pseudo_fs_node *sys = new_node(root, "sys", 1);
-    new_node(sys, "coreimg", 1);
-    new_node(sys, "devtree", 1);
+    struct pseudo_fs_node *sys = new_node(root, "sys", VFS_NODE_DIR);
+    new_node(sys, "coreimg", VFS_NODE_DIR);
+    new_node(sys, "devtree", VFS_NODE_DIR);
 
     // File
     const char *about_data =
         "Toddler " ARCH_NAME "-" MACH_NAME "-" MODEL_NAME "\n"
         "Built on " __DATE__ " at " __TIME__ "\n"
         ;
-    struct pseudo_fs_node *about = new_node(root, "about", 0);
+    struct pseudo_fs_node *about = new_node(root, "about", VFS_NODE_FILE);
     set_node_data(about, about_data, strlen(about_data) + 1);
+
+    const char *link_data = "/test/test2/test3";
+    struct pseudo_fs_node *link = new_node(root, "link", VFS_NODE_SYMLINK);
+    set_node_data(link, link_data, strlen(link_data) + 1);
 
     // Test
     const char *test_data =
@@ -91,14 +95,14 @@ void init_rootfs()
         "26 Welcome!\n27 Welcome!\n28 Welcome!\n29 Welcome!\n30 Welcome!\n\n"
         "Yeah!\n\n";
 
-    struct pseudo_fs_node *test = new_node(root, "test", 1);
-    struct pseudo_fs_node *test2 = new_node(test, "test2", 1);
-    struct pseudo_fs_node *test3 = new_node(test2, "test3", 1);
-    struct pseudo_fs_node *test4 = new_node(test3, "test4", 0);
+    struct pseudo_fs_node *test = new_node(root, "test", VFS_NODE_DIR);
+    struct pseudo_fs_node *test2 = new_node(test, "test2", VFS_NODE_DIR);
+    struct pseudo_fs_node *test3 = new_node(test2, "test3", VFS_NODE_DIR);
+    struct pseudo_fs_node *test4 = new_node(test3, "test4", VFS_NODE_FILE);
     set_node_data(test4, test_data, strlen(test_data) + 1);
 
-    new_node(test, "sub1", 1);
-    new_node(test, "sub2", 1);
+    new_node(test, "sub1", VFS_NODE_DIR);
+    new_node(test, "sub2", VFS_NODE_DIR);
 
     // Mount
     create_fs(NULL, "rootfs", &root_fs, &rootfs_ops, 1);
