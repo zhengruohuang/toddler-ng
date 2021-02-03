@@ -164,7 +164,7 @@ static ulong vfs_api_file_read(ulong opcode)
     // Read
     //struct ventry *vent = lookup_fd(fd);
     struct ventry *vent = task_lookup_fd(pid, fd);
-    vfs_file_read_forward(vent->vnode, count, offset);
+    vfs_file_read(vent->vnode, count, offset);
 
     // Response
     syscall_ipc_respond();

@@ -81,10 +81,6 @@ void init_rootfs()
     struct pseudo_fs_node *about = new_node(root, "about", VFS_NODE_FILE);
     set_node_data(about, about_data, strlen(about_data) + 1);
 
-    const char *link_data = "/test/test2/test3";
-    struct pseudo_fs_node *link = new_node(root, "link", VFS_NODE_SYMLINK);
-    set_node_data(link, link_data, strlen(link_data) + 1);
-
     // Test
     const char *test_data =
         " 1 Welcome!\n 2 Welcome!\n 3 Welcome!\n 4 Welcome!\n 5 Welcome!\n"
@@ -103,6 +99,14 @@ void init_rootfs()
 
     new_node(test, "sub1", VFS_NODE_DIR);
     new_node(test, "sub2", VFS_NODE_DIR);
+
+    // Symlink
+    const char *link_data = "/test/test2/test3";
+    struct pseudo_fs_node *link = new_node(root, "link", VFS_NODE_SYMLINK);
+    set_node_data(link, link_data, strlen(link_data) + 1);
+
+    // Named pipe
+    new_node(root, "pipe", VFS_NODE_PIPE);
 
     // Mount
     create_fs(NULL, "rootfs", &root_fs, &rootfs_ops, 1);

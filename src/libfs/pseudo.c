@@ -194,6 +194,16 @@ static inline int _is_symlink(struct pseudo_fs_node *node)
     return node->type == VFS_NODE_SYMLINK;
 }
 
+static inline int _is_dev(struct pseudo_fs_node *node)
+{
+    return node->type == VFS_NODE_DEV;
+}
+
+static inline int _is_pipe(struct pseudo_fs_node *node)
+{
+    return node->type == VFS_NODE_PIPE;
+}
+
 int pseudo_fs_mount(void *fs, struct fs_mount_config *cfg)
 {
     struct pseudo_fs *pfs = fs;
@@ -253,9 +263,25 @@ int pseudo_fs_forget(void *fs, fs_id_t id)
     return pseudo_fs_dummy(fs, id);
 }
 
-int pseudo_fs_acquire(void *fs, fs_id_t id)
+int pseudo_fs_acquire(void *fs, fs_id_t id, struct fs_lookup_result *result)
 {
-    return pseudo_fs_dummy(fs, id);
+    int err = 0;
+    struct pseudo_fs *pfs = fs;
+    rwlock_rlock(&pfs->rwlock);
+
+    struct pseudo_fs_node *node = pseudo_fs_node_find(fs, id);
+    if (!node) {
+        err = -1;
+        goto done;
+    }
+
+    result->id = node->id;
+    result->cacheable = 1;
+    result->node_type = node->type;
+
+done:
+    rwlock_runlock(&pfs->rwlock);
+    return err;
 }
 
 int pseudo_fs_release(void *fs, fs_id_t id)
@@ -270,7 +296,7 @@ int pseudo_fs_file_open(void *fs, fs_id_t id, unsigned long flags, unsigned long
     rwlock_rlock(&pfs->rwlock);
 
     struct pseudo_fs_node *node = pseudo_fs_node_find(fs, id);
-    if (!node || !_is_file(node)) {
+    if (!node || (!_is_file(node) && !_is_pipe(node) && !_is_dev(node))) {
         err = -1;
         goto done;
     }

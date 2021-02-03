@@ -30,12 +30,23 @@ struct mount_point {
 struct vnode {
     ulong fs_id;
     int cacheable;
+    int type;
 
     struct mount_point *mount;
 
     ref_count_t link_count;
     ref_count_t open_count;
     rwlock_t rwlock;
+
+    // Pipe
+    struct {
+        const char *data;
+        size_t count;
+        size_t offset;
+        sema_t reader;
+        sema_t writer;
+        mutex_t lock;
+    } pipe;
 };
 
 struct ventry {
@@ -78,7 +89,7 @@ extern int vfs_dev_create(struct vnode *node, const char *name, unsigned int fla
 extern int vfs_pipe_create(struct vnode *node, const char *name, unsigned int flags);
 
 extern int vfs_file_open(struct vnode *node, ulong flags, ulong mode);
-extern void vfs_file_read_forward(struct vnode *node, size_t count, size_t offset);
+extern void vfs_file_read(struct vnode *node, size_t count, size_t offset);
 extern ssize_t vfs_file_write(struct vnode *node, const void *data, size_t count, size_t offset);
 
 extern int vfs_dir_open(struct vnode *node, ulong mode);

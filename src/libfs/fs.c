@@ -127,14 +127,16 @@ static inline void dispatch_acquire(msg_t *msg, struct fs_record *record)
 
     // Acquire
     int err = 0;
+    struct fs_lookup_result result = { };
     if (record->ops.acquire) {
-        err = record->ops.acquire(record->fs, fs_id);
+        err = record->ops.acquire(record->fs, fs_id, &result);
     }
 
     // Response
     msg = dispatch_response(err);
     msg_append_param(msg, fs_id);
-    msg_append_param(msg, 1);               // TODO: cacheable, necessary?
+    msg_append_int(msg, result.cacheable);      // TODO: cacheable, necessary?
+    msg_append_int(msg, result.node_type);      // Node type
 }
 
 static inline void dispatch_release(msg_t *msg, struct fs_record *record)

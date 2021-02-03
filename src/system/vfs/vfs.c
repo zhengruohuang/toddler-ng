@@ -105,7 +105,8 @@ static struct ventry *trim_ventries(struct ventry *vent)
             // Make sure the file is closed
             if (!ref_count_is_zero(&vent->vnode->open_count)) {
                 // TODO: panic
-                kprintf("PANIC: Vnode open count mismatch!\n");
+                kprintf("PANIC: Vnode open count mismatch: %lu\n",
+                        vent->vnode->open_count.value);
                 return NULL;
             }
 
@@ -232,7 +233,7 @@ static struct ventry *_try_walk_path(struct ventry *root, const char *path,
     struct ventry *cur_vent = NULL;
 
     if (!path || *path == '\0') {
-        rwlock_rlock(&prev_vent->rwlock);
+        rwlock_wlock(&prev_vent->rwlock);
         return prev_vent;
     }
 
@@ -299,7 +300,7 @@ static struct ventry *_try_walk_path(struct ventry *root, const char *path,
             *remain_path = cur_path;
         }
 
-        rwlock_rlock(&cur_vent->rwlock);
+        rwlock_wlock(&cur_vent->rwlock);
     }
     rwlock_wunlock(&cur_mount->rwlock);
 
@@ -330,7 +331,7 @@ static struct ventry *walk_path(struct ventry *root, const char *path)
             strcpy(&path_buf[len + 1], path);
 
         // Done with current vent
-        rwlock_runlock(&vent->rwlock);
+        rwlock_wunlock(&vent->rwlock);
         trim_ventries(vent);
 
         if (prev_path_buf) {
@@ -357,99 +358,6 @@ static struct ventry *walk_path(struct ventry *root, const char *path)
 
     return vent;
 }
-
-// static struct ventry *walk_path(struct ventry *root, const char *path)
-// {
-//     //kprintf("Walk path!\n");
-//
-//     if (!root->mount) {
-//         kprintf("Root must be a mount point!\n");
-//         return NULL;
-//     }
-//
-//     struct mount_point *cur_mount = root->mount;
-//
-//     struct ventry *prev_vent = cur_mount->root; // root;
-//     struct ventry *cur_vent = NULL;
-//
-//     if (!path || *path == '\0') {
-//         rwlock_rlock(&prev_vent->rwlock);
-//         return prev_vent;
-//     }
-//
-//     const char *cur_path = path;
-//     const char *next_path = strchr(cur_path, '/');
-//
-//     rwlock_wlock(&cur_mount->rwlock);
-//
-//     do {
-//         size_t seg_len = 0;
-//
-//         // something like ".../a/..."
-//         if (next_path) {
-//             seg_len = next_path - cur_path;
-//         }
-//
-//         // something like ".../a"
-//         else {
-//             seg_len = strlen(cur_path);
-//
-//             // something like ".../"
-//             if (!seg_len) {
-//                 cur_vent = prev_vent;
-//                 break;
-//             }
-//         }
-//
-//         //kprintf("Cur: %s, next: %s, strchr @ %p\n",
-//         //      cur_path, next_path ? next_path : "(NULL)",
-//         //      strchr(cur_path, '/'));
-//
-//         // Move to "a"
-//         cur_vent = lookup_ventry(cur_mount, prev_vent, cur_path, seg_len);
-//         if (!cur_vent) {
-//             trim_ventries(prev_vent);
-//             break;
-//         }
-//
-//         // Encountered a new mount point
-//         if (cur_vent->mount) {
-//             struct mount_point *last_mount = cur_mount;
-//             cur_mount = cur_vent->mount;
-//             cur_vent = cur_mount->root;
-//
-//             rwlock_wlock(&cur_mount->rwlock);
-//             rwlock_wunlock(&last_mount->rwlock);
-//         }
-//
-//         // Encountered a symlink
-//         if (cur_vent->is_symlink) {
-//             // FIXME: memory leak: old cur_vent never gets freed
-//             kprintf("Symlink @ %s\n", cur_vent->name);
-//             cur_vent = walk_path(vroot, "about");
-//             kprintf("Symlink done: %s\n", cur_vent->name);
-//         }
-//
-//         // Next path
-//         prev_vent = cur_vent;
-//         cur_path = next_path;
-//         while (cur_path && *cur_path == '/') {
-//             // skip '/'
-//             cur_path++;
-//         }
-//
-//         next_path = strchr(cur_path, '/');
-//     } while (cur_path);
-//
-//     //kprintf("Done walk path @ %p: %s\n", cur_vent, cur_vent->name);
-//
-//     if (!symlink_level && cur_vent) {
-//         rwlock_rlock(&cur_vent->rwlock);
-//     }
-//     rwlock_wunlock(&cur_mount->rwlock);
-//
-//     return cur_vent;
-// }
 
 
 /*
@@ -489,12 +397,17 @@ static struct vnode *acquire_ipc(struct ventry *vent)
     struct vnode *node = salloc(&vnode_salloc);
     node->fs_id = msg_get_param(msg, 1);
     node->cacheable = msg_get_int(msg, 2);
+    node->type = msg_get_int(msg, 3);
 
     node->mount = mount;
     vent->vnode = node;
 
     ref_count_init(&node->open_count, 0);
     ref_count_init(&node->link_count, 0);
+
+    sema_init_default(&node->pipe.reader);
+    sema_init_default(&node->pipe.writer);
+    mutex_init(&node->pipe.lock);
 
     return node;
 }
@@ -531,7 +444,7 @@ struct ventry *vfs_acquire(const char *path)
     if (!vent->vnode) {
         struct vnode *node = vent->vnode = acquire_ipc(vent);
         if (!node) {
-            rwlock_runlock(&vent->rwlock);
+            rwlock_wunlock(&vent->rwlock);
             trim_ventries(vent);
             return NULL;
         }
@@ -540,7 +453,7 @@ struct ventry *vfs_acquire(const char *path)
     ref_count_inc(&vent->ref_count);
     ref_count_inc(&vent->vnode->open_count);
 
-    rwlock_runlock(&vent->rwlock);
+    rwlock_wunlock(&vent->rwlock);
 
     return vent;
 }
@@ -552,11 +465,12 @@ int vfs_release(struct ventry *vent)
     }
 
     rwlock_rlock(&vent->rwlock);
-    ref_count_dec(&vent->vnode->open_count);
+    ulong remain_count = ref_count_sub(&vent->vnode->open_count, 1);
     ref_count_dec(&vent->ref_count);
 
-    if (ref_count_is_zero(&vent->vnode->open_count)) {
-        release_ipc(vent);
+    release_ipc(vent);
+
+    if (remain_count == 1) {
         //dec_tree_open_count(vent);
 
         rwlock_wlock(&vent->from_mount->rwlock);
@@ -695,6 +609,68 @@ int vfs_pipe_create(struct vnode *node, const char *name, unsigned int flags)
 
 
 /*
+ * Pipe ops
+ */
+static void vfs_pipe_read(struct vnode *node, size_t count)
+{
+    //kprintf("Pipe read @ %p\n", node);
+    sema_wait(&node->pipe.writer);
+    //kprintf("After read writer wait\n");
+
+    // Response
+    msg_t *msg = get_empty_msg();           //
+    msg_append_int(msg, 0);                 // ok
+    msg_append_param(msg, 0);               // real size
+    msg_append_int(msg, 0);                 // more
+
+    // Buf size
+    size_t req_count = node->pipe.count - node->pipe.offset;
+    if (req_count > count) {
+        req_count = count;
+    }
+
+    size_t max_size = msg_remain_data_size(msg) - 32ul; // extra safe
+    if (req_count > max_size) {
+        req_count = max_size;
+    }
+
+    // Data
+    msg_append_data(msg, node->pipe.data + node->pipe.offset, req_count);
+    node->pipe.offset += req_count;
+    atomic_mb();
+
+    // Update msg
+    msg_set_param(msg, 1, req_count);
+
+    sema_post(&node->pipe.reader);
+    //kprintf("After read reader post\n");
+}
+
+static ssize_t vfs_pipe_write(struct vnode *node, const void *data, size_t count)
+{
+    ssize_t write_count = -1;
+
+    // Only one writer is allowed at a time
+    mutex_exclusive(&node->pipe.lock) {
+        //kprintf("Pipe write @ %p\n", node);
+        node->pipe.data = data;
+        node->pipe.count = count;
+        node->pipe.offset = 0;
+        sema_post(&node->pipe.writer);
+        //kprintf("After write writer post\n");
+
+        sema_wait(&node->pipe.reader);
+        //kprintf("After write reader wait\n");
+
+        atomic_mb();
+        write_count = node->pipe.offset;
+    }
+
+    return write_count;
+}
+
+
+/*
  * File ops
  */
 int vfs_file_open(struct vnode *node, ulong flags, ulong mode)
@@ -715,14 +691,9 @@ int vfs_file_open(struct vnode *node, ulong flags, ulong mode)
     return 0;
 }
 
-void vfs_file_read_forward(struct vnode *node, size_t count, size_t offset)
+static void vfs_file_read_forward(struct vnode *node, size_t count, size_t offset)
 {
     struct mount_point *mount = node->mount;
-    if (ignore_op_ipc(mount, VFS_OP_FILE_READ)) {
-        return;
-    }
-
-    rwlock_rlock(&node->rwlock);
 
     // Request
     msg_t *msg = get_empty_msg();
@@ -731,18 +702,29 @@ void vfs_file_read_forward(struct vnode *node, size_t count, size_t offset)
     msg_append_param(msg, count);
     msg_append_param(msg, offset);
     syscall_ipc_popup_request(mount->ipc.pid, mount->ipc.opcode);
+}
+
+void vfs_file_read(struct vnode *node, size_t count, size_t offset)
+{
+    struct mount_point *mount = node->mount;
+    if (ignore_op_ipc(mount, VFS_OP_FILE_READ)) {
+        return;
+    }
+
+    rwlock_rlock(&node->rwlock);
+
+    if (node->type == VFS_NODE_PIPE) {
+        vfs_pipe_read(node, count);
+    } else {
+        vfs_file_read_forward(node, count, offset);
+    }
 
     rwlock_runlock(&node->rwlock);
 }
 
-ssize_t vfs_file_write(struct vnode *node, const void *data, size_t count, size_t offset)
+static ssize_t vfs_file_write_real(struct vnode *node, const void *data, size_t count, size_t offset)
 {
     struct mount_point *mount = node->mount;
-    if (ignore_op_ipc(mount, VFS_OP_FILE_WRITE)) {
-        return 0;
-    }
-
-    rwlock_wlock(&node->rwlock);
 
     // Request
     msg_t *msg = get_empty_msg();
@@ -753,8 +735,6 @@ ssize_t vfs_file_write(struct vnode *node, const void *data, size_t count, size_
     msg_append_data(msg, data, count);
     syscall_ipc_popup_request(mount->ipc.pid, mount->ipc.opcode);
 
-    rwlock_wunlock(&node->rwlock);
-
     // Response
     msg = get_response_msg();
     int err = msg_get_int(msg, 0);
@@ -763,6 +743,33 @@ ssize_t vfs_file_write(struct vnode *node, const void *data, size_t count, size_
     }
 
     size_t write_count = msg_get_param(msg, 1);
+    return write_count;
+}
+
+ssize_t vfs_file_write(struct vnode *node, const void *data, size_t count, size_t offset)
+{
+//     struct mount_point *mount = node->mount;
+//     if (ignore_op_ipc(mount, VFS_OP_FILE_WRITE)) {
+//         return 0;
+//     }
+
+
+
+    ssize_t write_count = -1;
+
+    // Use read lock here.
+    // It's up to the actual FS to determine if multiple writes and reads are
+    // allowed concurrently
+    rwlock_rlock(&node->rwlock);
+
+    if (node->type == VFS_NODE_PIPE) {
+        write_count = vfs_pipe_write(node, data, count);
+    } else {
+        write_count = vfs_file_write_real(node, data, count, offset);
+    }
+
+    rwlock_runlock(&node->rwlock);
+
     return write_count;
 }
 
@@ -846,7 +853,8 @@ ssize_t vfs_symlink_read_to_buf(struct ventry *vent, char *buf, size_t buf_size)
         return 0;
     }
 
-    rwlock_rlock(&vent->rwlock);
+    // Note that vent should've been wlocked
+    //rwlock_rlock(&vent->rwlock);
 
     int err = 0;
     int more = 1;
@@ -883,7 +891,7 @@ ssize_t vfs_symlink_read_to_buf(struct ventry *vent, char *buf, size_t buf_size)
         read_count += rc;
     }
 
-    rwlock_runlock(&vent->rwlock);
+    //rwlock_runlock(&vent->rwlock);
 
     if (err && buf && buf_size) {
         *buf = '\0';

@@ -111,7 +111,7 @@ extern int pseudo_fs_unmount(void *fs);
 extern int pseudo_fs_lookup(void *fs, fs_id_t id, const char *name, struct fs_lookup_result *result);
 extern int pseudo_fs_forget(void *fs, fs_id_t id);
 
-extern int pseudo_fs_acquire(void *fs, fs_id_t id);
+extern int pseudo_fs_acquire(void *fs, fs_id_t id, struct fs_lookup_result *result);
 extern int pseudo_fs_release(void *fs, fs_id_t id);
 
 extern int pseudo_fs_file_open(void *fs, fs_id_t id, unsigned long flags, unsigned long mode);

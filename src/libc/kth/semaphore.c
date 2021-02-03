@@ -7,21 +7,38 @@
 /*
  * Init
  */
-void sema_init(sema_t *sema)
+void sema_init(sema_t *sema, unsigned long max_count)
 {
     futex_init(&sema->futex);
+    sema->max_count = max_count;
     sema->max_spin = SEMA_MAX_SPIN;
 }
 
-void sema_init_spin(sema_t *sema, int max_spin)
+void sema_init_default(sema_t *sema)
 {
     futex_init(&sema->futex);
+    sema->max_count = 0;
+    sema->max_spin = SEMA_MAX_SPIN;
+}
+
+void sema_init_spin(sema_t *sema, unsigned long max_count, int max_spin)
+{
+    futex_init(&sema->futex);
+    sema->max_count = max_count;
+    sema->max_spin = max_spin;
+}
+
+void sema_init_default_spin(sema_t *sema, int max_spin)
+{
+    futex_init(&sema->futex);
+    sema->max_count = 0;
     sema->max_spin = max_spin;
 }
 
 void sema_destroy(sema_t *sema)
 {
     futex_destory(&sema->futex);
+    sema->max_count = 0;
 }
 
 
@@ -91,7 +108,7 @@ int sema_post_count(sema_t *sema, unsigned long count)
         f_old.value = f->value;
         f_new.value = f_old.value;
         f_new.locked += count;
-        if (f_new.locked > sema->max_count) {
+        if (sema->max_count && f_new.locked > sema->max_count) {
             f_new.locked = sema->max_count;
         }
     } while (!atomic_cas(&f->value, f_old.value, f_new.value));

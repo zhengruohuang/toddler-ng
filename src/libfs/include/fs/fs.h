@@ -41,7 +41,7 @@ struct fs_ops {
     int (*lookup)(void *fs, fs_id_t id, const char *name, struct fs_lookup_result *result);
     int (*forget)(void *fs, fs_id_t id);
 
-    int (*acquire)(void *fs, fs_id_t id);
+    int (*acquire)(void *fs, fs_id_t id, struct fs_lookup_result *result);
     int (*release)(void *fs, fs_id_t id);
 
     int (*dev_create)(void *fs, fs_id_t id, const char *name, unsigned long flags, pid_t pid, unsigned opcode);

@@ -41,16 +41,18 @@ static inline void ref_count_dec(ref_count_t *rc)
     atomic_mb();
 }
 
-static inline void ref_count_add(ref_count_t *rc, ulong num)
+static inline ulong ref_count_add(ref_count_t *rc, ulong num)
 {
-    atomic_fetch_and_add(&rc->value, num);
+    ulong old = atomic_fetch_and_add(&rc->value, num);
     atomic_mb();
+    return old;
 }
 
-static inline void ref_count_sub(ref_count_t *rc, ulong num)
+static inline ulong ref_count_sub(ref_count_t *rc, ulong num)
 {
-    atomic_fetch_and_sub(&rc->value, num);
+    ulong old = atomic_fetch_and_sub(&rc->value, num);
     atomic_mb();
+    return old;
 }
 
 

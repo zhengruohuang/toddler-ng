@@ -132,8 +132,10 @@ typedef struct {
     .max_spin = SEMA_MAX_SPIN   \
 }
 
-extern void sema_init(sema_t *sema);
-extern void sema_init_spin(sema_t *sema, int max_spin);
+extern void sema_init(sema_t *sema, unsigned long max_count);
+extern void sema_init_default(sema_t *sema);
+extern void sema_init_spin(sema_t *, unsigned long max_count, int max_spin);
+extern void sema_init_default_spin(sema_t *sema, int max_spin);
 extern void sema_destroy(sema_t *sema);
 
 extern int sema_wait(sema_t *sema);
