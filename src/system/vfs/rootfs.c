@@ -12,9 +12,19 @@
 static salloc_obj_t entry_salloc = SALLOC_CREATE_DEFAULT(sizeof(struct pseudo_fs_node));
 static struct pseudo_fs root_fs;
 
+static struct pseudo_fs_node *alloc_rootfs_node()
+{
+    return salloc(&entry_salloc);
+}
+
+static void free_rootfs_node(struct pseudo_fs_node *node)
+{
+    sfree(node);
+}
+
 static struct pseudo_fs_node *new_node(struct pseudo_fs_node *parent, const char *name, int type)
 {
-    struct pseudo_fs_node *node = salloc(&entry_salloc);
+    struct pseudo_fs_node *node = alloc_rootfs_node();
     pseudo_fs_node_setup(&root_fs, node, name, type, 0, 0, 0);
     pseudo_fs_node_attach(&root_fs, parent, node);
 
@@ -48,6 +58,8 @@ static const struct fs_ops rootfs_ops = {
     .dir_remove = pseudo_fs_dir_remove,
 
     .symlink_read = pseudo_fs_symlink_read,
+
+    .pipe_create = pseudo_fs_pipe_create,
 };
 
 
@@ -60,6 +72,8 @@ void init_rootfs()
 
     // Init
     pseudo_fs_setup(&root_fs);
+    root_fs.ops.alloc_node_pipe = alloc_rootfs_node;
+    root_fs.ops.free_node_pipe = free_rootfs_node;
 
     // Root
     struct pseudo_fs_node *root = new_node(NULL, "/", VFS_NODE_DIR);

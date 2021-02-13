@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <dirent.h>
 #include <kth.h>
 #include <sys.h>
 #include <sys/api.h>
@@ -8,7 +9,7 @@
 static unsigned long named_pipe_reader(unsigned long param)
 {
     int count = param;
-    FILE *f = fopen("/pipe", "r");
+    FILE *f = fopen("/pipe2", "r");
 
     char buf[32];
     for (int i = 0; i < count; i++) {
@@ -23,7 +24,7 @@ static unsigned long named_pipe_reader(unsigned long param)
 static unsigned long named_pipe_writer(unsigned long param)
 {
     int count = param;
-    FILE *f = fopen("/pipe", "w");
+    FILE *f = fopen("/pipe2", "w");
 
     char buf[] = "pipe write!";
     for (int i = 0; i < count; i++) {
@@ -37,6 +38,10 @@ static unsigned long named_pipe_writer(unsigned long param)
 
 __unused_func static void test_named_pipe()
 {
+    int dirfd = sys_api_acquire("/");
+    sys_api_pipe_create(dirfd, "pipe2", 0);
+    sys_api_release(dirfd);
+
     const int count = 100;
 
     kth_t reader_thread, writer_thread;

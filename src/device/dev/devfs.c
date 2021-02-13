@@ -32,6 +32,19 @@ static struct devfs devfs;
 static struct devfs_node *devfs_root = NULL;
 
 
+static struct pseudo_fs_node *alloc_devfs_node()
+{
+    struct devfs_node *node = salloc(&devfs_salloc);
+    struct pseudo_fs_node *fs_node = &node->fs_node;
+    return fs_node;
+}
+
+static void free_devfs_node(struct pseudo_fs_node *fs_node)
+{
+    struct devfs_node *node = container_of(fs_node, struct devfs_node, fs_node);
+    sfree(node);
+}
+
 static struct devfs_node *new_devfs_node(struct devfs_node *parent, const char *name, int type)
 {
     struct devfs_node *node = salloc(&devfs_salloc);
@@ -273,6 +286,12 @@ static const struct fs_ops devfs_ops = {
 
     .dir_open = pseudo_fs_dir_open,
     .dir_read = pseudo_fs_dir_read,
+    .dir_create = pseudo_fs_dir_create,
+    .dir_remove = pseudo_fs_dir_remove,
+
+    .symlink_read = pseudo_fs_symlink_read,
+
+    .pipe_create = pseudo_fs_pipe_create,
 };
 
 
@@ -282,6 +301,11 @@ static const struct fs_ops devfs_ops = {
 void init_devfs()
 {
     kprintf("Mouting devfs\n");
+
+    // Init
+    pseudo_fs_setup(&devfs.fs_node);
+    devfs.fs_node.ops.alloc_node_pipe = alloc_devfs_node;
+    devfs.fs_node.ops.free_node_pipe = free_devfs_node;
 
     // Construct FS structure
     devfs_root = setup_root();

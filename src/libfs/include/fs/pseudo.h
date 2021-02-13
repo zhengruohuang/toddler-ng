@@ -69,6 +69,11 @@ struct pseudo_fs {
 
     rwlock_t rwlock;
     unsigned long id_seq;
+
+    struct {
+        struct pseudo_fs_node *(*alloc_node_pipe)();
+        void (*free_node_pipe)(struct pseudo_fs_node *node);
+    } ops;
 };
 
 
@@ -129,6 +134,8 @@ extern int pseudo_fs_dir_remove(void *fs, fs_id_t id);
 
 extern int pseudo_fs_symlink_read(void *fs, fs_id_t id, void *buf, size_t count,
                                   size_t offset, struct fs_file_op_result *result);
+
+extern int pseudo_fs_pipe_create(void *fs, fs_id_t id, const char *name, unsigned long flags);
 
 
 /*

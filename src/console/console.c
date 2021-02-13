@@ -67,11 +67,20 @@ int main(int argc, char **argv)
 {
     kprintf("In Console!\n");
 
+    // Welcome msg
     FILE *f = fopen("/dev/serial", "rw");
     fprintf(f, "Hello from Console!\n");
     fprintf(f, "%s", welcome_msg);
     fclose(f);
 
+    // Set up stdio
+    int dirfd = sys_api_acquire("/dev");
+    sys_api_pipe_create(dirfd, "stdin", 0);
+    sys_api_pipe_create(dirfd, "stdout", 0);
+    sys_api_pipe_create(dirfd, "stderr", 0);
+    sys_api_release(dirfd);
+
+    // Start console loop
     int err = console_loop();
     panic("Console exited with code: %d!\n", err);
 

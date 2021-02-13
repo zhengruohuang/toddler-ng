@@ -497,6 +497,8 @@ static inline unsigned long get_ignored_ops_map(const struct fs_ops *ops)
 
     if (!ops || !ops->symlink_read) mask |= 0x1 << VFS_OP_SYMLINK_READ;
 
+    if (!ops || !ops->pipe_create)  mask |= 0x1 << VFS_OP_PIPE_CREATE;
+
     return mask;
 }
 

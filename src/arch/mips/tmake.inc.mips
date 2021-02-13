@@ -6,8 +6,9 @@ def run_mips_qemu(mp):
         return
 
     opts = copy.deepcopy(build_opts['qemu'])
-    opts['exec'] = 'qemu-system-' + mips_endian_prefix
-    opts['cpu'] = '74Kf'
+    opts['exec'] = 'qemu-system-' + mips_endian_prefix_qemu
+    if not in_dict('cpu', opts):
+        opts['cpu'] = mips_qemu_default_cpu
     if not mp:
         opts['mp'] = False
 
@@ -31,11 +32,11 @@ def start_emu():
 
 # Setup arch toolchain
 arch_default_toolchain = copy.deepcopy(default_toolchain)
-arch_default_toolchain.set_opt('prefix', mips_endian_prefix + '-linux-gnu-')
+arch_default_toolchain.set_opt('prefix', mips_endian_prefix)
 arch_default_toolchain.set_opt('ld', 'ld')
-arch_default_toolchain.set_opt('asflags', '-O2 -nostdlib -fno-builtin -fno-stack-protector -fPIC -march=mips32r2 -std=c99 -Wall')
-arch_default_toolchain.set_opt('ccflags', '-O2 -nostdlib -fno-builtin -fno-stack-protector -fPIC -march=mips32r2 -std=c99 -Wall')
-arch_default_toolchain.set_opt('ldflags', '-s -static')
+arch_default_toolchain.set_opt('asflags', '-O2 -nostdlib -fno-builtin -fno-stack-protector -std=c99 -Wall ' + mips_as_flags)
+arch_default_toolchain.set_opt('ccflags', '-O2 -nostdlib -fno-builtin -fno-stack-protector -std=c99 -Wall ' + mips_cc_flags)
+arch_default_toolchain.set_opt('ldflags', '-static')
 build_toolchains['default'] = arch_default_toolchain
 
 

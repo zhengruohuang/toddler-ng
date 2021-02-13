@@ -16,6 +16,19 @@ int console_read(char **o_buf, ssize_t *o_buf_size, FILE *f)
         char ch = *cur;
 
         switch (ch) {
+        case 3: // Ctrl+C
+            fprintf(f, "^C\n");
+            fflush(f);
+
+            buf[0] = '\0';
+            len = 1;
+
+            if (o_buf) *o_buf = buf;
+            if (o_buf_size) *o_buf_size = len + 1;
+            return 0;
+        case 4: // Ctrl+D
+            free(buf);
+            return -1;
         case '\b':
             if (len) {
                 len--;

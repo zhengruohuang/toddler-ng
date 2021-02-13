@@ -467,6 +467,7 @@ int vfs_release(struct ventry *vent)
     rwlock_rlock(&vent->rwlock);
     ulong remain_count = ref_count_sub(&vent->vnode->open_count, 1);
     ref_count_dec(&vent->ref_count);
+    rwlock_runlock(&vent->rwlock);
 
     release_ipc(vent);
 
@@ -596,7 +597,6 @@ int vfs_pipe_create(struct vnode *node, const char *name, unsigned int flags)
     // Request
     msg_t *msg = get_empty_msg();
     msg_append_param(msg, VFS_OP_PIPE_CREATE);
-    msg_append_int(msg, VFS_NODE_PIPE);
     msg_append_param(msg, node->fs_id);
     msg_append_str(msg, name_dup, 0);
     msg_append_param(msg, flags);

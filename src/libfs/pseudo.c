@@ -10,6 +10,8 @@
  */
 int pseudo_fs_setup(struct pseudo_fs *fs)
 {
+    memzero(fs, sizeof(struct pseudo_fs));
+
     fs->id_seq = 1;
     fs->list = NULL;
     fs->root = NULL;
@@ -433,6 +435,37 @@ done:
     return err;
 }
 
+int pseudo_fs_pipe_create(void *fs, fs_id_t id, const char *name, unsigned long flags)
+{
+    int err = 0;
+    struct pseudo_fs *pfs = fs;
+    if (!pfs->ops.alloc_node_pipe) {
+        return -1;
+    }
+
+    rwlock_wlock(&pfs->rwlock);
+
+    struct pseudo_fs_node *parent = pseudo_fs_node_find(fs, id);
+    if (!parent || !_is_dir(parent)) {
+        err = -1;
+        goto done;
+    }
+
+    struct pseudo_fs_node *node = pseudo_fs_node_lookup(fs, parent, name);
+    if (node) {
+        err = -1;
+        goto done;
+    }
+
+    struct pseudo_fs_node *fs_node = pfs->ops.alloc_node_pipe();
+    pseudo_fs_node_setup(pfs, fs_node, name, VFS_NODE_PIPE, 0, 0, 0);
+    pseudo_fs_node_attach(pfs, parent, fs_node);
+
+done:
+    rwlock_wunlock(&pfs->rwlock);
+    return err;
+}
+
 
 /*
  * Create
@@ -457,4 +490,6 @@ const struct fs_ops pseudo_fs_ops = {
     .dir_remove = pseudo_fs_dir_remove,
 
     .symlink_read = pseudo_fs_symlink_read,
+
+    .pipe_create = pseudo_fs_pipe_create,
 };
