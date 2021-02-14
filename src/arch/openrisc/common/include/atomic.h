@@ -64,7 +64,7 @@ static inline void atomic_write(volatile ulong *addr, ulong value)
 /*
  * Compare and swap
  */
-static inline int atomic_cas(volatile ulong *addr,
+static inline int atomic_cas_bool(volatile ulong *addr,
                              ulong old_val, ulong new_val)
 {
     ulong read = *addr;

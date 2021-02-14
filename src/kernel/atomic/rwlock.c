@@ -34,7 +34,7 @@ void rwlock_read_lock(rwlock_t *lock)
         new_val.value = old_val.value = lock->value;
         new_val.write = 0;
         new_val.reads++;
-    } while(!atomic_cas(&lock->value, old_val.value, new_val.value));
+    } while(!atomic_cas_bool(&lock->value, old_val.value, new_val.value));
 
     atomic_mb();
 }
@@ -48,7 +48,7 @@ void rwlock_read_unlock(rwlock_t *lock)
         assert(!lock->write);
         new_val.value = old_val.value = lock->value;
         new_val.reads--;
-    } while(!atomic_cas(&lock->value, old_val.value, new_val.value));
+    } while(!atomic_cas_bool(&lock->value, old_val.value, new_val.value));
 
     atomic_mb();
     atomic_notify();
@@ -66,7 +66,7 @@ void rwlock_write_lock(rwlock_t *lock)
 
         new_val.write = 1;
         new_val.reads = 0;
-    } while(!atomic_cas(&lock->value, 0, new_val.value));
+    } while(!atomic_cas_bool(&lock->value, 0, new_val.value));
 
     atomic_mb();
 }
@@ -109,7 +109,7 @@ void rwlock_write_lock_int(rwlock_t *lock)
     assert(!newlock.reads);
     assert(newlock.write);
 
-    int success = atomic_cas(&lock->value, oldlock.value, newlock.value);
+    int success = atomic_cas_bool(&lock->value, oldlock.value, newlock.value);
     assert(success);
     atomic_mb();
 }

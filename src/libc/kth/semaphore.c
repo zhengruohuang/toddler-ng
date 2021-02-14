@@ -69,7 +69,7 @@ int sema_wait_spin(sema_t *sema, int max_spin)
                 acquired = 1;
                 f_new.locked--;
             }
-        } while (!atomic_cas(&f->value, f_old.value, f_new.value));
+        } while (!atomic_cas_bool(&f->value, f_old.value, f_new.value));
 
         if (!acquired && f_new.kernel) {
             syscall_wait_on_futex(f, FUTEX_WHEN_EQ | 0);
@@ -91,7 +91,7 @@ int sema_trywait(sema_t *sema)
     f_new.value = f_old.value;
     f_new.locked--;
 
-    int success = atomic_cas(&sema->futex.value, f_old.value, f_new.value);
+    int success = atomic_cas_bool(&sema->futex.value, f_old.value, f_new.value);
     return success ? 0 : -1;
 }
 
@@ -111,7 +111,7 @@ int sema_post_count(sema_t *sema, unsigned long count)
         if (sema->max_count && f_new.locked > sema->max_count) {
             f_new.locked = sema->max_count;
         }
-    } while (!atomic_cas(&f->value, f_old.value, f_new.value));
+    } while (!atomic_cas_bool(&f->value, f_old.value, f_new.value));
 
     if (f_new.kernel) {
         do {
@@ -122,7 +122,7 @@ int sema_post_count(sema_t *sema, unsigned long count)
             }
 
             f_new.kernel = 0;
-        } while (!atomic_cas(&f->value, f_old.value, f_new.value));
+        } while (!atomic_cas_bool(&f->value, f_old.value, f_new.value));
 
         syscall_wake_on_futex(f, FUTEX_WHEN_NE | 0);
     }

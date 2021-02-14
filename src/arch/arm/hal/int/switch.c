@@ -25,6 +25,9 @@ static void switch_page_table(struct l1table *page_table)
 void switch_to(ulong thread_id, struct reg_context *context,
                void *page_table, int user_mode, ulong asid, ulong tcb)
 {
+    // Set up fast TCB access
+    write_software_thread_id(tcb);
+
     // Copy context to interrupt stack
     ulong *cur_stack_top = get_per_cpu(ulong, cur_int_stack_top);
     memcpy((void *)*cur_stack_top, context, sizeof(struct reg_context));

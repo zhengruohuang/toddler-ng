@@ -35,8 +35,9 @@ static inline int sysenter(ulong num, ulong p1, ulong p2, ulong p3,
 
 #ifdef FAST_GET_TIB
 #undef FAST_GET_TIB
-#define FAST_GET_TIB 1
 #endif
+
+#define FAST_GET_TIB 1
 
 static inline ulong sysenter_get_tib()
 {

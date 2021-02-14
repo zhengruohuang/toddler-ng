@@ -32,7 +32,7 @@ void spinlock_lock(spinlock_t *lock)
             atomic_pause();
         } while (old_val.locked);
         atomic_mb();
-    } while (!atomic_cas(&lock->value, old_val.value, new_val.value));
+    } while (!atomic_cas_bool(&lock->value, old_val.value, new_val.value));
 
     atomic_mb();
 
@@ -51,7 +51,7 @@ int spinlock_trylock(spinlock_t *lock)
     new_val.value = 0;
     new_val.locked = 1;
 
-    int ok = atomic_cas(&lock->value, old_val.value, new_val.value);
+    int ok = atomic_cas_bool(&lock->value, old_val.value, new_val.value);
     atomic_mb();
 
     return ok ? 0 : -1;
@@ -87,7 +87,7 @@ void spinlock_lock_int(spinlock_t *lock)
     new_val.locked = 1;
     new_val.int_enabled = enabled;
 
-    int success = atomic_cas(&lock->value, old_val.value, new_val.value);
+    int success = atomic_cas_bool(&lock->value, old_val.value, new_val.value);
     assert(success);
     atomic_mb();
 }
@@ -110,7 +110,7 @@ int spinlock_trylock_int(spinlock_t *lock)
     new_val.locked = 1;
     new_val.int_enabled = enabled;
 
-    int success = atomic_cas(&lock->value, old_val.value, new_val.value);
+    int success = atomic_cas_bool(&lock->value, old_val.value, new_val.value);
     assert(success);
     atomic_mb();
 

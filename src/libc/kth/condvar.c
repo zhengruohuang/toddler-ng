@@ -48,7 +48,7 @@ int cond_wait_spin(cond_t *cond, int max_spin)
         }
 
         f_new.kernel = 1;
-    } while (!atomic_cas(&f->value, f_old.value, f_new.value));
+    } while (!atomic_cas_bool(&f->value, f_old.value, f_new.value));
 
     if (f_new.kernel) {
         syscall_wait_on_futex(f, FUTEX_WHEN_EQ | 0);
@@ -77,7 +77,7 @@ int cond_signal(cond_t *cond)
         f_old.value = f->value;
         f_new.value = f_old.value;
         f_new.locked = 1;
-    } while (!atomic_cas(&f->value, f_old.value, f_new.value));
+    } while (!atomic_cas_bool(&f->value, f_old.value, f_new.value));
 
     if (f_new.kernel) {
         do {
@@ -88,7 +88,7 @@ int cond_signal(cond_t *cond)
             }
 
             f_new.kernel = 0;
-        } while (!atomic_cas(&f->value, f_old.value, f_new.value));
+        } while (!atomic_cas_bool(&f->value, f_old.value, f_new.value));
 
         syscall_wake_on_futex(f, FUTEX_WHEN_EQ | 0x1ul);
     }

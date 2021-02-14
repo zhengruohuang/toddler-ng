@@ -38,7 +38,7 @@ void rwlock_rlock(rwlock_t *lock)
 
         f_new.value = f_old.value;
         f_new.locked += 0x2ul;
-    } while (!atomic_cas(&lock->rd_futex.value, f_old.value, f_new.value));
+    } while (!atomic_cas_bool(&lock->rd_futex.value, f_old.value, f_new.value));
 
     atomic_mb();
 }
@@ -56,7 +56,7 @@ int rwlock_rtrylock(rwlock_t *lock)
     f_new.value = f_old.value;
     f_new.locked += 0x2ul;
 
-    int ok = atomic_cas(&lock->rd_futex.value, f_old.value, f_new.value);
+    int ok = atomic_cas_bool(&lock->rd_futex.value, f_old.value, f_new.value);
     atomic_mb();
     return ok ? 0 : -1;
 }
@@ -75,7 +75,7 @@ void rwlock_runlock(rwlock_t *lock)
 
         f_new.value = f_old.value;
         f_new.locked -= 0x2ul;
-    } while (!atomic_cas(&lock->rd_futex.value, f_old.value, f_new.value));
+    } while (!atomic_cas_bool(&lock->rd_futex.value, f_old.value, f_new.value));
 
     // Wakeup writer
     if (f_new.locked == 0x1ul) {
@@ -88,7 +88,7 @@ void rwlock_runlock(rwlock_t *lock)
 
             f_new.value = f_old.value;
             f_new.kernel = 0;
-        } while (!atomic_cas(&lock->rd_futex.value, f_old.value, f_new.value));
+        } while (!atomic_cas_bool(&lock->rd_futex.value, f_old.value, f_new.value));
 
         if (f_old.kernel) {
             syscall_wake_on_futex(&lock->rd_futex, FUTEX_WHEN_NE | 0);
@@ -113,7 +113,7 @@ static inline void wait_for_reads(futex_t *f, const int spin)
 
         f_new.value = f_old.value;
         f_new.locked += 0x1ul;  // f_old.locked | 0x1ul;
-    } while (!atomic_cas(&f->value, f_old.value, f_new.value));
+    } while (!atomic_cas_bool(&f->value, f_old.value, f_new.value));
 
     // Wait for on-going readers to finish
     int acquired = 0;
@@ -133,7 +133,7 @@ static inline void wait_for_reads(futex_t *f, const int spin)
                 acquired = 1;
                 f_new.kernel = 0;
             }
-        } while (!atomic_cas(&f->value, f_old.value, f_new.value));
+        } while (!atomic_cas_bool(&f->value, f_old.value, f_new.value));
 
         if (!acquired && f_new.kernel) {
             syscall_wait_on_futex(f, FUTEX_WHEN_NE | 0x1ul);
@@ -178,7 +178,7 @@ int rwlock_wtrylock(rwlock_t *lock)
     f_new.value = f_old.value;
     f_new.locked |= 0x1ul;
 
-    int ok = atomic_cas(&lock->rd_futex.value, f_old.value, f_new.value);
+    int ok = atomic_cas_bool(&lock->rd_futex.value, f_old.value, f_new.value);
     if (!ok) {
         futex_unlock(&lock->wr_futex);
         return -1;
@@ -198,7 +198,7 @@ void rwlock_wunlock(rwlock_t *lock)
     f_new.value = f_old.value;
     //f_new.kernel = 0;
     f_new.locked = 0;
-    int ok = atomic_cas(&lock->rd_futex.value, f_old.value, f_new.value);
+    int ok = atomic_cas_bool(&lock->rd_futex.value, f_old.value, f_new.value);
     panic_if(!ok, "Inconsistent rwlock state: %lu\n", f_old.locked);
 
     futex_unlock(&lock->wait_futex);

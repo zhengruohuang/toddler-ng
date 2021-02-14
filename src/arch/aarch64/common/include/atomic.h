@@ -67,7 +67,7 @@ static inline void atomic_write(volatile void *addr, unsigned long value)
 /*
  * Compare and swap
  */
-static inline int atomic_cas(volatile void *addr,
+static inline int atomic_cas_bool(volatile void *addr,
     unsigned long old_val, unsigned long new_val)
 {
     unsigned long failed, read;

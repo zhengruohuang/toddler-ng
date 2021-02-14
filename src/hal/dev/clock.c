@@ -45,7 +45,7 @@ u64 clock_get_ms()
         }
 
         new_rwlock = old_rwlock + 0x1ul;
-    } while(!atomic_cas(&rwlock, old_rwlock, new_rwlock));
+    } while(!atomic_cas_bool(&rwlock, old_rwlock, new_rwlock));
 
     atomic_mb();
     copy = ms;
@@ -70,13 +70,13 @@ void clock_set_ms(int clk_idx, u64 new_ms)
             atomic_mb();
             old_rwlock = rwlock;
         }
-    } while(!atomic_cas(&rwlock, old_rwlock, new_rwlock));
+    } while(!atomic_cas_bool(&rwlock, old_rwlock, new_rwlock));
 
     atomic_mb();
     ms = new_ms;
     atomic_mb();
 
-    atomic_cas(&rwlock, new_rwlock, 0);
+    atomic_cas_bool(&rwlock, new_rwlock, 0);
 }
 
 void clock_advance_ms(int clk_idx, ulong advance)
@@ -94,11 +94,11 @@ void clock_advance_ms(int clk_idx, ulong advance)
             atomic_mb();
             old_rwlock = rwlock;
         }
-    } while(!atomic_cas(&rwlock, old_rwlock, new_rwlock));
+    } while(!atomic_cas_bool(&rwlock, old_rwlock, new_rwlock));
 
     atomic_mb();
     ms += (u64)advance;
     atomic_mb();
 
-    atomic_cas(&rwlock, new_rwlock, 0);
+    atomic_cas_bool(&rwlock, new_rwlock, 0);
 }

@@ -45,7 +45,7 @@ int futex_lock(futex_t *f, int spin)
                 acquired = 1;
                 f_new.locked = 1;
             }
-        } while (!atomic_cas(&f->value, f_old.value, f_new.value));
+        } while (!atomic_cas_bool(&f->value, f_old.value, f_new.value));
 
         if (!acquired && f_new.kernel) {
             syscall_wait_on_futex(f, FUTEX_WHEN_EQ | 0x1ul);
@@ -76,7 +76,7 @@ int futex_wait(futex_t *f, int spin)
             // wait in kernel
             f_new.value = f_old.value;
             f_new.kernel = 1;
-        } while (!atomic_cas(&f->value, f_old.value, f_new.value));
+        } while (!atomic_cas_bool(&f->value, f_old.value, f_new.value));
 
         if (!acquired && f_new.kernel) {
             syscall_wait_on_futex(f, FUTEX_WHEN_EQ | 0x1ul);
@@ -98,7 +98,7 @@ int futex_trylock(futex_t *f)
         f_new.locked = 1;
     }
 
-    int success = atomic_cas(&f->value, f_old.value, f_new.value);
+    int success = atomic_cas_bool(&f->value, f_old.value, f_new.value);
     return success ? 0 : -1;
 }
 
@@ -114,7 +114,7 @@ int futex_unlock(futex_t *f)
         }
 
         f_new.locked = 0;
-    } while (!atomic_cas(&f->value, f_old.value, f_new.value));
+    } while (!atomic_cas_bool(&f->value, f_old.value, f_new.value));
 
     if (f_new.kernel) {
         do {
@@ -125,7 +125,7 @@ int futex_unlock(futex_t *f)
             }
 
             f_new.kernel = 0;
-        } while (!atomic_cas(&f->value, f_old.value, f_new.value));
+        } while (!atomic_cas_bool(&f->value, f_old.value, f_new.value));
 
         syscall_wake_on_futex(f, FUTEX_WHEN_EQ | 0);
     }

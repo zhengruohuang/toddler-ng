@@ -34,7 +34,7 @@ static void init_tls_var(ulong *offset, size_t size)
 //             return;
 //         }
 //         new_offset = old_offset + aligned_size;
-//     } while (!atomic_cas(offset, old_offset, new_offset));
+//     } while (!atomic_cas_bool(offset, old_offset, new_offset));
 //
 //     ulong tls_size = syscall_get_tib()->tls_size;
 //     panic_if(new_offset < tls_size,

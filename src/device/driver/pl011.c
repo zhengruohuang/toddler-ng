@@ -36,7 +36,7 @@ static int shiftbuf_write_one(shiftbuf_t *sb, unsigned char data)
         if (new_val.count > sizeof(unsigned long) - 1) {
             new_val.count = sizeof(unsigned long) - 1;
         }
-    } while (!atomic_cas(&sb->value, old_val.value, new_val.value));
+    } while (!atomic_cas_bool(&sb->value, old_val.value, new_val.value));
 
     return 1;
 }
@@ -60,7 +60,7 @@ static int shiftbuf_read_one(shiftbuf_t *sb, unsigned char *data)
 
         new_val.value = old_val.value;
         new_val.count--;
-    } while (!atomic_cas(&sb->value, old_val.value, new_val.value));
+    } while (!atomic_cas_bool(&sb->value, old_val.value, new_val.value));
 
     if (data) {
         *data = byte;
