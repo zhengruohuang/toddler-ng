@@ -34,6 +34,7 @@
 #define LOADER_BASE     0x80010000
 #define HAL_BASE        0x80110000
 #define KERNEL_BASE     0x80182000
+#define USER_BASE       0x100000
 
 #define STACK_GROWS_UP  0
 

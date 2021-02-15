@@ -66,15 +66,15 @@ static void fill_hal_exports()
     struct loader_args *largs = get_loader_args();
     struct hal_arch_funcs *funcs = get_hal_arch_funcs();
 
-//     // Alloc structs memory
-//     hexp = (struct hal_exports *)mempool_alloc(sizeof(struct hal_exports));
-//     kexp = (struct kernel_exports *)mempool_alloc(sizeof(struct kernel_exports));
-//     hexp.kernel = kexp;
-
     // General functions
     hexp.putchar = funcs->putchar;
     hexp.time = NULL;
     hexp.halt = halt_all_cpus;
+
+    // Direct access
+    hexp.has_direct_access = funcs->has_direct_access;
+    hexp.direct_paddr_to_vaddr = funcs->direct_paddr_to_vaddr;
+    hexp.direct_vaddr_to_paddr = funcs->direct_vaddr_to_paddr;
 
     // Kernel info
     hexp.kernel_page_table = largs->page_table;

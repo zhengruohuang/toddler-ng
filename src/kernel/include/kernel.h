@@ -35,5 +35,8 @@ extern void hal_set_syscall_return(struct reg_context *context, int success, ulo
 
 extern void *hal_access_per_cpu_var(int *offset, size_t size);
 
+extern void *hal_cast_paddr_to_kernel_ptr(paddr_t paddr);
+extern paddr_t hal_cast_kernel_ptr_to_paddr(void *ptr);
+
 
 #endif

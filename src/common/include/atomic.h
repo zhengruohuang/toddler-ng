@@ -16,6 +16,16 @@ static inline ulong atomic_read(volatile void *addr)
 
     atomic_mb();
     value = *(volatile ulong *)addr;
+
+    return value;
+}
+
+static inline ulong atomic_read_seq(volatile void *addr)
+{
+    ulong value = 0;
+
+    atomic_mb();
+    value = *(volatile ulong *)addr;
     atomic_mb();
 
     return value;
@@ -25,6 +35,12 @@ static inline ulong atomic_read(volatile void *addr)
 #if (defined(__ARCH_ATOMIC_WRITE) && __ARCH_ATOMIC_WRITE)
 #else
 static inline void atomic_write(volatile ulong *addr, ulong value)
+{
+    *(volatile ulong *)addr = value;
+    atomic_mb();
+}
+
+static inline void atomic_write_seq(volatile ulong *addr, ulong value)
 {
     atomic_mb();
     *(volatile ulong *)addr = value;

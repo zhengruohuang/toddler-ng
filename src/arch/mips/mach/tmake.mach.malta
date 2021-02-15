@@ -16,7 +16,7 @@ build_opts['embed_coreimg'] = False
 
 build_opts['qemu'] = {
     'machine'   : 'malta',
-    'memory'    : 128,
+    'memory'    : 256,
     'graphic'   : False,
     'bootargs'  : 'test',
     'mp'        : '4',

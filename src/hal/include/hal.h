@@ -32,7 +32,8 @@ struct hal_arch_funcs {
 
     // Indicates if direct physical address access is possible
     int has_direct_access;
-    ulong (*hal_direct_access)(paddr_t paddr, int count, int cache);
+    direct_paddr_to_vaddr_t direct_paddr_to_vaddr;
+    direct_vaddr_to_paddr_t direct_vaddr_to_paddr;
 
     // Map and unmap
     generic_map_range_t map_range;

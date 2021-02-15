@@ -620,6 +620,7 @@ ulong vm_map_cross(struct process *p, ulong remote_pid,
         //kprintf("b @ %p, base: %lx, size: %lx\n", local_b, local_b->base, local_b->size);
 
         for (ulong offset = 0; offset < map_size; offset += PAGE_SIZE) {
+            // FIXME: shouldn't palloc be enough?
             paddr_t paddr = palloc_paddr_direct_mapped(1);
             ref_count_inc(&remote_p->vm.num_palloc_pages);
 

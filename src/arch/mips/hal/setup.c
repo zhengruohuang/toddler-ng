@@ -8,6 +8,7 @@
 #include "hal/include/mem.h"
 #include "hal/include/mp.h"
 #include "hal/include/driver.h"
+#include "hal/include/kernel.h"
 
 
 /*
@@ -93,13 +94,18 @@ static inline paddr_t cast_uncached_seg_to_paddr(ulong vaddr)
     return cast_vaddr_to_paddr(lower);
 }
 
-static ulong hal_direct_access(paddr_t paddr, int count, int cache)
+static ulong hal_direct_paddr_to_vaddr(paddr_t paddr, int count, int cache)
 {
     if (cache) {
         return (ulong)cast_paddr_to_cached_seg(paddr);
     } else {
         return (ulong)cast_paddr_to_uncached_seg(paddr);
     }
+}
+
+static paddr_t hal_direct_vaddr_to_paddr(ulong vaddr, int count)
+{
+    return 0;
 }
 
 
@@ -186,9 +192,14 @@ static void start_cpu(int mp_seq, ulong mp_id, ulong entry)
 {
 }
 
-static void *init_user_page_dir()
+static void *init_user_page_page_table()
 {
     return NULL;
+}
+
+static void free_user_page_table(void *ptr)
+{
+    kernel_pfree_ptr(ptr);
 }
 
 static void set_thread_context_param(struct reg_context *regs, ulong param)
@@ -236,7 +247,8 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.halt = halt_cur_cpu;
 
     funcs.has_direct_access = 1;
-    funcs.hal_direct_access = hal_direct_access;
+    funcs.direct_paddr_to_vaddr = hal_direct_paddr_to_vaddr;
+    funcs.direct_vaddr_to_paddr = hal_direct_vaddr_to_paddr;
     //funcs.map_range = map_range;
     //funcs.unmap_range = unumap_range;
     //funcs.translate = translate;
@@ -254,11 +266,12 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.arch_disable_local_int = disable_local_int;
     funcs.arch_enable_local_int = enable_local_int;
 
-    funcs.init_addr_space = init_user_page_dir;
+    funcs.init_addr_space = init_user_page_page_table;
+    funcs.free_addr_space = free_user_page_table;
     funcs.init_context = init_thread_context;
     funcs.set_context_param = set_thread_context_param;
     //funcs.switch_to = switch_to;
-    funcs.kernel_dispatch_prep = NULL;
+    funcs.kernel_pre_dispatch = NULL;
 
     funcs.invalidate_tlb = invalidate_tlb;
 
@@ -277,4 +290,3 @@ void hal_entry(struct loader_args *largs, int mp)
     panic("Should never reach here");
     while (1);
 }
-

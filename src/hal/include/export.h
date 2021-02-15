@@ -39,6 +39,10 @@ struct kernel_exports {
 typedef int (*putchar_t)(int s);
 typedef void (*halt_t)(int count, ...);
 
+// Direct access
+typedef ulong (*direct_paddr_to_vaddr_t)(paddr_t paddr, int count, int cached);
+typedef paddr_t (*direct_vaddr_to_paddr_t)(ulong vaddr, int count);
+
 // MP
 typedef ulong (*get_cur_mp_id_t)();
 typedef int (*get_cur_mp_seq_t)();
@@ -90,6 +94,11 @@ struct hal_exports {
     putchar_t putchar;
     void (*time)(ulong *high, ulong *low);
     void (*halt)(int count, ...);
+
+    // Indicates if direct physical address access is possible
+    int has_direct_access;
+    direct_paddr_to_vaddr_t direct_paddr_to_vaddr;
+    direct_vaddr_to_paddr_t direct_vaddr_to_paddr;
 
     // Kernel info
     void *kernel_page_table;

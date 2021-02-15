@@ -526,14 +526,13 @@ int pfree_paddr(paddr_t paddr)
 
 void *palloc_ptr(int count)
 {
-    ppfn_t ppfn = palloc_direct_mapped(count);
-    paddr_t paddr = ppfn_to_paddr(ppfn);
-    return cast_paddr_to_ptr(paddr);
+    paddr_t paddr = palloc_paddr_direct_mapped(count);
+    return paddr ? hal_cast_paddr_to_kernel_ptr(paddr) : NULL;
 }
 
 int pfree_ptr(void *ptr)
 {
-    paddr_t paddr = cast_ptr_to_paddr(ptr);
+    paddr_t paddr = hal_cast_kernel_ptr_to_paddr(ptr);
     ppfn_t ppfn = paddr_to_ppfn(paddr);
     return pfree(ppfn);
 }
@@ -556,7 +555,7 @@ void reserve_palloc()
     // Allocate and reserve memory
     u64 nodes_u64 = find_free_memmap_direct_mapped_region(aligned_node_bytes, PAGE_SIZE);
     paddr_t nodes_paddr = cast_u64_to_paddr(nodes_u64);
-    nodes = cast_paddr_to_ptr(nodes_paddr);
+    nodes = hal_cast_paddr_to_kernel_ptr(nodes_paddr);
 
     // Initialize all nodes
     memzero(nodes, aligned_node_bytes);

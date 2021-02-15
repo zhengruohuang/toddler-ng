@@ -45,7 +45,7 @@ static void start()
  */
 static void init_kexp(struct hal_exports *hal_exp)
 {
-    hal_exp->kernel->palloc = palloc;
+    hal_exp->kernel->palloc = palloc_direct_mapped;
     hal_exp->kernel->pfree = pfree;
 
     hal_exp->kernel->palloc_ptr = palloc_ptr;
@@ -165,6 +165,24 @@ void *hal_access_per_cpu_var(int *offset, size_t size)
     return hal->access_per_cpu_var(offset, size);
 }
 
+void *hal_cast_paddr_to_kernel_ptr(paddr_t paddr)
+{
+    if (hal->has_direct_access) {
+        return (void *)hal->direct_paddr_to_vaddr(paddr, 0, 1);
+    } else {
+        return (void *)cast_paddr_to_vaddr(paddr);
+    }
+}
+
+paddr_t hal_cast_kernel_ptr_to_paddr(void *ptr)
+{
+    if (hal->has_direct_access) {
+        return hal->direct_vaddr_to_paddr((ulong)ptr, 0);
+    } else {
+        return cast_ptr_to_paddr(ptr);
+    }
+}
+
 
 /*
  * Kernel entry
@@ -189,10 +207,11 @@ void kernel(struct hal_exports *hal_exp)
     init_palloc();
     init_malloc();
 
+    // TODO: salloc need to check for uninitialized obj
     init_dispatch();
     init_sched();
-    init_process();
     init_vm();
+    init_process();
     init_tlb_shootdown();
     init_thread();
     init_wait();
@@ -201,4 +220,6 @@ void kernel(struct hal_exports *hal_exp)
 
     init_test();
     init_kexp(hal_exp);
+
+    kprintf("Kernel init done\n");
 }

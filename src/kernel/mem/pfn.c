@@ -187,7 +187,7 @@ void reserve_pfndb()
     // Find a contineous region to store the PFNDB
     u64 pfndb_u64 = find_free_memmap_direct_mapped_region(aligned_pfndb_bytes, PAGE_SIZE);
     paddr_t pfndb_paddr = cast_u64_to_paddr(pfndb_u64);
-    pfndb = cast_paddr_to_ptr(pfndb_paddr);
+    pfndb = hal_cast_paddr_to_kernel_ptr(pfndb_paddr);
 
     panic_if(!pfndb, "Unable to find a region to store PFNDB!\n");
 

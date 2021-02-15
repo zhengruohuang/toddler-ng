@@ -66,15 +66,22 @@ struct salloc_bucket_list {
  */
 static struct salloc_bucket *alloc_bucket(salloc_obj_t *obj)
 {
-    ppfn_t bucket_pfn = palloc_direct_mapped(obj->bucket_page_count);
-    paddr_t bucket_paddr = ppfn_to_paddr(bucket_pfn);
+//     ppfn_t bucket_pfn = palloc_direct_mapped(obj->bucket_page_count);
+//     paddr_t bucket_paddr = ppfn_to_paddr(bucket_pfn);
+//     if (!bucket_paddr) {
+//         return NULL;
+//     }
 
-    ref_count_add(&obj->num_palloc_pages, obj->bucket_page_count);
-
-    struct salloc_bucket *bucket = cast_paddr_to_ptr(bucket_paddr);
+    struct salloc_bucket *bucket = palloc_ptr(obj->bucket_page_count);
     if (!bucket) {
         return NULL;
     }
+
+    ref_count_add(&obj->num_palloc_pages, obj->bucket_page_count);
+
+    //struct salloc_bucket *bucket = cast_paddr_to_ptr(bucket_paddr);
+    //struct salloc_bucket *bucket = hal_cast_paddr_to_kernel_ptr(bucket_paddr);
+    //kprintf("salloc bucket @ %p, paddr @ %llx\n", bucket, (u64)bucket_paddr);
 
     // Initialize the bucket header
     bucket->obj = obj;
@@ -107,9 +114,11 @@ static struct salloc_bucket *alloc_bucket(salloc_obj_t *obj)
 
 static void free_bucket(salloc_obj_t *obj, struct salloc_bucket *bucket)
 {
-    paddr_t paddr = cast_ptr_to_paddr(bucket);
-    ppfn_t pfn = paddr_to_ppfn(paddr);
-    pfree(pfn);
+    // FIXME: handle direct access
+//     paddr_t paddr = cast_ptr_to_paddr(bucket);
+//     ppfn_t pfn = paddr_to_ppfn(paddr);
+//     pfree(pfn);
+    pfree_ptr(bucket);
 
     ref_count_sub(&obj->num_palloc_pages, obj->bucket_page_count);
 

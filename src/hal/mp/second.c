@@ -32,6 +32,11 @@ void bringup_all_secondary_cpus()
         single_cpu = 0;
     }
 
+    if (single_cpu) {
+        kprintf("Single-CPU system\n");
+        return;
+    }
+
     struct hal_arch_funcs *funcs = get_hal_arch_funcs();
     ulong entry = funcs->mp_entry;
 

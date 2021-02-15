@@ -232,7 +232,6 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.halt = halt_cur_cpu;
 
     funcs.has_direct_access = 0;
-    funcs.hal_direct_access = NULL;
     funcs.map_range = map_range;
     funcs.unmap_range = unumap_range;
     funcs.translate = translate;

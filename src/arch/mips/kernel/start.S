@@ -11,19 +11,20 @@
 .type _start,@function
 .ent _start
 _start:
-    .frame  sp, 0, ra
+    // FIXME: PIC
+    //.frame  sp, 0, ra
 
     // Set up PIC code
     // This will set up t9 to the address of cpload
-    bal     __set_up_pic
-    nop
+    //bal     __set_up_pic
+    //nop
 
     // Set up GP
-    .cpload t9
+    //.cpload t9
 
     // Jump to kernel
     la      t9, kernel
-    jalr    t9
+    jr      t9
     nop
 
     // Should never reach here

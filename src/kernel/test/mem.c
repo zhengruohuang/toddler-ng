@@ -7,22 +7,29 @@
 /*
  * Helpers
  */
-static void *alloc_result_buf(ulong size, ppfn_t *pfn)
+static void *alloc_result_buf(ulong size)
 {
     ulong result_buf_size = align_up_vsize(size, PAGE_SIZE);
     ulong result_buf_pages = get_vpage_count(result_buf_size);
 
-    ppfn_t result_buf_pfn = palloc_direct_mapped(result_buf_pages);
-    paddr_t result_buf_paddr = ppfn_to_paddr(result_buf_pfn);
-    void *result_buf = cast_paddr_to_ptr(result_buf_paddr);
+    //ppfn_t result_buf_pfn = palloc_direct_mapped(result_buf_pages);
+    //paddr_t result_buf_paddr = ppfn_to_paddr(result_buf_pfn);
+    //void *result_buf = cast_paddr_to_ptr(result_buf_paddr);
 
-    if (pfn) *pfn = result_buf_pfn;
+    //if (pfn) *pfn = result_buf_pfn;
+
+    void *result_buf = palloc_ptr(result_buf_pages);
     return result_buf;
 }
 
-static void free_result_buf(ppfn_t pfn)
+// static void free_result_buf(ppfn_t pfn)
+// {
+//     pfree(pfn);
+// }
+
+static void free_result_buf(void *result_buf)
 {
-    pfree(pfn);
+    pfree_ptr(result_buf);
 }
 
 
@@ -38,20 +45,15 @@ static void test_mem_palloc(int mp_seq, barrier_t *bar)
     //kprintf("seq: %d\n", mp_seq);
 
     barrier_wait_int(bar);
-
-    ppfn_t result_buf_pfn = 0;
     ppfn_t *results = alloc_result_buf(
-        sizeof(ppfn_t) * PALLOC_TEST_ORDER_COUNT * PALLOC_TEST_PER_ORDER,
-        &result_buf_pfn);
+        sizeof(ppfn_t) * PALLOC_TEST_ORDER_COUNT * PALLOC_TEST_PER_ORDER);
 
     barrier_wait_int(bar);
-
     if (!mp_seq) {
         kprintf("Testing palloc\n");
     }
 
     barrier_wait_int(bar);
-
     for (int k = 0; k < PALLOC_TEST_LOOPS; k++) {
         for (int i = 0, r = 0; i < PALLOC_TEST_ORDER_COUNT; i++) {
             for (int j = 0; j < PALLOC_TEST_PER_ORDER; j++) {
@@ -72,10 +74,12 @@ static void test_mem_palloc(int mp_seq, barrier_t *bar)
     }
 
     barrier_wait_int(bar);
-
-    free_result_buf(result_buf_pfn);
+    free_result_buf(results);
 
     barrier_wait_int(bar);
+    if (!mp_seq) {
+        kprintf("Done testing palloc\n");
+    }
 }
 
 
@@ -91,20 +95,15 @@ static int test_sizes[] = { 16, 32, 64, 128, 256, 384, 512, 768 };
 static void test_mem_malloc(int mp_seq, barrier_t *bar)
 {
     barrier_wait_int(bar);
-
-    ppfn_t result_buf_pfn = 0;
     void **results = alloc_result_buf(
-        sizeof(void *) * MALLOC_NUM_TEST_SIZES * MALLOC_TEST_PER_SIZE,
-        &result_buf_pfn);
+        sizeof(void *) * MALLOC_NUM_TEST_SIZES * MALLOC_TEST_PER_SIZE);
 
     barrier_wait_int(bar);
-
     if (!mp_seq) {
         kprintf("Testing malloc\n");
     }
 
     barrier_wait_int(bar);
-
     for (int k = 0; k < MALLOC_TEST_LOOPS; k++) {
         for (int i = 0, r = 0; i < MALLOC_NUM_TEST_SIZES; i++) {
             size_t size = test_sizes[i];
@@ -126,10 +125,12 @@ static void test_mem_malloc(int mp_seq, barrier_t *bar)
     }
 
     barrier_wait_int(bar);
-
-    free_result_buf(result_buf_pfn);
+    free_result_buf(results);
 
     barrier_wait_int(bar);
+    if (!mp_seq) {
+        kprintf("Done testing malloc\n");
+    }
 }
 
 

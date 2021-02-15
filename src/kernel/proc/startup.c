@@ -25,6 +25,7 @@ static struct startup_record records[] = {
 
 static void start_load_and_run_process(struct startup_record *record)
 {
+    kprintf("Starting process: %s @ coreimg/%s\n", record->name, record->filename);
     record->pid = create_process(0, record->name, record->type);
 
     access_process(record->pid, p) {

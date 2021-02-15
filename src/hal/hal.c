@@ -110,8 +110,8 @@ static void arch_init_mm_mp()
  */
 ulong arch_hal_direct_access(paddr_t paddr, int count, int cache)
 {
-    if (arch_funcs.hal_direct_access) {
-        return arch_funcs.hal_direct_access(paddr, count, cache);
+    if (arch_funcs.has_direct_access && arch_funcs.direct_paddr_to_vaddr) {
+        return arch_funcs.direct_paddr_to_vaddr(paddr, count, cache);
     }
 
     panic("Arch does not HAL direct access!\n");
