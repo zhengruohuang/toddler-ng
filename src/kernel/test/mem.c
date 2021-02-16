@@ -12,20 +12,9 @@ static void *alloc_result_buf(ulong size)
     ulong result_buf_size = align_up_vsize(size, PAGE_SIZE);
     ulong result_buf_pages = get_vpage_count(result_buf_size);
 
-    //ppfn_t result_buf_pfn = palloc_direct_mapped(result_buf_pages);
-    //paddr_t result_buf_paddr = ppfn_to_paddr(result_buf_pfn);
-    //void *result_buf = cast_paddr_to_ptr(result_buf_paddr);
-
-    //if (pfn) *pfn = result_buf_pfn;
-
     void *result_buf = palloc_ptr(result_buf_pages);
     return result_buf;
 }
-
-// static void free_result_buf(ppfn_t pfn)
-// {
-//     pfree(pfn);
-// }
 
 static void free_result_buf(void *result_buf)
 {

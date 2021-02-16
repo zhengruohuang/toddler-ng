@@ -8,22 +8,17 @@
 
 
 /*
- * User address space
- */
-// #define USER_VADDR_SPACE_BEGIN  0x10000ul
-// #define USER_VADDR_SPACE_END    0x7f000000ul
-
-
-/*
  * Paging
  *  4KB page size, 1K-entry per page, 2-level
  */
-
 #define PAGE_LEVELS             2
 
 #define PAGE_TABLE_SIZE         4096
 #define PAGE_TABLE_ENTRY_COUNT  1024
 #define PAGE_TABLE_ENTRY_BITS   10
+
+#define L1BLOCK_SIZE            0x400000ul
+#define L1BLOCK_PAGE_COUNT      1024
 
 #define GET_PDE_INDEX(addr)     ((addr) >> 22)
 #define GET_PTE_INDEX(addr)     (((addr) >> 12) & 0x3fful)
@@ -33,11 +28,13 @@ struct page_table_entry {
     union {
         struct {
             u32     present         : 1;
+            u32     block           : 1;
+            u32     global          : 1;
             u32     read_allow      : 1;
             u32     write_allow     : 1;
             u32     exec_allow      : 1;
             u32     cache_allow     : 1;
-            u32     reserved        : 7;
+            u32     reserved        : 5;
             u32     pfn             : 20;
         };
 
@@ -53,25 +50,28 @@ struct page_frame {
 } packed4_struct;
 
 
-// /*
-//  * Addr <--> PFN
-//  */
-// #define PFN_TO_ADDR(pfn)    ((pfn) << 12)
-// #define ADDR_TO_PFN(addr)   ((addr) >> 12)
-//
-//
-// /*
-//  * Physical addr <--> Code access window addr (ACC_CODE)
-//  */
-// #define PHYS_TO_ACC_CODE(addr)  ((addr) | SEG_LOW_CACHED)
-// #define ACC_CODE_TO_PHYS(addr)  ((addr) & SEG_ACC_MASK)
-//
-//
-// /*
-//  * Physical addr <--> Data access window addr (ACC_DATA)
-//  */
-// #define PHYS_TO_ACC_DATA(addr)  ((addr) | SEG_ACC_CACHED)
-// #define ACC_DATA_TO_PHYS(addr)  ((addr) & SEG_ACC_MASK)
+/*
+ * Addr <--> BFN (Block Frame Number)
+ */
+static inline ppfn_t paddr_to_pbfn(paddr_t paddr)
+{
+    return paddr >> 20;
+}
+
+static inline ppfn_t pbfn_to_paddr(paddr_t ppfn)
+{
+    return ppfn << 20;
+}
+
+static inline ulong get_pblock_offset(paddr_t paddr)
+{
+    return (ulong)(paddr & ((paddr_t)L1BLOCK_SIZE - 1));
+}
+
+static inline ulong get_vblock_offset(ulong vaddr)
+{
+    return vaddr & ((ulong)L1BLOCK_SIZE - 1);
+}
 
 
 #endif

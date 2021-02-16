@@ -49,63 +49,67 @@ static void init_arch_mp()
 
 static void init_int()
 {
+    // TODO
     //init_int_entry();
+    //init_switch();
 }
 
 static void init_int_mp()
 {
+    // TODO
     //init_int_entry_mp();
+    //init_switch_mp();
 }
 
 static void init_mm()
 {
+    // TODO
 }
 
 static void init_mm_mp()
 {
+    // TODO
 }
 
 
 /*
  * Alignment helpers
  */
-static inline void *cast_paddr_to_cached_seg(paddr_t paddr)
-{
-    paddr_t cached_seg = paddr | (paddr_t)SEG_DIRECT_CACHED;
-    return cast_paddr_to_ptr(cached_seg);
-}
+// static inline void *cast_paddr_to_cached_seg(paddr_t paddr)
+// {
+//     paddr_t cached_seg = paddr | (paddr_t)SEG_DIRECT_CACHED;
+//     return cast_paddr_to_ptr(cached_seg);
+// }
+//
+// static inline ulong cast_paddr_to_uncached_seg(paddr_t paddr)
+// {
+//     paddr_t cached_seg = paddr | (paddr_t)SEG_DIRECT_UNCACHED;
+//     return cast_paddr_to_vaddr(cached_seg);
+// }
+//
+// static inline paddr_t cast_cached_seg_to_paddr(void *ptr)
+// {
+//     ulong vaddr = (ulong)ptr;
+//     ulong lower = vaddr & (ulong)SEG_DIRECT_MASK;
+//     return cast_vaddr_to_paddr(lower);
+// }
+//
+// static inline paddr_t cast_uncached_seg_to_paddr(ulong vaddr)
+// {
+//     ulong lower = vaddr & (ulong)SEG_DIRECT_MASK;
+//     return cast_vaddr_to_paddr(lower);
+// }
 
-static inline ulong cast_paddr_to_uncached_seg(paddr_t paddr)
+static ulong hal_direct_paddr_to_vaddr(paddr_t paddr, int count, int cached)
 {
-    paddr_t cached_seg = paddr | (paddr_t)SEG_DIRECT_UNCACHED;
-    return cast_paddr_to_vaddr(cached_seg);
-}
-
-static inline paddr_t cast_cached_seg_to_paddr(void *ptr)
-{
-    ulong vaddr = (ulong)ptr;
-    ulong lower = vaddr & (ulong)SEG_DIRECT_MASK;
-    return cast_vaddr_to_paddr(lower);
-}
-
-static inline paddr_t cast_uncached_seg_to_paddr(ulong vaddr)
-{
-    ulong lower = vaddr & (ulong)SEG_DIRECT_MASK;
-    return cast_vaddr_to_paddr(lower);
-}
-
-static ulong hal_direct_paddr_to_vaddr(paddr_t paddr, int count, int cache)
-{
-    if (cache) {
-        return (ulong)cast_paddr_to_cached_seg(paddr);
-    } else {
-        return (ulong)cast_paddr_to_uncached_seg(paddr);
-    }
+    paddr |= (paddr_t)(cached ? SEG_DIRECT_CACHED : SEG_DIRECT_UNCACHED);
+    return cast_paddr_to_vaddr(paddr);
 }
 
 static paddr_t hal_direct_vaddr_to_paddr(ulong vaddr, int count)
 {
-    return 0;
+    ulong lower = vaddr & (ulong)SEG_DIRECT_MASK;
+    return cast_vaddr_to_paddr(lower);
 }
 
 
@@ -163,6 +167,7 @@ static void set_syscall_return(struct reg_context *regs, int success, ulong retu
 
 static void halt_cur_cpu(int count, va_list args)
 {
+    disable_local_int();
     while (1);
 }
 
@@ -249,9 +254,9 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.has_direct_access = 1;
     funcs.direct_paddr_to_vaddr = hal_direct_paddr_to_vaddr;
     funcs.direct_vaddr_to_paddr = hal_direct_vaddr_to_paddr;
-    //funcs.map_range = map_range;
-    //funcs.unmap_range = unumap_range;
-    //funcs.translate = translate;
+    funcs.map_range = NULL;
+    funcs.unmap_range = NULL;
+    funcs.translate = NULL;
 
     funcs.get_cur_mp_id = get_cur_mp_id;
     funcs.mp_entry = largs->mp_entry;
@@ -270,8 +275,9 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.free_addr_space = free_user_page_table;
     funcs.init_context = init_thread_context;
     funcs.set_context_param = set_thread_context_param;
-    //funcs.switch_to = switch_to;
+    funcs.switch_to = NULL;
     funcs.kernel_pre_dispatch = NULL;
+    funcs.kernel_post_dispatch = NULL;
 
     funcs.invalidate_tlb = invalidate_tlb;
 
