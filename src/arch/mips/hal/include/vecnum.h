@@ -3,6 +3,15 @@
 
 
 /*
+ * Raw exceptions
+ */
+#define EXCEPT_NUM_ILLEGAL          0
+#define EXCEPT_NUM_TLB_REFILL       1
+#define EXCEPT_NUM_CACHE_ERROR      2
+#define EXCEPT_NUM_GENERAL          3
+
+
+/*
  * Vector numbers for internal exceptions
  */
 #define INT_VECTOR_DUMMY            0
@@ -32,7 +41,9 @@
 #define INT_VECTOR_MACHINE_CHECK    24
 #define INT_VECTOR_THREAD           25
 
+#define INT_VECTOR_TLB_REFILL       29
 #define INT_VECTOR_CACHE_ERR        30
+#define INT_VECTOR_GENERAL          31
 
 #define INT_VECTOR_INSTR_MDMX       22
 #define INT_VECTOR_INSTR_DSP        26

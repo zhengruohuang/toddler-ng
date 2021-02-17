@@ -1,10 +1,19 @@
-#ifndef __ARCH_ARM_HAL_INCLUDE_SETUP_H__
-#define __ARCH_ARM_HAL_INCLUDE_SETUP_H__
+#ifndef __ARCH_MIPS_HAL_INCLUDE_SETUP_H__
+#define __ARCH_MIPS_HAL_INCLUDE_SETUP_H__
 
 
 #include "common/include/inttypes.h"
 #include "hal/include/hal.h"
 #include "hal/include/mp.h"
+
+
+/*
+ * Direct access
+ */
+extern void *cast_paddr_to_cached_seg(paddr_t paddr);
+extern ulong cast_paddr_to_uncached_seg(paddr_t paddr);
+extern paddr_t cast_cached_seg_to_paddr(void *ptr);
+extern paddr_t cast_uncached_seg_to_paddr(ulong vaddr);
 
 
 /*
@@ -31,13 +40,25 @@ extern void kernel_post_dispatch(ulong thread_id, struct kernel_dispatch *kdi);
 
 
 /*
- * Map
+ * Page
  */
+extern void *init_user_page_table();
+extern void free_user_page_table(void *ptr);
+
 extern paddr_t translate(void *page_table, ulong vaddr);
 extern int map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
                      int cache, int exec, int write, int kernel, int override,
                      palloc_t palloc);
 extern int unmap_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size);
+
+
+/*
+ * TLB
+ */
+extern void invalidate_tlb(ulong asid, ulong vaddr, size_t size);
+
+extern void init_tlb_mp();
+extern void init_tlb();
 
 
 #endif

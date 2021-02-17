@@ -116,8 +116,10 @@ static int get_page_table_index(ulong vaddr, int level)
 }
 
 static void map_page(void *page_table, ulong vaddr, paddr_t paddr,
-    int cache, int exec, int write)
+                     int cache, int exec, int write)
 {
+    panic("Never tested!\n");
+
     struct page_frame *page = page_table;
     struct page_table_entry *entry = NULL;
 
@@ -157,6 +159,7 @@ static void map_page(void *page_table, ulong vaddr, paddr_t paddr,
         entry->exec_allow = exec;
         entry->read_allow = 1;
         entry->write_allow = write;
+        entry->kernel = 1;
         entry->pfn = (u32)paddr_to_ppfn(paddr);
     }
 }
@@ -164,7 +167,10 @@ static void map_page(void *page_table, ulong vaddr, paddr_t paddr,
 static int map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
                      int cache, int exec, int write)
 {
-    int mapped_pages = 0;
+    kprintf("Loader map range @ %lx -> %llx, size: %lx\n",
+            vaddr, (u64)paddr, size);
+
+    ulong mapped_pages = 0;
 
     ulong vaddr_start = align_down_vaddr(vaddr, PAGE_SIZE);
     ulong vaddr_end = align_up_vaddr(vaddr + size, PAGE_SIZE);
@@ -175,13 +181,14 @@ static int map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
     for (ulong cur_vaddr = vaddr_start; cur_vaddr < vaddr_end;
          cur_vaddr += PAGE_SIZE, cur_paddr += PAGE_SIZE
     ) {
-        if (cur_vaddr < SEG_DIRECT_CACHED && cur_vaddr >= SEG_KERNEL) {
+        if (cur_vaddr >= SEG_DIRECT_SIZE && cur_vaddr < SEG_USER_SIZE) {
             map_page(page_table, cur_vaddr, cur_paddr, cache, exec, write);
             mapped_pages++;
         }
     }
 
-    kprintf("mapped_pages: %d, start @ %lx, end @ %lx\n", mapped_pages, vaddr_start, vaddr_end);
+    kprintf("Loader mapped pages: %lu, start @ %lx, end @ %lx\n",
+            mapped_pages, vaddr_start, vaddr_end);
     return mapped_pages;
 }
 
@@ -216,15 +223,16 @@ static void final_memmap()
     panic_if(start >= DIRECT_ACCESS_END,
              "MIPS must have a direct access region!\n");
 
-    // Mark the lower 2GB as direct mapped
+    // Mark the lower 512MB as direct mapped
+    // 512MB - 2GB region is not considered as "direct mapped", for simplicity
     u64 direct_mapped_size = size;
-    if (end > DIRECT_MAPPED_END) direct_mapped_size = DIRECT_MAPPED_END - start;
-    tag_memmap_region(start, size, MEMMAP_TAG_DIRECT_MAPPED);
+    if (end > DIRECT_ACCESS_END) direct_mapped_size = DIRECT_ACCESS_END - start;
+    tag_memmap_region(start, direct_mapped_size, MEMMAP_TAG_DIRECT_MAPPED);
 
     // Mark the lower 512MB as direct access
     u64 direct_access_size = size;
     if (end > DIRECT_ACCESS_END) direct_access_size = DIRECT_ACCESS_END - start;
-    tag_memmap_region(start, size, MEMMAP_TAG_DIRECT_ACCESS);
+    tag_memmap_region(start, direct_access_size, MEMMAP_TAG_DIRECT_ACCESS);
 }
 
 static void final_arch()

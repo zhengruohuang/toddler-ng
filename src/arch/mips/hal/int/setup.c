@@ -8,19 +8,14 @@
 #include "hal/include/mem.h"
 #include "hal/include/int.h"
 #include "hal/include/mp.h"
-
-
-ulong per_cpu_context_ptr_base = 0;
+#include "hal/include/setup.h"
 
 
 /*
  * Save extra contexts
  */
-static void save_context(struct reg_context *regs)
+static void save_extra_context(struct reg_context *regs)
 {
-    // Set local interrupt state to disabled
-    disable_local_int();
-
     // Save PC and branch delay slot state
     read_cp0_epc(regs->pc);
 
@@ -39,11 +34,12 @@ void tlb_refill_handler(struct reg_context *regs)
 //     // Set local interrupt state to disabled
 //     disable_local_int();
 //
+//     // Save extra context
+//     save_extra_context(regs);
+//
 //     // Get the bad address
 //     ulong bad_addr = 0;
 //     read_cp0_bad_vaddr(bad_addr);
-//
-//     save_context(regs);
 //
 // //     kprintf("TLB refill @ %lx, PC: %lx\n", bad_addr, context->pc);
 //
@@ -115,19 +111,25 @@ void cache_error_handler(struct reg_context *regs)
 /*
  * General handler
  */
-void general_except_handler(struct reg_context *regs)
+void int_handler_entry(int except, struct reg_context *regs)
 {
-//     // Set local interrupt state to disabled
-//     disable_local_int();
-//
-// //     kprintf("General exception!\n");
-//
-//     // Check who is causing this interrupt
-//     struct cp0_cause cause;
-//     read_cp0_cause(cause.value);
-//
-// //     kprintf("TI: %d, IP: %d\n", cause.ti, cause.ip);
-//
+    // Set local interrupt state to disabled
+    disable_local_int();
+
+    // Save extra context
+    save_extra_context(regs);
+
+    // Check who is causing this interrupt
+    struct cp0_cause cause;
+    read_cp0_cause(cause.value);
+
+    // Get the bad address
+    ulong bad_addr = 0;
+    read_cp0_bad_vaddr(bad_addr);
+
+    kprintf("General exception! Except: %d, TI: %d, IP: %d, ECode: %d, PC: %x, SP: %x, Bad @ %lx\n",
+            except, cause.ti, cause.ip, cause.exc_code, regs->pc, regs->sp, bad_addr);
+
 //     u32 except_code = cause.exc_code;
 //
 //     // Update timer if needed
@@ -258,26 +260,25 @@ void general_except_handler(struct reg_context *regs)
 /*
  * Initialization
  */
-void init_int()
+extern void raw_int_entry_base();
+
+ulong *per_cpu_context_base_table = NULL;
+
+decl_per_cpu(ulong, cur_int_stack_top);
+
+void init_int_entry_mp()
 {
-// #if (ARCH_WIDTH == 64)
+    // Set BEV to 0 to enable custom exception handler location
+    struct cp0_status sr;
+    read_cp0_status(sr.value);
+    sr.bev = 0;
+    write_cp0_status(sr.value);
+
+    // Set EBase
+    struct cp0_ebase ebase;
+    read_cp0_ebase(ebase.value);
+#if (ARCH_WIDTH == 64)
 //     struct cp0_ebase64 ebase64;
-// #endif
-//
-//     struct cp0_ebase ebase;
-//     ulong ebase_val = 0;
-//     struct cp0_status sr;
-//
-//     struct saved_context *ctxt = get_per_cpu(struct saved_context, cur_context);
-//     ulong tlb_refill_stack_top = get_my_cpu_area_start_vaddr() + PER_CPU_TLB_REFILL_STACK_TOP_OFFSET - sizeof(struct saved_context);
-//     ulong kernel_stack_top = get_my_cpu_area_start_vaddr() + PER_CPU_STACK_TOP_OFFSET - sizeof(struct saved_context);
-//
-//     // Set BEV to 1 to enable custom exception handler location
-//     read_cp0_status(sr.value);
-//     sr.bev = 0;
-//     write_cp0_status(sr.value);
-//
-// #if (ARCH_WIDTH == 64)
 //     // Read EBase
 //     read_cp0_ebase(ebase.value);
 //
@@ -288,11 +289,11 @@ void init_int()
 //
 //     if (ebase.write_gate) {
 //         read_cp0_ebase64(ebase64.value);
-//         ebase64.base = ((ulong)&int_entry_wrapper_begin) >> 12;
+//         ebase64.base = ((ulong)&raw_int_entry_base) >> 12;
 //         write_cp0_ebase64(ebase64.value);
 //         read_cp0_ebase64(ebase_val);
 //     } else {
-//         ulong wrapper_addr = (ulong)&int_entry_wrapper_begin;
+//         ulong wrapper_addr = (ulong)&raw_int_entry_base;
 //         assert((wrapper_addr >> 32) == 0xfffffffful);
 //
 //         ebase.base = ((u32)wrapper_addr) >> 12;
@@ -301,37 +302,34 @@ void init_int()
 //         read_cp0_ebase(ebase_val);
 //         ebase_val |= 0xfffffffful << 32;
 //     }
-// #else
-//     // Set EBase
-//     read_cp0_ebase(ebase.value);
-//     ebase.base = ((ulong)&int_entry_wrapper_begin) >> 12;
-//     write_cp0_ebase(ebase.value);
-//     read_cp0_ebase(ebase_val);
-// #endif
-//
-//     // Initialize context poniter for the assembly handler entry
-//     int page_count = 8 * num_cpus / PAGE_SIZE;
-//     if (!page_count) {
-//         page_count = 1;
-//     }
-//     per_cpu_context_ptr_base = palloc(page_count);
-//     per_cpu_context_ptr_base = PHYS_TO_KCODE(PFN_TO_ADDR(per_cpu_context_ptr_base));
-//
-//     // Initizalize my save context
-//     ctxt->tlb_refill_sp = tlb_refill_stack_top;
-//     ctxt->kernel_sp = kernel_stack_top;
-//
-//     // Set my context pointer
-//     struct saved_context **my_ctxt_ptr = (struct saved_context **)(ulong)(per_cpu_context_ptr_base + 8 * get_cpu_id());
-//     *my_ctxt_ptr = ctxt;
-//
-//     kprintf("Per cpu ctxt ptr base @ %p, my ctxt ptr @ %p, ctxt @ %p, TLB stack @ %lx, kernel stack @ %lx\n",
-//             (void *)per_cpu_context_ptr_base, my_ctxt_ptr, ctxt, tlb_refill_stack_top, kernel_stack_top);
-//
-//     // Register TLB refill general handlers
-//     set_int_vector(INT_VECTOR_TLB_MISS_READ, int_handler_tlb_refill);
-//     set_int_vector(INT_VECTOR_TLB_MISS_WRITE, int_handler_tlb_refill);
-//
-//     kprintf("Interrupt base updated, Wrapper @ %p, SR: %x, EBase: %lx, Context @ %p, Kernel stack @ %lx\n",
-//             &int_entry_wrapper_begin, sr.value, ebase_val, ctxt, kernel_stack_top);
+#else
+    ebase.base = ((ulong)&raw_int_entry_base) >> 12;
+    write_cp0_ebase(ebase.value);
+#endif
+
+    // Set up stack top for context saving
+    ulong stack_top = get_my_cpu_stack_top_vaddr() - sizeof(struct reg_context);
+
+    // Align the stack to 16B
+    stack_top = ALIGN_DOWN(stack_top, 16);
+
+    // Remember the stack top
+    ulong *cur_stack_top = get_per_cpu(ulong, cur_int_stack_top);
+    *cur_stack_top = stack_top;
+
+    // Set up stack for each different mode
+    kprintf("Set exception handler stack @ %lx\n", stack_top);
+
+    // Set ctxt base table so that the raw handler knows where the stack is
+    int cpu_id = ebase.cpunum;
+    per_cpu_context_base_table[cpu_id] = stack_top;
+}
+
+void init_int_entry()
+{
+    ppfn_t ctxt_base_tab_ppfn = pre_palloc(1);
+    paddr_t ctxt_base_tab_paddr = ppfn_to_paddr(ctxt_base_tab_ppfn);
+    per_cpu_context_base_table = cast_paddr_to_cached_seg(ctxt_base_tab_paddr);
+
+    init_int_entry_mp();
 }

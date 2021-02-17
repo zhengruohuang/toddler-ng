@@ -41,6 +41,7 @@ static void update_compare(struct mips_cpu_timer_record *record)
 }
 
 
+
 /*
  * Interrupt
  */

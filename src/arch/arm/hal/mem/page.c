@@ -264,7 +264,7 @@ static void unmap_page(void *page_table, ulong vaddr, paddr_t paddr, int block)
     }
 }
 
-int unumap_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size)
+int unmap_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size)
 {
     //kprintf("To unmap, pfn: %u, vaddr: %u, paddr: %u, size: %u\n",
     //        page_dir_pfn, vaddr, paddr, length);

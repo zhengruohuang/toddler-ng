@@ -233,7 +233,7 @@ static void hal_entry_bsp(struct loader_args *largs)
 
     funcs.has_direct_access = 0;
     funcs.map_range = map_range;
-    funcs.unmap_range = unumap_range;
+    funcs.unmap_range = unmap_range;
     funcs.translate = translate;
 
     funcs.get_cur_mp_id = get_cur_mp_id;

@@ -2,7 +2,7 @@
 #include "common/include/msr.h"
 #include "common/include/io.h"
 #include "hal/include/hal.h"
-// #include "hal/include/setup.h"
+#include "hal/include/setup.h"
 #include "hal/include/kprintf.h"
 #include "hal/include/lib.h"
 #include "hal/include/mem.h"
@@ -32,7 +32,7 @@ static int malta_putchar(int ch)
 
 
 /*
- * Per-arch funcs
+ * Per-arch init
  */
 static void init_libk()
 {
@@ -49,56 +49,54 @@ static void init_arch_mp()
 
 static void init_int()
 {
-    // TODO
-    //init_int_entry();
-    //init_switch();
+    init_int_entry();
+    init_switch();
 }
 
 static void init_int_mp()
 {
-    // TODO
-    //init_int_entry_mp();
-    //init_switch_mp();
+    init_int_entry_mp();
+    init_switch_mp();
 }
 
 static void init_mm()
 {
-    // TODO
+    init_tlb();
 }
 
 static void init_mm_mp()
 {
-    // TODO
+    init_tlb_mp();
 }
 
 
 /*
- * Alignment helpers
+ * Direct access
  */
-// static inline void *cast_paddr_to_cached_seg(paddr_t paddr)
-// {
-//     paddr_t cached_seg = paddr | (paddr_t)SEG_DIRECT_CACHED;
-//     return cast_paddr_to_ptr(cached_seg);
-// }
-//
-// static inline ulong cast_paddr_to_uncached_seg(paddr_t paddr)
-// {
-//     paddr_t cached_seg = paddr | (paddr_t)SEG_DIRECT_UNCACHED;
-//     return cast_paddr_to_vaddr(cached_seg);
-// }
-//
-// static inline paddr_t cast_cached_seg_to_paddr(void *ptr)
-// {
-//     ulong vaddr = (ulong)ptr;
-//     ulong lower = vaddr & (ulong)SEG_DIRECT_MASK;
-//     return cast_vaddr_to_paddr(lower);
-// }
-//
-// static inline paddr_t cast_uncached_seg_to_paddr(ulong vaddr)
-// {
-//     ulong lower = vaddr & (ulong)SEG_DIRECT_MASK;
-//     return cast_vaddr_to_paddr(lower);
-// }
+void *cast_paddr_to_cached_seg(paddr_t paddr)
+{
+    paddr_t cached_seg = paddr | (paddr_t)SEG_DIRECT_CACHED;
+    return cast_paddr_to_ptr(cached_seg);
+}
+
+ulong cast_paddr_to_uncached_seg(paddr_t paddr)
+{
+    paddr_t cached_seg = paddr | (paddr_t)SEG_DIRECT_UNCACHED;
+    return cast_paddr_to_vaddr(cached_seg);
+}
+
+paddr_t cast_cached_seg_to_paddr(void *ptr)
+{
+    ulong vaddr = (ulong)ptr;
+    ulong lower = vaddr & (ulong)SEG_DIRECT_MASK;
+    return cast_vaddr_to_paddr(lower);
+}
+
+paddr_t cast_uncached_seg_to_paddr(ulong vaddr)
+{
+    ulong lower = vaddr & (ulong)SEG_DIRECT_MASK;
+    return cast_vaddr_to_paddr(lower);
+}
 
 static ulong hal_direct_paddr_to_vaddr(paddr_t paddr, int count, int cached)
 {
@@ -168,43 +166,13 @@ static void set_syscall_return(struct reg_context *regs, int success, ulong retu
 static void halt_cur_cpu(int count, va_list args)
 {
     disable_local_int();
-    while (1);
-}
-
-
-static void invalidate_tlb_line(ulong asid, ulong vaddr)
-{
-//     kprintf("TLB shootdown @ %lx, ASID: %lx ...", vaddr, asid);
-//     inv_tlb_all();
-    // TODO: atomic_mb();
-}
-
-static void invalidate_tlb(ulong asid, ulong vaddr, size_t size)
-{
-//     ulong vstart = ALIGN_DOWN(vaddr, PAGE_SIZE);
-//     ulong vend = ALIGN_UP(vaddr + size, PAGE_SIZE);
-//     ulong page_count = (vend - vstart) >> PAGE_BITS;
-//
-//     ulong i;
-//     ulong vcur = vstart;
-//     for (i = 0; i < page_count; i++) {
-//         invalidate_tlb_line(asid, vcur);
-//         vcur += PAGE_SIZE;
-//     }
+    while (1) {
+        __asm__ __volatile__ ("wait;");
+    }
 }
 
 static void start_cpu(int mp_seq, ulong mp_id, ulong entry)
 {
-}
-
-static void *init_user_page_page_table()
-{
-    return NULL;
-}
-
-static void free_user_page_table(void *ptr)
-{
-    kernel_pfree_ptr(ptr);
 }
 
 static void set_thread_context_param(struct reg_context *regs, ulong param)
@@ -254,9 +222,9 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.has_direct_access = 1;
     funcs.direct_paddr_to_vaddr = hal_direct_paddr_to_vaddr;
     funcs.direct_vaddr_to_paddr = hal_direct_vaddr_to_paddr;
-    funcs.map_range = NULL;
-    funcs.unmap_range = NULL;
-    funcs.translate = NULL;
+    funcs.map_range = map_range;
+    funcs.unmap_range = unmap_range;
+    funcs.translate = translate;
 
     funcs.get_cur_mp_id = get_cur_mp_id;
     funcs.mp_entry = largs->mp_entry;
@@ -271,13 +239,13 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.arch_disable_local_int = disable_local_int;
     funcs.arch_enable_local_int = enable_local_int;
 
-    funcs.init_addr_space = init_user_page_page_table;
+    funcs.init_addr_space = init_user_page_table;
     funcs.free_addr_space = free_user_page_table;
     funcs.init_context = init_thread_context;
     funcs.set_context_param = set_thread_context_param;
-    funcs.switch_to = NULL;
-    funcs.kernel_pre_dispatch = NULL;
-    funcs.kernel_post_dispatch = NULL;
+    funcs.switch_to = switch_to;
+    funcs.kernel_pre_dispatch = kernel_pre_dispatch;
+    funcs.kernel_post_dispatch = kernel_post_dispatch;
 
     funcs.invalidate_tlb = invalidate_tlb;
 

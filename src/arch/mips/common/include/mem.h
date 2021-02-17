@@ -29,6 +29,7 @@ typedef paddr_t             psize_t;
 #define SEG_DIRECT_UNCACHED 0xa0000000ul
 #define SEG_KERNEL          0xc0000000ul
 
+#define SEG_USER_SIZE       0x80000000ul
 #define SEG_DIRECT_SIZE     0x20000000ul
 #define SEG_DIRECT_MASK     0x1ffffffful
 

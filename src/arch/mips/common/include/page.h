@@ -20,8 +20,8 @@
 #define L1BLOCK_SIZE            0x400000ul
 #define L1BLOCK_PAGE_COUNT      1024
 
-#define GET_PDE_INDEX(addr)     ((addr) >> 22)
-#define GET_PTE_INDEX(addr)     (((addr) >> 12) & 0x3fful)
+#define GET_L1PTE_INDEX(addr)   ((addr) >> 22)
+#define GET_L2PTE_INDEX(addr)   (((addr) >> 12) & 0x3fful)
 #define GET_PAGE_OFFSET(addr)   ((addr) & 0xffful)
 
 struct page_table_entry {
@@ -34,8 +34,14 @@ struct page_table_entry {
             u32     write_allow     : 1;
             u32     exec_allow      : 1;
             u32     cache_allow     : 1;
-            u32     reserved        : 5;
+            u32     kernel          : 1;
+            u32     reserved        : 4;
             u32     pfn             : 20;
+        };
+
+        struct {
+            u32                     : 20;
+            u32     bfn             : 12;
         };
 
         u32 value;
