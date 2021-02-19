@@ -74,6 +74,7 @@ void register_dev_driver(struct internal_dev_driver *drv)
 
 static void register_internal_drivers()
 {
+    REGISTER_DEV_DRIVER(i8259_intc);
 }
 
 

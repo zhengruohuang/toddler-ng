@@ -112,6 +112,13 @@ static inline paddr_t cast_u32_to_paddr(u32 addr)
     return (paddr_t)addr;
 }
 
+static inline ulong cast_u64_to_vaddr(u64 addr)
+{
+    int bits = 64 - clz64(addr);
+    panic_if(bits > MAX_NUM_VADDR_BITS, "Unable to cast u64 to vaddr!\n");
+    return (ulong)addr;
+}
+
 static inline ulong cast_paddr_to_vaddr(paddr_t paddr)
 {
     int bits = 64 - clz64((u64)paddr);

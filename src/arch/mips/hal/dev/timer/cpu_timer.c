@@ -7,21 +7,8 @@
 #include "hal/include/dev.h"
 
 
-#define INT_FREQ_DIV    8
+#define INT_FREQ_DIV    1
 
-
-struct generic_timer_phys_ctrl_reg {
-    union {
-        u32 value;
-
-        struct {
-            u32 enabled     : 1;
-            u32 masked      : 1;
-            u32 asserted    : 1;
-            u32 reserved    : 29;
-        };
-    };
-} packed4_struct;
 
 struct mips_cpu_timer_record {
     u32 timer_step;
@@ -47,7 +34,7 @@ static void update_compare(struct mips_cpu_timer_record *record)
  */
 static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
 {
-    //kprintf("Timer!\n");
+    kprintf("Timer!\n");
 
     struct mips_cpu_timer_record *record = ictxt->param;
     update_compare(record);
@@ -81,6 +68,7 @@ static int probe(struct fw_dev_info *fw_info, struct driver_param *param)
 {
     static const char *devtree_names[] = {
         "mips,mips-cpu-timer",
+        "mti,cpu-timer",
         NULL
     };
 
@@ -91,10 +79,7 @@ static int probe(struct fw_dev_info *fw_info, struct driver_param *param)
         memzero(record, sizeof(struct mips_cpu_timer_record));
 
         param->record = record;
-
-        // The built-in timer uses a pre-defined interrupt seq number
-        param->int_seq = INT_VECTOR_LOCAL_TIMER;
-        set_int_handler(INT_VECTOR_LOCAL_TIMER, handler);
+        param->int_seq = alloc_int_seq(handler);
 
         kprintf("Found MIPS CPU timer!\n");
         return FW_DEV_PROBE_OK;

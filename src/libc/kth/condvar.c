@@ -33,7 +33,7 @@ int cond_wait_spin(cond_t *cond, int max_spin)
     futex_t f_old, f_new;
 
     int num_spins = 0;
-    while (max_spin < 0 || num_spins <= max_spin) {
+    while (max_spin < 0 || num_spins++ <= max_spin) {
         // Already signaled
         if (f->locked) {
             return 0;

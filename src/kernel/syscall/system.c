@@ -74,7 +74,7 @@ int syscall_handler_puts(struct process *p, struct thread *t,
             align_down_vaddr(vaddr_last_byte, PAGE_SIZE)
         ) {
             paddr_t paddr = get_hal_exports()->translate(p->page_table, vaddr);
-            void *paddr_ptr = cast_paddr_to_ptr(paddr);
+            void *paddr_ptr = hal_cast_paddr_to_kernel_ptr(paddr);
             memcpy(buf, paddr_ptr, cur_len);
             buf[cur_len] = '\0';
             kprintf_unlocked("%s", buf);
@@ -84,7 +84,7 @@ int syscall_handler_puts(struct process *p, struct thread *t,
         else {
             ulong part_len = align_up_vaddr(vaddr, PAGE_SIZE) - vaddr;
             paddr_t paddr = get_hal_exports()->translate(p->page_table, vaddr);
-            void *paddr_ptr = cast_paddr_to_ptr(paddr);
+            void *paddr_ptr = hal_cast_paddr_to_kernel_ptr(paddr);
             memcpy(buf, paddr_ptr, part_len);
             buf[part_len] = '\0';
             kprintf_unlocked("%s", buf);
@@ -92,7 +92,7 @@ int syscall_handler_puts(struct process *p, struct thread *t,
             ulong vaddr2 = vaddr + part_len;
             part_len = cur_len - part_len;
             paddr = get_hal_exports()->translate(p->page_table, vaddr2);
-            paddr_ptr = cast_paddr_to_ptr(paddr);
+            paddr_ptr = hal_cast_paddr_to_kernel_ptr(paddr);
             memcpy(buf, paddr_ptr, part_len);
             buf[part_len] = '\0';
             kprintf_unlocked("%s", buf);

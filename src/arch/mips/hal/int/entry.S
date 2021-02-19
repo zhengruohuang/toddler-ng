@@ -41,7 +41,7 @@ __save_registers_except_ra:
     sw s5, 92(k1)
     sw s6, 96(k1)
     sw s7, 100(k1)
-    /* sw k1, 104(k1) */
+    /* sw k0, 104(k1) */
     /* sw k1, 108(k1) */
     sw gp, 112(k1)
     sw sp, 116(k1)
@@ -77,7 +77,7 @@ __restore_registers_except_ra:
     lw s5, 92(k1)
     lw s6, 96(k1)
     lw s7, 100(k1)
-    /* lw k1, 104(k1) */
+    lw k0, 104(k1)
     /* lw k1, 108(k1) */
     lw gp, 112(k1)
     lw sp, 116(k1)
@@ -101,9 +101,7 @@ __restore_registers_except_ra:
     move    a1, k1
 
     /* Switch stack, and reserve some space for extra safe */
-    move    sp, k1
-    sub     sp, sp, 16
-    /* lw      sp, 140(k1) */
+    sub     sp, k1, 16
 
     /* Go to C */
     jal     int_handler_entry
@@ -115,7 +113,7 @@ __restore_registers_except_ra:
     lw      ra, 124(k1)
 
     /* Clear k1 for safety. k0 now points to TCB */
-    move    k1, zero
+    xor     k1, k1, k1
 
     /* Return to user program */
     eret

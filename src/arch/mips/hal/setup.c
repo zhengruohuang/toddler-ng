@@ -49,24 +49,24 @@ static void init_arch_mp()
 
 static void init_int()
 {
+    init_tlb();
     init_int_entry();
     init_switch();
 }
 
 static void init_int_mp()
 {
+    init_tlb_mp();
     init_int_entry_mp();
     init_switch_mp();
 }
 
 static void init_mm()
 {
-    init_tlb();
 }
 
 static void init_mm_mp()
 {
-    init_tlb_mp();
 }
 
 
@@ -144,6 +144,7 @@ static ulong get_cur_mp_id()
 
 static void register_drivers()
 {
+    REGISTER_DEV_DRIVER(mips_cpu_intc);
     REGISTER_DEV_DRIVER(mips_cpu_timer);
 }
 

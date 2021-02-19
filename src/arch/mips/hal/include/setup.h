@@ -30,6 +30,9 @@ extern void restore_context_gpr();
 /*
  * Switch
  */
+extern_per_cpu(struct page_frame *, cur_page_dir);
+extern_per_cpu(ulong, cur_asid);
+
 extern void switch_to(ulong thread_id, struct reg_context *context,
                       void *page_table, int user_mode, ulong asid, ulong tcb);
 extern void init_switch_mp();
@@ -45,6 +48,8 @@ extern void kernel_post_dispatch(ulong thread_id, struct kernel_dispatch *kdi);
 extern void *init_user_page_table();
 extern void free_user_page_table(void *ptr);
 
+extern paddr_t translate_attri(void *page_table, ulong vaddr,
+                               int *exec, int *read, int *write, int *cache);
 extern paddr_t translate(void *page_table, ulong vaddr);
 extern int map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
                      int cache, int exec, int write, int kernel, int override,

@@ -86,6 +86,8 @@ void int_handler_entry(int except, struct reg_context *regs)
     intc.regs = regs;
 
     int_handler(seq, &intc);
+
+    // FIXME: shouldn't interrupt be enabled here?
 }
 
 

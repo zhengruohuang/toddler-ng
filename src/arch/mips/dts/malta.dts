@@ -45,7 +45,7 @@
         always-on;
 
         interrupt-parent = <&cpu_intc>;
-        interrupts = <0x0>;
+        interrupts = <0x7>;
     };
 
     piix4e: south_bridge@b8000000 {

@@ -225,6 +225,14 @@ static void process_cleaner(ulong param)
 /*
  * Process creation
  */
+static volatile ulong cur_asid_seq = 1;
+
+static ulong alloc_asid()
+{
+    ulong asid = atomic_fetch_and_add(&cur_asid_seq, 1);
+    return asid;
+}
+
 static ulong alloc_process_id(struct process *p)
 {
     ulong id = (ulong)p;
@@ -245,7 +253,7 @@ ulong create_process(ulong parent_id, char *name, enum process_type type)
     p->parent_pid = parent_id;
 
     // ASID
-    p->asid = type == PROCESS_TYPE_KERNEL ? 0 : 0;
+    p->asid = type == PROCESS_TYPE_KERNEL ? 0 : alloc_asid();
 
     // Setup the process
     p->name = strdup(name);
@@ -367,7 +375,7 @@ int load_coreimg_elf(struct process *p, void *img)
         }
 
         // Map the segment to destination's vaddr space
-        if (prog_header->program_memsz) {
+        if (prog_header->program_type == 1 && prog_header->program_memsz) {
             // Get range
             ulong vaddr_start =
                     align_down_vaddr((ulong)prog_header->program_vaddr, PAGE_SIZE);
@@ -395,7 +403,7 @@ int load_coreimg_elf(struct process *p, void *img)
             //        vaddr_start, vaddr_end, (u64)paddr, vpages);
 
             // Zero memory
-            void *paddr_win = cast_paddr_to_ptr(paddr);
+            void *paddr_win = hal_cast_paddr_to_kernel_ptr(paddr);
             memzero(paddr_win, vaddr_range);
 
             // Copy data if there's any

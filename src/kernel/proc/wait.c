@@ -155,7 +155,7 @@ int wait_on_object(struct process *p, struct thread *t, int wait_type, ulong wai
     case WAIT_ON_FUTEX: {
         paddr_t paddr = get_hal_exports()->translate(p->page_table, wait_obj);
         if (paddr) {
-            futex_t *futex = cast_paddr_to_ptr(paddr);
+            futex_t *futex = hal_cast_paddr_to_kernel_ptr(paddr);
             futex_t futex_val;
             futex_val.value = futex->value;
 
@@ -265,7 +265,7 @@ ulong wake_on_object(struct process *p, struct thread *t, int wait_type, ulong w
     case WAIT_ON_FUTEX: {
         paddr_t paddr = get_hal_exports()->translate(p->page_table, wait_obj);
         if (paddr) {
-            futex_t *futex = cast_paddr_to_ptr(paddr);
+            futex_t *futex = hal_cast_paddr_to_kernel_ptr(paddr);
             futex_t futex_val;
             futex_val.value = futex->value;
 

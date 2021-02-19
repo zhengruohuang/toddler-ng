@@ -27,89 +27,7 @@ static void save_extra_context(struct reg_context *regs)
 
 
 /*
- * TLB refill handlers
- */
-void tlb_refill_handler(struct reg_context *regs)
-{
-//     // Set local interrupt state to disabled
-//     disable_local_int();
-//
-//     // Save extra context
-//     save_extra_context(regs);
-//
-//     // Get the bad address
-//     ulong bad_addr = 0;
-//     read_cp0_bad_vaddr(bad_addr);
-//
-// //     kprintf("TLB refill @ %lx, PC: %lx\n", bad_addr, context->pc);
-//
-//     // Get kernel/user mode
-//     int user_mode = *get_per_cpu(int, cur_in_user_mode);
-//
-// //     kprintf("refill start\n");
-//
-//     // Try refilling TLB
-//     int invalid = 0;
-//     if (user_mode) {
-//         invalid = tlb_refill_user(bad_addr);
-//     } else {
-//         invalid = tlb_refill_kernel(bad_addr);
-//     }
-//
-// //     kprintf("refill done\n");
-//
-//     // Reload TCB to k1
-//     ulong tcb = *(ulong *)get_per_cpu(ulong, cur_tcb_vaddr);
-//     write_k1(tcb);
-//
-// //     kprintf("int done\n");
-//
-//     // Invalid addr
-//     if (invalid) {
-//         panic("Invalid TLB miss addr @ %p, is user mode: %d\n", (void *)bad_addr, user_mode);
-//     }
-}
-
-static int int_handler_tlb_refill(struct int_context *ctxt, struct kernel_dispatch *kdi)
-{
-//     struct cp0_entry_hi hi;
-//     read_cp0_entry_hi(hi.value);
-//     kprintf("ASID: %d\n", hi.asid);
-//
-//     // Clear EXL bit - so we'll get primariy TLB misses
-//     struct cp0_status status;
-//     read_cp0_status(status.value);
-//     kprintf("exl: %d, erl: %d, ksu: %d\n", status.exl, status.erl, status.ksu);
-//
-//     // Bad addr
-//     ulong bad_addr = 0;
-//     read_cp0_bad_vaddr(bad_addr);
-//     kprintf("Badr addr @ %lx\n", bad_addr);
-//
-//     //panic("Should not get a secondary TLB miss!\n");
-//     kprintf("Should not get a secondary TLB miss!\n");
-
-    tlb_refill_handler(ctxt->regs);
-
-    return 0;
-}
-
-
-/*
- * Cache error handler
- */
-void cache_error_handler(struct reg_context *regs)
-{
-    // Set local interrupt state to disabled
-    disable_local_int();
-
-    panic("Toddler doesn't support cache error handling!!\n");
-    while (1);
-}
-
-
-/*
- * General handler
+ * MIPS handler entry
  */
 void int_handler_entry(int except, struct reg_context *regs)
 {
@@ -123,137 +41,103 @@ void int_handler_entry(int except, struct reg_context *regs)
     struct cp0_cause cause;
     read_cp0_cause(cause.value);
 
+    struct cp0_status sr;
+    read_cp0_status(sr.value);
+
     // Get the bad address
     ulong bad_addr = 0;
     read_cp0_bad_vaddr(bad_addr);
 
-    kprintf("General exception! Except: %d, TI: %d, IP: %d, ECode: %d, PC: %x, SP: %x, Bad @ %lx\n",
-            except, cause.ti, cause.ip, cause.exc_code, regs->pc, regs->sp, bad_addr);
+    int seq = 0;
+    ulong error_code = bad_addr;
 
-//     u32 except_code = cause.exc_code;
-//
-//     // Update timer if needed
-//     if (!except_code && cause.ti) {
-//         int_handler_t handler = get_int_handler(INT_VECTOR_LOCAL_TIMER);
-//         if (handler) {
-//             struct int_context intc;
-//             intc.vector = INT_VECTOR_LOCAL_TIMER;
-//             intc.error_code = 0;
-//             intc.regs = regs;
-//
-//             struct kernel_dispatch_info kdi;
-//             kdi.regs = regs;
-//             kdi.dispatch_type = KERNEL_DISPATCH_UNKNOWN;
-//             kdi.syscall.num = 0;
-//
-//             handler(&intc, &kdi);
-//         }
-//
-//     }
-//
-//     // Figure out the internal vector number
-//     u32 vector = INT_VECTOR_DUMMY;
-//
-//     if (except_code) {
-//         // Exception - vector number is except code
-//         vector = except_code;
-//     } else {
-//         // Interrupt
-//         if (cause.ti) {
-//             // We do a polling for 8259 to see if there's any pending interrupts
-//             vector = INT_VECTOR_LOCAL_TIMER;
-//         }
-//
-//         // External
-//         else if (cause.ip2) {
-//             vector = INT_VECTOR_EXTERNAL_BASE + i8259_read_irq();
-//         }
-//     }
-//
-// //     if (vector != 0x8) {
-// //         kprintf("Vector: %x\n", vector);
-// //     }
-//
-//     // Get the actual interrupt handler
-//     int_handler handler = get_int_handler(vector);
-//     if (NULL == (void *)handler) {
-//         handler = int_handler_dummy;
-//     }
-//
-//     // Call the real handler, the return value indicates if we need to call kernel
-//     struct int_context intc;
-//     intc.vector = vector;
-//     intc.error_code = except_code;
-//     intc.regs = regs;
-//
-//     struct kernel_dispatch_info kdispatch;
-//     kdispatch.context = context;
-//     kdispatch.dispatch_type = kdisp_unknown;
-//     kdispatch.syscall.num = 0;
-//
-//     // Save extra context
-//     save_context(context);
-//
-//     // Call the handler
-//     int handle_type = handler(&intc, &kdispatch);
-//
-//     // See if there's any pending IRQs when we don't need to switch to kernel
-//     if (handle_type == INT_HANDLE_TYPE_TAKEOVER) {
-//         //kprintf("Check pending IRQs\n");
-//         int pending_irq = i8259_read_irq();
-//         if (pending_irq != -1) {
-//             vector = INT_VECTOR_EXTERNAL_BASE + pending_irq;
-//
-//             handler = get_int_handler(vector);
-//             if (NULL == (void *)handler) {
-//                 handler = int_handler_dummy;
-//             }
-//
-//             intc.vector = vector;
-//             intc.error_code = 0;
-//             intc.context = context;
-//
-//             kdispatch.context = context;
-//             kdispatch.dispatch_type = kdisp_unknown;
-//             kdispatch.syscall.num = 0;
-//
-//             handle_type = handler(&intc, &kdispatch);
-//         }
-//     }
-//
-//     //kprintf("PC: %x, SP: %x\n", context->pc, context->sp);
-//     //kprintf("call kernel: %d\n", call_kernel);
-//
-//     // Note that if kernel is invoked, it will call sched, then never goes back to this int handler
-//     handle_type = INT_HANDLE_TYPE_KERNEL;
-//     if (handle_type == INT_HANDLE_TYPE_KERNEL) {
-//         // First of all duplicate context since it may get overwritten by a TLB miss handler
-//         struct context dup_ctxt = *context;
-//         kdispatch.context = &dup_ctxt;
-//         //kprintf("duplicate context done, dispatch: %x, num: %x\n", kdispatch.dispatch_type, kdispatch.syscall.num);
-//
-//         // Set ASID to 0 - kernel
-//         struct cp0_entry_hi hi;
-//         read_cp0_entry_hi(hi.value);
-//         hi.asid = 0;
-//         write_cp0_entry_hi(hi.value);
-//
-//         // Clear EXL bit - so we'll get primariy TLB misses
-//         struct cp0_status status;
-//         read_cp0_status(status.value);
-//         status.exl = 0;
-//         status.erl = 0;
-//         status.ksu = 0;
-//         write_cp0_status(status.value);
-//
-//         // Tell HAL we are in kernel
-//         *get_per_cpu(int, cur_in_user_mode) = 0;
-//
-//         // Go to kernel!
-//         kernel_dispatch(&kdispatch);
-//     }
-//
-//     panic("Need to implement lazy scheduling!");
+    //if (except == 3)
+//     kprintf("General exception! Except: %d, TI: %d, IP: %d, ECode: %d"
+//             ", EXL: %d, ERL: %d, KSU: %d, PC: %x, SP: %x, Bad @ %lx\n",
+//             except, cause.ti, cause.ip, cause.exc_code,
+//             sr.exl, sr.erl, sr.ksu,
+//             regs->pc, regs->sp, bad_addr);
+
+    switch (except) {
+    case EXCEPT_NUM_TLB_REFILL: {
+        struct page_frame *page_table = *get_per_cpu(struct page_frame *, cur_page_dir);
+        paddr_t paddr = translate(page_table, bad_addr);
+        seq = paddr ? MIPS_INT_SEQ_TLB_REFILL : INT_SEQ_PAGE_FAULT;
+        break;
+    }
+    case EXCEPT_NUM_CACHE_ERROR:
+        seq = MIPS_INT_SEQ_CACHE_ERR;
+        break;
+    case EXCEPT_NUM_GENERAL:
+        switch (cause.exc_code) {
+        case 0:
+            seq = INT_SEQ_DEV;
+            break;
+        case MIPS_INT_SEQ_TLB_REFILL:
+        case MIPS_INT_SEQ_TLB_MISS_READ:
+        case MIPS_INT_SEQ_TLB_MISS_WRITE: {
+            // TODO: make sure TLB of bad_vaddr is half-mapped,
+            // meaning the other ppfn slot out of the two is mapped,
+            // but not the one for bad_vaddr
+            struct page_frame *page_table = *get_per_cpu(struct page_frame *, cur_page_dir);
+            paddr_t paddr = translate(page_table, bad_addr);
+            seq = paddr ? MIPS_INT_SEQ_TLB_REFILL : INT_SEQ_PAGE_FAULT;
+            break;
+        }
+        case MIPS_INT_SEQ_SYSCALL:
+            regs->pc += 4;
+            regs->delay_slot = 0;
+            seq = INT_SEQ_SYSCALL;
+            break;
+        default:
+            seq = cause.exc_code;
+            break;
+        }
+        break;
+    default:
+        seq = INT_SEQ_PANIC;
+        break;
+    }
+
+    // Go to the generic handler!
+    struct int_context intc;
+    intc.vector = seq;
+    intc.error_code = error_code;
+    intc.regs = regs;
+
+    int_handler(seq, &intc);
+
+    //kprintf("here? seq: %d\n", seq);
+
+    // Switch back previous program
+    int user_mode = get_cur_running_in_user_mode();
+    //kprintf("Return @ %lx, user: %d\n", regs->pc, user_mode);
+
+    read_cp0_status(sr.value);
+    sr.ksu = user_mode ? 0x2 : 0;
+    sr.exl = 1;
+    sr.erl = 0;
+    write_cp0_status(sr.value);
+
+    // Set EPC to PC
+    write_cp0_epc(regs->pc);
+
+    // Set CAUSE based on delay slot state
+    read_cp0_cause(cause.value);
+    cause.bd = regs->delay_slot ? 1 : 0;
+    write_cp0_cause(cause.value);
+
+    // TCB
+    ulong tcb = get_cur_running_tcb();
+    regs->k0 = tcb;
+    regs->k1 = (ulong)regs;
+
+    write_k1((ulong)regs);
+
+    // TODO: ASID
+
+    // Finally enable local interrupts, since EXL is set, interrupts won't fire until eret
+    enable_local_int();
 }
 
 

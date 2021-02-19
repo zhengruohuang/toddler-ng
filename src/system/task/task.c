@@ -126,7 +126,7 @@ static int del_task(struct task *task)
 /*
  * Init
  */
-static inline void _create_init_task(pid_t pid, const char *name)
+static void _create_init_task(pid_t pid, const char *name)
 {
     struct task *t = new_task();
     t->ppid = 0;

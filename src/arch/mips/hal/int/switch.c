@@ -9,8 +9,7 @@
 #include "hal/include/mp.h"
 
 
-static decl_per_cpu(struct page_frame *, cur_page_dir);
-static decl_per_cpu(ulong, cur_asid);
+decl_per_cpu(struct page_frame *, cur_page_dir);
 
 
 void switch_to(ulong thread_id, struct reg_context *context,
@@ -24,11 +23,8 @@ void switch_to(ulong thread_id, struct reg_context *context,
     struct page_frame **my_page_table = get_per_cpu(struct page_frame *, cur_page_dir);
     *my_page_table = page_table;
 
-    ulong *my_asid = get_per_cpu(ulong, cur_asid);
-    *my_asid = asid;
-
     //kprintf("cur_stack_top: %p, PC @ %p, SP @ %p, R0: %p\n", *cur_stack_top, context->pc, context->sp, context->r0);
-    kprintf("Switch to PC @ %lx, SP @ %lx\n", context->pc, context->sp);
+    //kprintf("Switch to PC @ %lx, SP @ %lx, user: %d, ASID: %d\n", context->pc, context->sp, user_mode, asid);
 
     // Set up fast TCB access - k0
     struct reg_context *target_ctxt = (void *)*cur_stack_top;
@@ -68,9 +64,6 @@ void init_switch_mp()
 {
     struct page_frame **page_table = get_per_cpu(struct page_frame *, cur_page_dir);
     *page_table = NULL;
-
-    ulong *asid = get_per_cpu(ulong, cur_asid);
-    *asid = 0;
 }
 
 void init_switch()

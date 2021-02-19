@@ -14,6 +14,7 @@
  */
 static ulong start_system_worker(ulong param)
 {
+    kprintf("starting up");
     // Test
     run_tests();
 
@@ -71,6 +72,8 @@ static void clock()
  */
 int main(int argc, char **argv)
 {
+    kprintf("System process started!\n");
+
     init_system();
     start_system();
 

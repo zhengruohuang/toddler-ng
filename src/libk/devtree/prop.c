@@ -213,6 +213,31 @@ int devtree_get_translated_reg(struct devtree_node *node, int idx,
 
 
 /*
+ * Reg shift
+ */
+int devtree_get_reg_shift(struct devtree_node *node)
+{
+    struct devtree_prop *prop = devtree_find_prop(node, "reg-shift");
+    if (!prop) {
+        return 0;
+    }
+
+    u32 data = devtree_get_prop_data_u32(prop);
+    return (int)data;
+}
+
+
+/*
+ * IO port
+ */
+int devtree_get_use_ioport(struct devtree_node *node)
+{
+    struct devtree_prop *prop = devtree_find_prop(node, "use-ioport");
+    return prop ? 1 : 0;
+}
+
+
+/*
  * Compatible
  *  int return value
  *      -1 - Unable to parse

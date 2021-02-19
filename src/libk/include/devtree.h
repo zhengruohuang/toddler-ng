@@ -33,6 +33,11 @@ extern int devtree_get_translated_addr(struct devtree_node *node, int idx,
     const char *name, u64 *addr, u64 *size);
 extern int devtree_get_translated_reg(struct devtree_node *node, int idx,
     u64 *addr, u64 *size);
+
+extern int devtree_get_reg_shift(struct devtree_node *node);
+
+extern int devtree_get_use_ioport(struct devtree_node *node);
+
 extern int devtree_get_compatible(struct devtree_node *node, int idx,
     char **name);
 

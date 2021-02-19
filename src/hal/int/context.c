@@ -6,10 +6,8 @@
 #include "hal/include/hal.h"
 
 
-decl_per_cpu(ulong, cur_running_thread_id);
-decl_per_cpu(int, cur_in_user_mode);
-decl_per_cpu(struct reg_context, cur_context);
-decl_per_cpu(ulong, cur_tcb_vaddr);
+static decl_per_cpu(struct reg_context, cur_reg_context);
+decl_per_cpu(struct running_context, cur_running_context);
 
 
 void switch_context(ulong thread_id, struct reg_context *context,
@@ -23,34 +21,32 @@ void switch_context(ulong thread_id, struct reg_context *context,
     disable_local_int();
 
     // Copy the context to local, thus prevent page fault upon switching page dir
-    struct reg_context *per_cpu_context = get_per_cpu(struct reg_context, cur_context);
+    struct reg_context *per_cpu_context = get_per_cpu(struct reg_context, cur_reg_context);
     memcpy(per_cpu_context, context, sizeof(struct reg_context));
 
-    // Set sched info
-    *get_per_cpu(ulong, cur_running_thread_id) = thread_id;
-    *get_per_cpu(int, cur_in_user_mode) = user_mode;
-    *get_per_cpu(ulong, cur_tcb_vaddr) = tcb;
+    // Save running ctxt
+    struct running_context *rctxt = get_per_cpu(struct running_context, cur_running_context);
+    rctxt->kernel_context = context;
+    rctxt->thread_id = thread_id;
+    rctxt->page_table = page_table;
+    rctxt->user_mode = user_mode;
+    rctxt->tcb = tcb;
+    rctxt->asid = asid;
 
     // Do the actual switch
     arch_switch_to(thread_id, per_cpu_context, page_table, user_mode, asid, tcb);
 }
 
-void init_context()
-{
-    ulong *sched_id = get_per_cpu(ulong, cur_running_thread_id);
-    *sched_id = 0;
-
-    int *user_mode = get_per_cpu(int, cur_in_user_mode);
-    *user_mode = 0;
-
-    struct reg_context *ctxt = get_per_cpu(struct reg_context, cur_context);
-    memzero(ctxt, sizeof(struct reg_context));
-
-    ulong *cur_tcb = get_per_cpu(ulong, cur_tcb_vaddr);
-    *cur_tcb = 0;
-}
-
 void init_context_mp()
 {
-    init_context();
+    struct reg_context *ctxt = get_per_cpu(struct reg_context, cur_reg_context);
+    memzero(ctxt, sizeof(struct reg_context));
+
+    struct running_context *rctxt = get_per_cpu(struct running_context, cur_running_context);
+    memzero(rctxt, sizeof(struct running_context));
+}
+
+void init_context()
+{
+    init_context_mp();
 }

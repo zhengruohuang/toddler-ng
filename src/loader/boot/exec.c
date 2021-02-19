@@ -72,6 +72,11 @@ static void inflate_elf(elf_native_header_t *elf,
             prog = (void *)elf + elf->elf_phoff;
         }
 
+        // Program header must have PT_LOAD type
+        if (prog->program_type != 1) {
+            continue;
+        }
+
         // Rebase target
         ulong target = (ulong)rebase_to_win((void *)(ulong)prog->program_vaddr,
                                             target_win, access_win);

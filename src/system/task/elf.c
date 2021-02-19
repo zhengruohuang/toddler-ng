@@ -42,6 +42,11 @@ static int load_elf(pid_t pid, FILE *f, unsigned long *entry,
         //        prog.program_filesz, prog.program_memsz,
         //        (unsigned long)prog.program_vaddr, (unsigned long)prog.program_offset);
 
+        // Program header must have PT_LOAD type
+        if (prog.program_type != 1) {
+            continue;
+        }
+
         unsigned long remote_vaddr = align_down_vaddr(prog.program_vaddr, PAGE_SIZE);
         unsigned long remote_vend = align_up_vaddr(prog.program_vaddr + prog.program_memsz, PAGE_SIZE);
         if (remote_vaddr < vrange_start) {
@@ -56,7 +61,7 @@ static int load_elf(pid_t pid, FILE *f, unsigned long *entry,
         }
         unsigned long map_size = remote_vend - remote_vaddr;
         unsigned long local_vaddr = syscall_vm_map_cross(pid, remote_vaddr, map_size, 0);
-        //kprintf("\t\tlocal vaddr @ %lx\n", local_vaddr);
+        //kprintf("\t\tremote @ %lx, local @ %lx, size: %lx\n", remote_vaddr, local_vaddr, map_size);
         memzero((void *)local_vaddr, map_size);
 
         if (prog.program_filesz) {

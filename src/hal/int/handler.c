@@ -66,10 +66,15 @@ void int_handler(int seq, struct int_context *ictxt)
     // kernel will call sched and never go back to this func
     if (handle_type & INT_HANDLE_CALL_KERNEL) {
         // Tell HAL we are in kernel
-        *get_per_cpu(int, cur_in_user_mode) = 0;
+        int prev_in_user_mode = get_cur_running_in_user_mode();
+        set_cur_running_in_user_mode(0);
 
         // Go to kernel!
-        kernel_dispatch(*get_per_cpu(ulong, cur_running_thread_id), &kdispatch);
+        int tid = get_cur_running_thread_id();
+        kernel_dispatch(tid, &kdispatch);
+
+        // Restore in-user-mode
+        set_cur_running_in_user_mode(prev_in_user_mode);
     }
 
     // Will now return, arch HAL must implement restoring from interrupt

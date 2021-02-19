@@ -348,6 +348,7 @@ static void vm_free_block_pages(struct process *p, struct vm_block *b)
 
         if (paddr && paddr != prev_paddr) {
             if (b->map_type == VM_MAP_TYPE_OWNER) {
+                //kprintf("to free @ %x -> %llx\n", vaddr, (u64)paddr);
                 pfree_paddr(paddr);
                 ref_count_dec(&p->vm.num_palloc_pages);
             }
@@ -469,6 +470,7 @@ int vm_map(struct process *p, ulong addr, ulong prot)
                 break;
             default:
                 panic("Unexpected page fault!\n");
+                break;
             }
 
             err = 0;
@@ -492,9 +494,9 @@ ulong vm_map_coreimg(struct process *p)
         return 0;
     }
 
-    ulong paddr_start = align_down_vaddr((ulong)ci, PAGE_SIZE);
-    ulong paddr_end = align_up_vaddr((ulong)ci + size, PAGE_SIZE);
-    ulong map_size = paddr_end - paddr_start;
+    ulong kernel_vaddr_start = align_down_vaddr((ulong)ci, PAGE_SIZE);
+    ulong kernel_vaddr_end = align_up_vaddr((ulong)ci + size, PAGE_SIZE);
+    ulong map_size = kernel_vaddr_end - kernel_vaddr_start;
 
     struct vm_block *b = vm_alloc(p, 0, map_size, 0);
     if (!b) {
@@ -504,11 +506,11 @@ ulong vm_map_coreimg(struct process *p)
     b->map_type = VM_MAP_TYPE_GUEST;
     spinlock_exclusive_int(&p->page_table_lock) {
         get_hal_exports()->map_range(p->page_table, b->base,
-                                     cast_vaddr_to_paddr(paddr_start), b->size,
+                                     hal_cast_kernel_ptr_to_paddr((void *)kernel_vaddr_start), b->size,
                                      1, 1, 1, 0, 0);
     }
 
-    ulong offset = (ulong)ci - paddr_start;
+    ulong offset = (ulong)ci - kernel_vaddr_start;
     return b->base + offset;
 }
 
@@ -562,7 +564,7 @@ ulong vm_map_dev(struct process *p, ulong ppfn, ulong size, ulong prot)
     spinlock_exclusive_int(&p->page_table_lock) {
         get_hal_exports()->map_range(p->page_table, b->base,
                                      paddr_start, b->size,
-                                     1, 1, 1, 0, 0);
+                                     0, 1, 1, 0, 0); // Uncacheable
     }
 
     return b->base;
@@ -620,8 +622,7 @@ ulong vm_map_cross(struct process *p, ulong remote_pid,
         //kprintf("b @ %p, base: %lx, size: %lx\n", local_b, local_b->base, local_b->size);
 
         for (ulong offset = 0; offset < map_size; offset += PAGE_SIZE) {
-            // FIXME: shouldn't palloc be enough?
-            paddr_t paddr = palloc_paddr_direct_mapped(1);
+            paddr_t paddr = palloc_paddr(1);
             ref_count_inc(&remote_p->vm.num_palloc_pages);
 
             ulong remote_vaddr = remote_map_vbase + offset;

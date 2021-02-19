@@ -22,10 +22,12 @@ static int int_handler_syscall(struct int_context *ictxt, struct kernel_dispatch
         return1 = param1 + 1;
         success = 1;
         break;
-    case SYSCALL_HAL_GET_TIB:
-        return0 = *get_per_cpu(ulong, cur_tcb_vaddr);
+    case SYSCALL_HAL_GET_TIB: {
+        ulong tcb = get_cur_running_tcb();
+        return0 = tcb;
         success = 1;
         break;
+    }
     default:
         break;
     }

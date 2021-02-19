@@ -95,10 +95,58 @@ extern void init_int_state_mp();
 /*
  * Context
  */
-extern_per_cpu(ulong, cur_running_thread_id);
-extern_per_cpu(int, cur_in_user_mode);
-extern_per_cpu(struct reg_context, cur_context);
-extern_per_cpu(ulong, cur_tcb_vaddr);
+struct running_context {
+    struct reg_context *kernel_context;
+
+    ulong thread_id;
+    void *page_table;
+    int user_mode;
+    ulong asid;
+    ulong tcb;
+};
+
+extern_per_cpu(struct running_context, cur_running_context);
+
+static inline struct running_context *get_cur_running_context()
+{
+    return get_per_cpu(struct running_context, cur_running_context);
+}
+
+static inline ulong get_cur_running_thread_id()
+{
+    struct running_context *rctxt = get_cur_running_context();
+    return rctxt->thread_id;
+}
+
+static inline int get_cur_running_in_user_mode()
+{
+    struct running_context *rctxt = get_cur_running_context();
+    return rctxt->user_mode;
+}
+
+static inline void set_cur_running_in_user_mode(int user_mode)
+{
+    struct running_context *rctxt = get_cur_running_context();
+    rctxt->user_mode = user_mode;
+}
+
+static inline ulong get_cur_running_tcb()
+{
+    struct running_context *rctxt = get_cur_running_context();
+    return rctxt->tcb;
+}
+
+static inline ulong get_cur_running_asid()
+{
+    struct running_context *rctxt = get_cur_running_context();
+    return rctxt->asid;
+}
+
+static inline void *get_cur_running_page_table()
+{
+    struct running_context *rctxt = get_cur_running_context();
+    return rctxt->page_table;
+}
 
 extern void switch_context(ulong thread_id, struct reg_context *context,
                            void *page_table, int user_mode, ulong asid, ulong tcb);

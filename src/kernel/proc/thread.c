@@ -142,13 +142,13 @@ static int thread_block_mapper(struct process *p, struct thread *t, struct vm_bl
     spinlock_exclusive_int(&p->page_table_lock) {
         get_hal_exports()->map_range(p->page_table,
                                      b->base + t->memory.tls.start_offset,
-                                     cast_ptr_to_paddr(t->memory.tls.start_paddr_ptr),
+                                     hal_cast_kernel_ptr_to_paddr(t->memory.tls.start_paddr_ptr),
                                      PAGE_SIZE, //t->memory.tls.size,
                                      1, 1, 1, 0, 0);
 
         get_hal_exports()->map_range(p->page_table,
                                      b->base + t->memory.stack.top_offset - PAGE_SIZE,
-                                     cast_ptr_to_paddr(t->memory.stack.top_paddr_ptr - PAGE_SIZE),
+                                     hal_cast_kernel_ptr_to_paddr(t->memory.stack.top_paddr_ptr - PAGE_SIZE),
                                      PAGE_SIZE,
                                      1, 1, 1, 0, 0);
     }
