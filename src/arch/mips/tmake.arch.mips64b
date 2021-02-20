@@ -4,8 +4,8 @@
 mips_endian_prefix = 'mips64-linux-gnuabi64-'
 mips_endian_prefix_qemu = 'mips64'
 
-mips_as_flags = '-fPIC -march=mips64r2'
-mips_cc_flags = '-fPIC -march=mips64r2'
+mips_as_flags = '-fno-pic -mno-abicalls -march=mips64r2'
+mips_cc_flags = '-fno-pic -mno-abicalls -march=mips64r2'
 
 mips_qemu_default_cpu = 'MIPS64R2-generic'
 

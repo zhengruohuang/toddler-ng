@@ -242,7 +242,7 @@ void invalidate_tlb(ulong asid, ulong vaddr, size_t size)
 static int int_handler_tlb_refill(struct int_context *ictxt, struct kernel_dispatch *kdi)
 {
     // Get current page table and ASID
-    struct page_frame *page_table = *get_per_cpu(struct page_frame *, cur_page_dir);
+    struct page_frame *page_table = get_cur_running_page_table();
     ulong asid = get_cur_running_asid();
 
     // Get faulting vaddr

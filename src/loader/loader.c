@@ -106,8 +106,8 @@ void loader(struct firmware_args *args, struct loader_arch_funcs *funcs)
     arch_funcs = funcs;
 
     // Arch-specific
-    init_libk();
     init_arch();
+    init_libk();
 
     // Firmware and device tree
     init_firmware();

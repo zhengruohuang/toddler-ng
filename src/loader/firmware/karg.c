@@ -1,13 +1,36 @@
 #include "common/include/inttypes.h"
+#include "common/include/abi.h"
 #include "loader/include/lib.h"
+#include "loader/include/mem.h"
 #include "loader/include/devtree.h"
 #include "loader/include/firmware.h"
 
 
 static int kargc = 0;
-static char **kargv;
-static char **env;
+static u32 *kargv;
+static u32 *env;
 
+static inline char *get_kargv(int idx)
+{
+#if (ARCH_WIDTH == 32)
+    return (void *)(ulong)kargv[idx];
+#elif (ARCH_WIDTH == 64)
+    return (void *)(long)(s32)kargv[idx];
+#else
+#error "Unsupported arch width!"
+#endif
+}
+
+static inline char *get_env(int idx)
+{
+#if (ARCH_WIDTH == 32)
+    return (void *)(ulong)env[idx];
+#elif (ARCH_WIDTH == 64)
+    return (void *)(long)(s32)env[idx];
+#else
+#error "Unsupported arch width!"
+#endif
+}
 
 static const char *search_line(const char *line, const char *key)
 {
@@ -31,7 +54,7 @@ static const char *search_line(const char *line, const char *key)
 static const char *search_kargv(const char *key)
 {
     for (int i = 0; i < kargc; i++) {
-        char *line = kargv[i];
+        char *line = get_kargv(i);
         const char *val = search_line(line, key);
         if (val) {
             return val;
@@ -43,11 +66,10 @@ static const char *search_kargv(const char *key)
 
 static const char *search_env(const char *key)
 {
-    for (char **e = env; e && *e; e++) {
-        char *line = *e;
+    for (int i = 0; get_env(i); i++) {
+        char *line = get_env(i);
         if (!strcmp(line, key)) {
-            e++;
-            return *e;
+            return get_env(i + 1);
         }
 
         const char *val = search_line(line, key);
@@ -86,7 +108,7 @@ static int fill_bootargs(char *buf)
 
     // Only kargv is copied
     for (int i = 0; i < kargc; i++) {
-        char *line = kargv[i];
+        char *line = get_kargv(i);
         if (buf) {
             strcpy(buf, line);
         }

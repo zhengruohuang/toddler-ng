@@ -49,12 +49,22 @@ static inline ulong cast_paddr_to_uncached_seg(paddr_t paddr)
 static inline paddr_t cast_cached_seg_to_paddr(void *ptr)
 {
     ulong vaddr = (ulong)ptr;
+#if (ARCH_WIDTH == 64)
+    if (vaddr >= 0xffffffff00000000ul) {
+        vaddr &= SEG_DIRECT_MASK_LOW;
+    }
+#endif
     ulong lower = vaddr & (ulong)SEG_DIRECT_MASK;
     return cast_vaddr_to_paddr(lower);
 }
 
 static inline paddr_t cast_uncached_seg_to_paddr(ulong vaddr)
 {
+#if (ARCH_WIDTH == 64)
+    if (vaddr >= 0xffffffff00000000ul) {
+        vaddr &= SEG_DIRECT_MASK_LOW;
+    }
+#endif
     ulong lower = vaddr & (ulong)SEG_DIRECT_MASK;
     return cast_vaddr_to_paddr(lower);
 }
@@ -67,8 +77,12 @@ static paddr_t access_win_to_phys(void *ptr)
 {
     // First make sure the vaddr is within the cached seg
     ulong vaddr = (ulong)ptr;
+#if (ARCH_WIDTH == 32)
     panic_if(vaddr < SEG_DIRECT_CACHED || vaddr >= SEG_KERNEL,
-        "Unable to convert from access win to phys addr, out of range!");
+             "Unable to convert from access win to phys addr, out of range!");
+#elif (ARCH_WIDTH == 64)
+    // TODO
+#endif
 
     // Map to phyical address
     paddr_t paddr = cast_cached_seg_to_paddr(ptr);
@@ -80,7 +94,7 @@ static void *phys_to_access_win(paddr_t paddr)
     // First make sure the address is within the lower 512MB
     ulong vaddr = cast_paddr_to_vaddr(paddr);
     panic_if(vaddr >= SEG_DIRECT_SIZE,
-        "Unable to convert from phys to access win addr, out of range!");
+             "Unable to convert from phys to access win addr, out of range!");
 
     // Map to cached seg
     return cast_paddr_to_cached_seg(paddr);
@@ -281,7 +295,7 @@ static void init_libk()
 /*
  * The MIPS entry point
  */
-void loader_entry(int kargc, char **kargv, char **env, ulong mem_size)
+void loader_entry(int kargc, u32 *kargv, u32 *env, ulong mem_size)
 {
     /*
      * BSS will be initialized at the beginning of loader() func

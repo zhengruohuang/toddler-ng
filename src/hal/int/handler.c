@@ -70,7 +70,7 @@ void int_handler(int seq, struct int_context *ictxt)
         set_cur_running_in_user_mode(0);
 
         // Go to kernel!
-        int tid = get_cur_running_thread_id();
+        ulong tid = get_cur_running_thread_id();
         kernel_dispatch(tid, &kdispatch);
 
         // Restore in-user-mode

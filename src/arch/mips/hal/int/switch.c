@@ -9,9 +9,6 @@
 #include "hal/include/mp.h"
 
 
-decl_per_cpu(struct page_frame *, cur_page_dir);
-
-
 void switch_to(ulong thread_id, struct reg_context *context,
                void *page_table, int user_mode, ulong asid, ulong tcb)
 {
@@ -19,12 +16,8 @@ void switch_to(ulong thread_id, struct reg_context *context,
     ulong *cur_stack_top = get_per_cpu(ulong, cur_int_stack_top);
     memcpy((void *)*cur_stack_top, context, sizeof(struct reg_context));
 
-    // Switch page dir
-    struct page_frame **my_page_table = get_per_cpu(struct page_frame *, cur_page_dir);
-    *my_page_table = page_table;
-
     //kprintf("cur_stack_top: %p, PC @ %p, SP @ %p, R0: %p\n", *cur_stack_top, context->pc, context->sp, context->r0);
-    //kprintf("Switch to PC @ %lx, SP @ %lx, user: %d, ASID: %d\n", context->pc, context->sp, user_mode, asid);
+    kprintf("Switch to PC @ %lx, SP @ %lx, user: %d, ASID: %d, thread: %lx\n", context->pc, context->sp, user_mode, asid, thread_id);
 
     // Set up fast TCB access - k0
     struct reg_context *target_ctxt = (void *)*cur_stack_top;
@@ -42,6 +35,11 @@ void switch_to(ulong thread_id, struct reg_context *context,
     // Set SR based on user/kernel mode, also set EXL bit - switching is enabled
     struct cp0_status status;
     read_cp0_status(status.value);
+    status.kx = 1;
+    status.sx = 1;
+    status.ux = 1;
+    status.px = 1;
+
     status.ksu = user_mode ? 0x2 : 0;
     status.exl = 1;
     status.erl = 0;
@@ -60,28 +58,11 @@ void switch_to(ulong thread_id, struct reg_context *context,
     restore_context_gpr(*cur_stack_top);
 }
 
-void init_switch_mp()
-{
-    struct page_frame **page_table = get_per_cpu(struct page_frame *, cur_page_dir);
-    *page_table = NULL;
-}
-
-void init_switch()
-{
-    init_switch_mp();
-}
-
 void kernel_pre_dispatch(ulong thread_id, struct kernel_dispatch *kdi)
 {
-    // TODO: set TCB and ASID
-//     struct loader_args *largs = get_loader_args();
-//     struct l1table *kernel_page_table = largs->page_table;
-//     switch_page_table(kernel_page_table);
+    // TODO: set TCB, ASID, and page table
 }
 
 void kernel_post_dispatch(ulong thread_id, struct kernel_dispatch *kdi)
 {
-//     struct l1table **pl1tab = get_per_cpu(struct l1table *, cur_page_dir);
-//     struct l1table *user_page_table = *pl1tab;
-//     switch_page_table(user_page_table);
 }

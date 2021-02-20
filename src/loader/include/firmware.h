@@ -58,8 +58,8 @@ extern void init_bootargs();
  */
 struct firmware_params_karg {
     int kargc;
-    char **kargv;
-    char **env;
+    u32 *kargv;
+    u32 *env;
     u64 mem_size;
 };
 

@@ -83,45 +83,6 @@ paddr_t translate_attri(void *page_table, ulong vaddr,
 paddr_t translate(void *page_table, ulong vaddr)
 {
     return translate_attri(page_table, vaddr, NULL, NULL, NULL, NULL);
-
-//     // L1 table
-//     struct page_frame *l1tab = page_table;
-//     int index = GET_L1PTE_INDEX(vaddr);
-//     struct page_table_entry *l1entry = &l1tab->entries[index];
-//
-//     // Not mapped yet
-//     if (!l1entry->value) {
-//         return 0;
-//     }
-//
-//     // 1MB section
-//     if (l1entry->present && l1entry->block) {
-//         ppfn_t bfn = l1entry->bfn;
-//         paddr_t paddr = pbfn_to_paddr(bfn);
-//         paddr |= (paddr_t)get_vblock_offset(vaddr);
-//         return paddr;
-//     }
-//
-//     // L2 table
-//     assert(l1entry->present);
-//     ppfn_t pfn = l1entry->pfn;
-//     paddr_t paddr = ppfn_to_paddr(pfn);
-//     struct page_frame *l2tab = cast_paddr_to_cached_seg(paddr);
-//
-//     index = GET_L2PTE_INDEX(vaddr);
-//     struct page_table_entry *l2entry = &l2tab->entries[index];
-//
-//     // Not mapped yet
-//     if (!l2entry->value) {
-//         return 0;
-//     }
-//
-//     // Paddr
-//     pfn = l2entry->pfn;
-//     paddr = ppfn_to_paddr(pfn);
-//     paddr |= (paddr_t)get_vpage_offset(vaddr);
-//
-//     return paddr;
 }
 
 
@@ -143,7 +104,8 @@ static struct page_frame *alloc_page_frame(palloc_t palloc, ppfn_t *pfn)
 }
 
 static void map_page(void *page_table, ulong vaddr, paddr_t paddr, int block,
-    int cache, int exec, int write, int kernel, int override, palloc_t palloc)
+                     int cache, int exec, int write, int kernel, int override,
+                     palloc_t palloc)
 {
     //kprintf("Map page, page_table: %lx, vaddr @ %lx, paddr @ %lx, block: %d, "
     //       "cache: %d, exec: %d, write: %d, kernel: %d, override: %d\n",

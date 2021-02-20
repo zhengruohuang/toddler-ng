@@ -2,6 +2,9 @@
 #define __ARCH_MIPS_COMMON_INCLUDE_ASM_H__
 
 
+#include "common/include/abi.h"
+
+
 /*
  * Symbolic register names
  */
@@ -72,6 +75,34 @@
 #define CP0_TAGLO       $28
 #define CP0_TAGHI       $29
 #define CP0_ERROREPC    $30
+
+
+/*
+ * Width-generic instructions
+ */
+#if (ARCH_WIDTH == 32)
+#define li_ul       li
+#define la_ul       la
+#define ld_ul       lw
+#define st_ul       sw
+#define addi_ul     addi
+#define addu_ul     addu
+#define sub_ul      sub
+#define sll_ul      sll
+
+#elif (ARCH_WIDTH == 64)
+#define li_ul       dli
+#define la_ul       dla
+#define ld_ul       ld
+#define st_ul       sd
+#define addi_ul     daddi
+#define addu_ul     daddu
+#define sub_ul      dsub
+#define sll_ul      dsll
+
+#else
+#error "Unsupported arch width"
+#endif
 
 
 #endif

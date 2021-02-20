@@ -23,7 +23,7 @@ _start:
     //.cpload t9
 
     // Jump to kernel
-    la      t9, kernel
+    la_ul   t9, kernel
     jr      t9
     nop
 
@@ -33,7 +33,7 @@ __stop:
     nop
 
 __set_up_pic:
-    addi    t9, ra, 0
+    addi_ul t9, ra, 0
     jr      ra
     nop
 

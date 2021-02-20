@@ -34,20 +34,19 @@ _start:
 
     // Set up PIC code
     // This will set up t9 to the address of cpload
-    bal     __set_up_pic
+    jal     __set_up_pic
     nop
 
     // Set up GP
     .cpload t9
 
     // Set up stack
-    la      sp, _stack_top
-    addi    sp, sp, -0x10
-    //addi    sp, t9, -0x10
+    la_ul   sp, _stack_top
+    addi_ul sp, sp, -0x10
 
     // Jump to loader entry
-    la      t9, loader_entry
-    jalr    t9
+    la_ul   t9, loader_entry
+    jr      t9
     nop
 
     // Should never reach here
@@ -56,7 +55,7 @@ __stop:
     nop
 
 __set_up_pic:
-    addi    t9, ra, 0
+    addi_ul t9, ra, 0
     jr      ra
     nop
 

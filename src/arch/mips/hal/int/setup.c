@@ -52,15 +52,15 @@ void int_handler_entry(int except, struct reg_context *regs)
     ulong error_code = bad_addr;
 
     //if (except == 3)
-//     kprintf("General exception! Except: %d, TI: %d, IP: %d, ECode: %d"
-//             ", EXL: %d, ERL: %d, KSU: %d, PC: %x, SP: %x, Bad @ %lx\n",
-//             except, cause.ti, cause.ip, cause.exc_code,
-//             sr.exl, sr.erl, sr.ksu,
-//             regs->pc, regs->sp, bad_addr);
+    kprintf("General exception! Except: %d, TI: %d, IP: %d, ECode: %d"
+            ", EXL: %d, ERL: %d, KSU: %d, PC: %lx, SP: %lx, Bad @ %lx\n",
+            except, cause.ti, cause.ip, cause.exc_code,
+            sr.exl, sr.erl, sr.ksu,
+            regs->pc, regs->sp, bad_addr);
 
     switch (except) {
     case EXCEPT_NUM_TLB_REFILL: {
-        struct page_frame *page_table = *get_per_cpu(struct page_frame *, cur_page_dir);
+        struct page_frame *page_table = get_cur_running_page_table();
         paddr_t paddr = translate(page_table, bad_addr);
         seq = paddr ? MIPS_INT_SEQ_TLB_REFILL : INT_SEQ_PAGE_FAULT;
         break;
@@ -79,7 +79,7 @@ void int_handler_entry(int except, struct reg_context *regs)
             // TODO: make sure TLB of bad_vaddr is half-mapped,
             // meaning the other ppfn slot out of the two is mapped,
             // but not the one for bad_vaddr
-            struct page_frame *page_table = *get_per_cpu(struct page_frame *, cur_page_dir);
+            struct page_frame *page_table = get_cur_running_page_table();
             paddr_t paddr = translate(page_table, bad_addr);
             seq = paddr ? MIPS_INT_SEQ_TLB_REFILL : INT_SEQ_PAGE_FAULT;
             break;
@@ -162,30 +162,23 @@ void init_int_entry_mp()
     struct cp0_ebase ebase;
     read_cp0_ebase(ebase.value);
 #if (ARCH_WIDTH == 64)
-//     struct cp0_ebase64 ebase64;
-//     // Read EBase
-//     read_cp0_ebase(ebase.value);
-//
-//     // Test write gate
-//     ebase.write_gate = 1;
-//     write_cp0_ebase(ebase.value);
-//     read_cp0_ebase(ebase.value);
-//
-//     if (ebase.write_gate) {
-//         read_cp0_ebase64(ebase64.value);
-//         ebase64.base = ((ulong)&raw_int_entry_base) >> 12;
-//         write_cp0_ebase64(ebase64.value);
-//         read_cp0_ebase64(ebase_val);
-//     } else {
-//         ulong wrapper_addr = (ulong)&raw_int_entry_base;
-//         assert((wrapper_addr >> 32) == 0xfffffffful);
-//
-//         ebase.base = ((u32)wrapper_addr) >> 12;
-//         write_cp0_ebase(ebase.value);
-//
-//         read_cp0_ebase(ebase_val);
-//         ebase_val |= 0xfffffffful << 32;
-//     }
+    // Test write gate
+    ebase.write_gate = 1;
+    write_cp0_ebase(ebase.value);
+    read_cp0_ebase(ebase.value);
+
+    if (ebase.write_gate) {
+        struct cp0_ebase64 ebase64;
+        read_cp0_ebase64(ebase64.value);
+        ebase64.base = ((ulong)&raw_int_entry_base) >> 12;
+        write_cp0_ebase64(ebase64.value);
+    } else {
+        ulong wrapper_addr = (ulong)&raw_int_entry_base;
+        assert((wrapper_addr >> 32) == 0xfffffffful);
+
+        ebase.base = ((u32)wrapper_addr) >> 12;
+        write_cp0_ebase(ebase.value);
+    }
 #else
     ebase.base = ((ulong)&raw_int_entry_base) >> 12;
     write_cp0_ebase(ebase.value);
@@ -211,7 +204,11 @@ void init_int_entry_mp()
 
 void init_int_entry()
 {
+#if (ARCH_WIDTH == 32)
     ppfn_t ctxt_base_tab_ppfn = pre_palloc(1);
+#else
+    ppfn_t ctxt_base_tab_ppfn = pre_palloc(2);
+#endif
     paddr_t ctxt_base_tab_paddr = ppfn_to_paddr(ctxt_base_tab_ppfn);
     per_cpu_context_base_table = cast_paddr_to_cached_seg(ctxt_base_tab_paddr);
 

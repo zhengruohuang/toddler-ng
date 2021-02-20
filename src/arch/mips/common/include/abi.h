@@ -31,13 +31,26 @@
     #error "Unknown arch type"
 #endif
 
-#define LOADER_BASE     0x80010000
-#define HAL_BASE        0x80110000
-#define KERNEL_BASE     0x80182000
-#define USER_BASE       0x100000
+
+// MIPS32
+#if (ARCH_WIDTH == 32)
+    #define LOADER_BASE     0x80010000
+    #define HAL_BASE        0x80110000
+    #define KERNEL_BASE     0x80182000
+    #define USER_BASE       0x100000
+
+// MIPS64
+#elif (ARCH_WIDTH == 64)
+    #define LOADER_BASE     0xffffffff80010000
+    #define HAL_BASE        0x9000000000110000
+    #define KERNEL_BASE     0x9000000000182000
+    #define USER_BASE       0x100100000
+#else
+    #error "Unknown arch width"
+#endif
+
 
 #define STACK_GROWS_UP  0
-
 #define DATA_ALIGNMENT  8
 
 

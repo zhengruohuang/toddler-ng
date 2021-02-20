@@ -9,9 +9,6 @@
 #include "hal/include/mp.h"
 
 
-static decl_per_cpu(struct l1table *, cur_page_dir);
-
-
 static void switch_page_table(struct l1table *page_table)
 {
     //kprintf("To switch page table @ %lx\n", page_table);
@@ -36,8 +33,6 @@ void switch_to(ulong thread_id, struct reg_context *context,
     set_local_int_state(1);
 
     // Switch page dir
-    struct l1table **pl1tab = get_per_cpu(struct l1table *, cur_page_dir);
-    *pl1tab = page_table;
     switch_page_table(page_table);
 
     //kprintf("cur_stack_top: %p, PC @ %p, SP @ %p, R0: %p\n", *cur_stack_top, context->pc, context->sp, context->r0);
@@ -45,17 +40,6 @@ void switch_to(ulong thread_id, struct reg_context *context,
 
     // Restore GPRs
     restore_context_gpr(*cur_stack_top);
-}
-
-void init_switch_mp()
-{
-    struct l1table **pl1tab = get_per_cpu(struct l1table *, cur_page_dir);
-    *pl1tab = NULL; // TODO: set to kernel page table
-}
-
-void init_switch()
-{
-    init_switch_mp();
 }
 
 
@@ -68,7 +52,6 @@ void kernel_pre_dispatch(ulong thread_id, struct kernel_dispatch *kdi)
 
 void kernel_post_dispatch(ulong thread_id, struct kernel_dispatch *kdi)
 {
-    struct l1table **pl1tab = get_per_cpu(struct l1table *, cur_page_dir);
-    struct l1table *user_page_table = *pl1tab;
+    struct l1table *user_page_table = get_cur_running_page_table();
     switch_page_table(user_page_table);
 }

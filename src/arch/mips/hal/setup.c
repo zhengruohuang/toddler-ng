@@ -51,14 +51,12 @@ static void init_int()
 {
     init_tlb();
     init_int_entry();
-    init_switch();
 }
 
 static void init_int_mp()
 {
     init_tlb_mp();
     init_int_entry_mp();
-    init_switch_mp();
 }
 
 static void init_mm()
@@ -88,12 +86,22 @@ ulong cast_paddr_to_uncached_seg(paddr_t paddr)
 paddr_t cast_cached_seg_to_paddr(void *ptr)
 {
     ulong vaddr = (ulong)ptr;
+#if (ARCH_WIDTH == 64)
+    if (vaddr >= 0xffffffff00000000ul) {
+        vaddr &= SEG_DIRECT_MASK_LOW;
+    }
+#endif
     ulong lower = vaddr & (ulong)SEG_DIRECT_MASK;
     return cast_vaddr_to_paddr(lower);
 }
 
 paddr_t cast_uncached_seg_to_paddr(ulong vaddr)
 {
+#if (ARCH_WIDTH == 64)
+    if (vaddr >= 0xffffffff00000000ul) {
+        vaddr &= SEG_DIRECT_MASK_LOW;
+    }
+#endif
     ulong lower = vaddr & (ulong)SEG_DIRECT_MASK;
     return cast_vaddr_to_paddr(lower);
 }
@@ -106,6 +114,11 @@ static ulong hal_direct_paddr_to_vaddr(paddr_t paddr, int count, int cached)
 
 static paddr_t hal_direct_vaddr_to_paddr(ulong vaddr, int count)
 {
+#if (ARCH_WIDTH == 64)
+    if (vaddr >= 0xffffffff00000000ul) {
+        vaddr &= SEG_DIRECT_MASK_LOW;
+    }
+#endif
     ulong lower = vaddr & (ulong)SEG_DIRECT_MASK;
     return cast_vaddr_to_paddr(lower);
 }
