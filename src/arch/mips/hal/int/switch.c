@@ -17,7 +17,7 @@ void switch_to(ulong thread_id, struct reg_context *context,
     memcpy((void *)*cur_stack_top, context, sizeof(struct reg_context));
 
     //kprintf("cur_stack_top: %p, PC @ %p, SP @ %p, R0: %p\n", *cur_stack_top, context->pc, context->sp, context->r0);
-    kprintf("Switch to PC @ %lx, SP @ %lx, user: %d, ASID: %d, thread: %lx\n", context->pc, context->sp, user_mode, asid, thread_id);
+    //kprintf("Switch to PC @ %lx, SP @ %lx, user: %d, ASID: %d, thread: %lx\n", context->pc, context->sp, user_mode, asid, thread_id);
 
     // Set up fast TCB access - k0
     struct reg_context *target_ctxt = (void *)*cur_stack_top;

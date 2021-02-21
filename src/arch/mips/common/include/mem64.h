@@ -24,17 +24,17 @@ typedef paddr_t             psize_t;
 /*
  * MIPS-specific segment
  */
-#define SEG_USER            0x0ul
-#define SEG_DIRECT_CACHED   0x9000000000000000ul
-#define SEG_DIRECT_UNCACHED 0x9800000000000000ul
-#define SEG_KERNEL          0xc000000000000000ul
+#define SEG_USER                0x0ul
+#define SEG_DIRECT_CACHED       0x9000000000000000ul
+#define SEG_DIRECT_UNCACHED     0x9800000000000000ul
+#define SEG_KERNEL              0xc000000000000000ul
 #define SEG_DIRECT_CACHED_LOW   0xffffffff80000000ul
 #define SEG_DIRECT_UNCACHED_LOW 0xffffffffa0000000ul
 
-#define SEG_USER_SIZE       0x4000000000000000ul
-#define SEG_DIRECT_SIZE     0x800000000000000ul
-#define SEG_DIRECT_MASK     0x7fffffffffffffful
-#define SEG_DIRECT_MASK_LOW 0x1ffffffful
+#define SEG_USER_SIZE           0x4000000000000000ul
+#define SEG_DIRECT_SIZE         0x800000000000000ul
+#define SEG_DIRECT_MASK         0x7fffffffffffffful
+#define SEG_DIRECT_MASK_LOW     0x1ffffffful
 
 
 #endif

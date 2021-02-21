@@ -8,43 +8,20 @@
 
 
 /*
- * Paging
+ * Page structure
  *  4KB page size, 512-entry per page, 4-level
  */
+#define PAGE_LEVELS              4
+
 #define PAGE_TABLE_SIZE          4096
 #define PAGE_TABLE_ENTRY_COUNT   512
 #define PAGE_TABLE_ENTRY_BITS    9
-
-#define PAGE_SIZE                4096
-#define PAGE_BITS                12
-#define PAGE_LEVELS              4
-
-#define L0BLOCK_SIZE             0x8000000000ul  // 512GB
-#define L0BLOCK_PAGE_COUNT       134217728
-
-#define L1BLOCK_SIZE             0x40000000ul    // 1GB
-#define L1BLOCK_PAGE_COUNT       262144
-
-#define L2BLOCK_SIZE             0x200000ul      // 2MB
-#define L2BLOCK_PAGE_COUNT       512
-
-#define GET_PTE_INDEX(addr, level)  (                       \
-            ((level) == 0) ? ((addr) >> 39) :               \
-            ((level) == 1) ? (((addr) >> 30) & 0x1fful) :   \
-            ((level) == 2) ? (((addr) >> 21) & 0x1fful) :   \
-                            (((addr) >> 12) & 0x1fful)     \
-        )
-#define GET_L0PTE_INDEX(addr)    ((addr) >> 39)
-#define GET_L1PTE_INDEX(addr)    (((addr) >> 30) & 0x1fful)
-#define GET_L2PTE_INDEX(addr)    (((addr) >> 21) & 0x1fful)
-#define GET_L3PTE_INDEX(addr)    (((addr) >> 12) & 0x1fful)
-#define GET_PAGE_OFFSET(addr)    ((addr) & 0xffful)
 
 struct page_table_entry {
     union {
         struct {
             ulong   present         : 1;
-            ulong   block           : 1;
+            ulong   leaf            : 1;
             ulong   global          : 1;
             ulong   read_allow      : 1;
             ulong   write_allow     : 1;
@@ -57,11 +34,6 @@ struct page_table_entry {
 #elif (ARCH_WIDTH == 64)
             ulong   pfn             : 52;
 #endif
-        };
-
-        struct {
-            u32                     : 20;
-            u32     bfn             : 12;
         };
 
         ulong value;
@@ -77,26 +49,141 @@ struct page_frame {
 
 
 /*
- * Addr <--> BFN (Block Frame Number)
+ * Arch-specific page table functions
  */
-static inline ppfn_t paddr_to_pbfn(paddr_t paddr)
+static inline void *page_get_pte(void *page_table, int level, ulong vaddr)
 {
-    return paddr >> 20;
+    struct page_frame *table = page_table;
+    ulong idx = vaddr >> PAGE_BITS;
+    idx >>= (PAGE_LEVELS - level) * PAGE_TABLE_ENTRY_BITS;
+    idx &= PAGE_TABLE_ENTRY_COUNT - 0x1ul;
+
+    struct page_table_entry *pte = &table->entries[idx];
+    return pte;
 }
 
-static inline ppfn_t pbfn_to_paddr(paddr_t ppfn)
+static inline int page_is_pte_valid(void *entry, int level)
 {
-    return ppfn << 20;
+    struct page_table_entry *pte = entry;
+    return pte->present ? 1 : 0;
 }
 
-static inline ulong get_pblock_offset(paddr_t paddr)
+static inline int page_is_pte_leaf(void *entry, int level)
 {
-    return (ulong)(paddr & ((paddr_t)L1BLOCK_SIZE - 1));
+    struct page_table_entry *pte = entry;
+    return pte->leaf ? 1 : 0;
 }
 
-static inline ulong get_vblock_offset(ulong vaddr)
+static inline ppfn_t page_get_pte_next_table(void *entry, int level)
 {
-    return vaddr & ((ulong)L1BLOCK_SIZE - 1);
+    struct page_table_entry *pte = entry;
+    return pte->pfn;
+}
+
+static inline ppfn_t page_get_pte_dest_ppfn(void *entry, int level)
+{
+    struct page_table_entry *pte = entry;
+    return (ppfn_t)pte->pfn;
+}
+
+static inline ppfn_t page_get_pte_attri(void *entry, int level, ulong vaddr,
+                                        int *exec, int *read, int *write, int *cache, int *kernel)
+{
+    struct page_table_entry *pte = entry;
+
+    if (exec) *exec = pte->exec_allow;
+    if (read) *read = 1;
+    if (write) *write = pte->write_allow;
+    if (cache) *cache = pte->cache_allow;
+    if (kernel) *kernel = pte->kernel;
+
+    return (ppfn_t)pte->pfn;
+}
+
+static inline int page_compare_pte_attri(void *entry, int level, paddr_t ppfn,
+                                         int exec, int read, int write, int cache, int kernel)
+{
+    struct page_table_entry *pte = entry;
+
+    if (pte->pfn != ppfn ||
+        pte->exec_allow != exec || pte->write_allow != write ||
+        pte->cache_allow != cache || pte->kernel != kernel
+    ) {
+        return -1;
+    }
+
+    return 0;
+}
+
+static inline void page_set_pte_attri(void *entry, int level, paddr_t ppfn,
+                                      int exec, int read, int write, int cache, int kernel)
+{
+    struct page_table_entry *pte = entry;
+    pte->value = 0;
+
+    pte->present = 1;
+    pte->leaf = 1;
+    pte->pfn = ppfn;
+    pte->exec_allow = exec;
+    pte->write_allow = write;
+    pte->cache_allow = cache;
+    pte->kernel = kernel;
+}
+
+static inline void page_set_pte_next_table(void *entry, int level, ppfn_t ppfn)
+{
+    struct page_table_entry *pte = entry;
+    pte->value = 0;
+
+    pte->present = 1;
+    pte->leaf = 0;
+    pte->pfn = ppfn;
+}
+
+static inline void page_zero_pte(void *entry, int level)
+{
+    struct page_table_entry *pte = entry;
+    pte->value = 0;
+}
+
+static inline int page_is_mappable(ulong vaddr, paddr_t paddr,
+                                   int exec, int read, int write, int cache, int kernel)
+{
+#if (ARCH_WIDTH == 32)
+    return 1;
+#elif (ARCH_WIDTH == 64)
+    return paddr < ((paddr_t)0x1ul << MAX_NUM_PADDR_BITS) ? 1 : 0;
+#endif
+}
+
+static inline int page_is_empty_table(void *page_table, int level)
+{
+    struct page_frame *table = page_table;
+    for (int i = 0; i < PAGE_TABLE_ENTRY_COUNT; i++) {
+        if (table->entries[i].value) {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+static inline int page_get_num_table_pages(int level)
+{
+    return 1;
+}
+
+static inline ulong page_get_block_page_count(int level)
+{
+    ulong page_count = 0x1ul << ((PAGE_LEVELS - level) * PAGE_TABLE_ENTRY_BITS);
+    return page_count;
+}
+
+static inline ulong page_get_block_vmask(int level)
+{
+    ulong vmask = PAGE_SIZE - 0x1;
+    vmask |= ((0x1ul << ((PAGE_LEVELS - level) * PAGE_TABLE_ENTRY_BITS)) - 0x1ul) << PAGE_BITS;
+    return vmask;
 }
 
 

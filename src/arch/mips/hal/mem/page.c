@@ -7,6 +7,8 @@
 #include "hal/include/setup.h"
 
 
+#if (ARCH_WIDTH == 32)
+
 /*
  * Page table
  */
@@ -314,3 +316,5 @@ int unmap_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size)
 
     return unmapped_pages;
 }
+
+#endif

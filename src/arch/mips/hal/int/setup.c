@@ -52,11 +52,11 @@ void int_handler_entry(int except, struct reg_context *regs)
     ulong error_code = bad_addr;
 
     //if (except == 3)
-    kprintf("General exception! Except: %d, TI: %d, IP: %d, ECode: %d"
-            ", EXL: %d, ERL: %d, KSU: %d, PC: %lx, SP: %lx, Bad @ %lx\n",
-            except, cause.ti, cause.ip, cause.exc_code,
-            sr.exl, sr.erl, sr.ksu,
-            regs->pc, regs->sp, bad_addr);
+//     kprintf("General exception! Except: %d, TI: %d, IP: %d, ECode: %d"
+//             ", EXL: %d, ERL: %d, KSU: %d, PC: %lx, SP: %lx, Bad @ %lx\n",
+//             except, cause.ti, cause.ip, cause.exc_code,
+//             sr.exl, sr.erl, sr.ksu,
+//             regs->pc, regs->sp, bad_addr);
 
     switch (except) {
     case EXCEPT_NUM_TLB_REFILL: {
