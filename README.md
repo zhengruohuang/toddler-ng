@@ -40,9 +40,9 @@ Current = Up to date
 | armv7-raspi2-qemu     | Current   | Current   |                    |
 | aarch64v8-raspi3-qemu | Current   | Planned   | Minor fixes needed |
 | mips32l-malta-generic | Current   | Active    |                    |
-| mips32b-malta-generic | Current   | Active    |                    |
-| mips64l-malta-generic | Initial   | Planned   |                    |
-| mips64b-malta-generic | Initial   | Planned   |                    |
+| mips32b-malta-generic | Current   | Active    | Minor fixes needed |
+| mips64l-malta-generic | Current   | Planned   |                    |
+| mips64b-malta-generic | Current   | Planned   | Minor fixes needed |
 | powerpc-mac-generic   | Current   | Planned   | Minor fixes needed |
 | powerpc64-mac-generic | Initial   | Planned   |                    |
 | sparcv8-leon3-qemu    | Current   | Planned   | Minor fixes needed |
@@ -52,8 +52,8 @@ Current = Up to date
 | riscv64-virt-qemu     | Current   | Planned   | Minor fixes needed |
 | m68k-atari-aranym     | Active    | Planned   |                    |
 | sh4-r2d-qemu          | Active    | Planned   |                    |
-| openrisc-sim-qemu     | Current   | Planned   |                    |
-| ia64-sim-ski          | Planned   | Planned   |                    |
+| openrisc-sim-qemu     | Current   | Planned   | Minor fixes needed |
+| ia64-sim-ski          | Initial   | Planned   |                    |
 | s390-virtio-qemu      | Planned   | Planned   |                    |
 | zarch-virtio-qemu     | Planned   | Planned   |                    |
 | hppa-sim-qemu         | Planned   | Planned   |                    |
@@ -63,29 +63,29 @@ Current = Up to date
 
 | Component             | Status    |
 | --------------------- | --------- |
-| Process management    | Active    |
+| Process management    | Current   |
 | Page allocation       | Current   |
 | Object allocation     | Current   |
-| IPC                   | Planned   |
-| Kernel call           | Planned   |
-| System API            | Planned   |
+| IPC                   | Current   |
+| Kernel call           | Current   |
+| System API            | Current   |
 
 ### System
 
 | Server                | Status    |
 | --------------------- | --------- |
-| Virtual file system   | Planned   |
+| Virtual file system   | Active    |
 | User account system   | Planned   |
-| Device management     | Planned   |
-| Text UI               | Planned   |
+| Device management     | Active    |
+| Text UI               | Active    |
 | Graphics UI           | Planned   |
 
 | Driver                | Status    |
 | --------------------- | --------- |
 | Partition             | Planned   |
-| File systems          | Planned   |
-| RAM FS                | Planned   |
-| Serial                | Planned   |
+| File systems          | Active    |
+| RAM FS                | Active    |
+| Serial                | Active    |
 | Video                 | Planned   |
 | Disk                  | Planned   |
 | Keyboard              | Planned   |
@@ -96,6 +96,6 @@ Current = Up to date
 
 | Item                  | Status    |
 | --------------------- | --------- |
-| Init                  | Planned   |
+| Init                  | Active    |
 | Login                 | Planned   |
-| Shell                 | Planned   |
+| Shell                 | Active    |
