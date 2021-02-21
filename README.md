@@ -3,25 +3,25 @@ The next generation Toddler
 
 ## Major Goals
 * Written in C99
-* Unified boot protocol for all architectures with Device Tree support, combined with ACPI on x86 and OFW on PPC
-* Support more architectures (ARM64, PowerPC64, RISC-V, Alpha, SPARC, m68k) and machines (Multiple ARM boards)
+* Unified boot protocol for all architectures with Device Tree support, combined with ACPI on x86 and OFW on PPC/SPARC
+* Support more architectures (ARM, PowerPC, x86, RISC-V, Alpha, SPARC, m68k) and machines (e.g., Multiple ARM boards)
 * More efficient IPC
 * Refined kernel APIs
 * Refined VFS and user model
 * Complete standard C library
 * Console, shell, and utilities
+* Run on QEMU and other emulators
+* Run on real machines
 
 ## Long-term Goals
 * NetBSD as an environment system
 * X11
 * Package management system
-* Run on real machines
 
 ## Misc
 * Fix up SMP support
-* Replace NASM assmebly with GAS
-* Multiboot compliant on x86
-* Even more architectures - OpenRISC, HPPA, IA64, s390, VAX
+* x86: replace NASM assmebly with GAS on x86 and multiboot compliant
+* More architectures - OpenRISC, HPPA, SuperH, IA64, s390, VAX
 
 ## Status
 
@@ -34,16 +34,16 @@ Current = Up to date
 
 | Target                | Loader    | HAL       | Note               |
 | --------------------- | --------- | --------- | ------------------ |
-| ia32-pc-multiboot     | Current   | Planned   | Minor fixes needed |
-| amd64-pc-multiboot    | Current   | Planned   | Minor fixes needed |
+| ia32-pc-multiboot     | Current   | Active    | Minor fixes needed |
+| amd64-pc-multiboot    | Current   | Active    | Minor fixes needed |
 | alpha-clipper-qemu    | Active    | Planned   |                    |
 | armv7-raspi2-qemu     | Current   | Current   |                    |
-| aarch64v8-raspi3-qemu | Current   | Planned   | Minor fixes needed |
-| mips32l-malta-generic | Current   | Active    |                    |
-| mips32b-malta-generic | Current   | Active    | Minor fixes needed |
-| mips64l-malta-generic | Current   | Planned   |                    |
-| mips64b-malta-generic | Current   | Planned   | Minor fixes needed |
-| powerpc-mac-generic   | Current   | Planned   | Minor fixes needed |
+| aarch64v8-raspi3-qemu | Current   | Active    | Minor fixes needed |
+| mips32l-malta-generic | Current   | Current   |                    |
+| mips32b-malta-generic | Current   | Current   | Minor fixes needed |
+| mips64l-malta-generic | Current   | Current   |                    |
+| mips64b-malta-generic | Current   | Current   | Minor fixes needed |
+| powerpc-mac-generic   | Current   | Active    | Minor fixes needed |
 | powerpc64-mac-generic | Initial   | Planned   |                    |
 | sparcv8-leon3-qemu    | Current   | Planned   | Minor fixes needed |
 | sparcv8-sun4m-generic | Active    | Planned   |                    |
@@ -58,6 +58,21 @@ Current = Up to date
 | zarch-virtio-qemu     | Planned   | Planned   |                    |
 | hppa-sim-qemu         | Planned   | Planned   |                    |
 | vax-sim-simh          | Initial   | Planned   |                    |
+
+### Additional Targets
+
+| Target                    | Status    |
+| ------------------------- | --------- |
+| amd64-pc-uefi             | Planned   |
+| aarch64v8-virt-qemu       | Planned   |
+| mips32l-ci20-generic      | Planned   |
+| mips64l-loongson3-generic | Planned   |
+| powerpc-g3-generic        | Planned   |
+| powerpc64-g3-generic      | Planned   |
+| powerpc64-g3-generic      | Planned   |
+| powerpc64-pseries-generic | Planned   |
+| riscv32-sifive_u-qemu     | Planned   |
+| riscv64-sifive_u-qemu     | Planned   |
 
 ### Kernel
 
@@ -75,7 +90,7 @@ Current = Up to date
 | Server                | Status    |
 | --------------------- | --------- |
 | Virtual file system   | Active    |
-| User account system   | Planned   |
+| User account          | Planned   |
 | Device management     | Active    |
 | Text UI               | Active    |
 | Graphics UI           | Planned   |
@@ -94,7 +109,7 @@ Current = Up to date
 
 ### Apps
 
-| Item                  | Status    |
+| App                   | Status    |
 | --------------------- | --------- |
 | Init                  | Active    |
 | Login                 | Planned   |
