@@ -21,6 +21,7 @@
 #define __mtc0(value, reg, sel)             \
     __asm__ __volatile__ (                  \
         "mtc0 %[r], $" #reg ", " #sel ";"   \
+        "ehb;"                              \
         :                                   \
         : [r] "r" (value)                   \
         : "memory"                          \
@@ -30,6 +31,7 @@
 #define __dmfc0(value, reg, sel)            \
     __asm__ __volatile__ (                  \
         "dmfc0 %[r], $" #reg ", " #sel ";"  \
+        "ehb;"                              \
         : [r] "=r" (value)                  \
         :                                   \
         : "memory"                          \
@@ -38,6 +40,7 @@
 #define __dmtc0(value, reg, sel)            \
     __asm__ __volatile__ (                  \
         "dmtc0 %[r], $" #reg ", " #sel ";"  \
+        "ehb;"                              \
         :                                   \
         : [r] "r" (value)                   \
         : "memory"                          \

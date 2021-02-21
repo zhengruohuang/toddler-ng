@@ -5,7 +5,17 @@
 
 static enum int_seq_state int_seq_table[INT_SEQ_COUNT];
 static int_handler_t int_handler_list[INT_SEQ_COUNT];
+static int_handler_t default_int_handler = NULL;
 
+
+int set_default_int_handler(int_handler_t handler)
+{
+    panic_if(default_int_handler,
+             "Not allowed to overwrite existing default int handlers!\n");
+
+    default_int_handler = handler;
+    return 1;
+}
 
 int set_int_handler(int seq, int_handler_t handler)
 {
@@ -53,7 +63,16 @@ int_handler_t get_int_handler(int seq)
 int invoke_int_handler(int seq, struct int_context *ictxt, struct kernel_dispatch *kdi)
 {
     int_handler_t handler = get_int_handler(seq);
-    return handler ? handler(ictxt, kdi) : INT_HANDLE_SIMPLE;
+    if (!handler) {
+        handler = default_int_handler;
+    }
+
+    int handle_type = INT_HANDLE_SIMPLE;
+    if (handler) {
+        handle_type = handler(ictxt, kdi);
+    }
+
+    return handle_type;
 }
 
 void init_int_seq()

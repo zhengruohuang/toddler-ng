@@ -23,6 +23,10 @@
 #define TLB_VPN2_SHIFT_BITS     13
 
 struct tlb_config {
+#if (ARCH_WIDTH == 64)
+    int has_big_page;
+#endif
+
     int has_vtlb;
     u32 vtlb_size_mask;
     int vtlb_entry_count;
@@ -83,7 +87,13 @@ static void write_tlb_entry(struct tlb_config *tlb, int index, int nonstd_pgsz,
 
     // Write to TLB
     write_cp0_entry_hi(hi);
-    write_cp0_page_mask(pm);
+#if (ARCH_WIDTH == 64)
+    if (tlb->has_big_page)
+        write_cp0_page_mask64(pm);
+    else
+#else
+        write_cp0_page_mask(pm);
+#endif
     write_cp0_entry_lo0(lo0);
     write_cp0_entry_lo1(lo1);
     write_cp0_index(entry_index);
@@ -152,6 +162,10 @@ static void map_tlb_entry_user(struct tlb_config *tlb, ulong asid, ulong vpn2,
         lo1.dirty = write1;
         lo1.coherent = cache1 ? 0x3 : 0x2;
     }
+
+//     kprintf("TLB write @ %lx -> %llx - %llx\n",
+//             vpn2 << TLB_VPN2_SHIFT_BITS,
+//             (u64)ppn0 << PAGE_BITS, (u64)ppn1 << PAGE_BITS);
 
     int idx = probe_tlb_index(tlb, asid, vpn2);
     write_tlb_entry(tlb, idx, 0, hi.value, pm.value, lo0.value, lo1.value);
@@ -247,11 +261,13 @@ static int int_handler_tlb_refill(struct int_context *ictxt, struct kernel_dispa
 
     // Get faulting vaddr
     ulong bad_addr = ictxt->error_code;
+    paddr_t bad_paddr = translate(page_table, bad_addr);
+    panic_if(!bad_paddr, "Page fault not handled @ %lx", bad_addr);
+
+    // Get pair of vaddrs and VPN2
     ulong vaddr0 = vpfn_to_vaddr((vaddr_to_vpfn(bad_addr) & ~0x1ul));
     ulong vaddr1 = vpfn_to_vaddr((vaddr_to_vpfn(bad_addr) |  0x1ul));
-
-    // Get VPN2
-    ulong vpn2 = vaddr0 >> TLB_VPN2_SHIFT_BITS;
+    ulong vpn2 = bad_addr >> TLB_VPN2_SHIFT_BITS;
 
     // Get paddr
     int exec0 = 0, write0 = 0, cache0 = 0;
@@ -380,9 +396,6 @@ void init_tlb_mp()
     // Total TLB entry count
     tlb->tlb_entry_count = tlb->vtlb_entry_count + tlb->ftlb_entry_count;
 
-    // Flush TLB
-    flush_tlb(tlb);
-
     // Set up page grain config
     struct cp0_page_grain grain;
     read_cp0_page_grain(grain.value);
@@ -390,7 +403,22 @@ void init_tlb_mp()
     grain.iec = 1;
     grain.xie = 1;
     grain.rie = 1;
+#if (ARCH_WIDTH == 64)
+    grain.elpa = 1;
+#endif
     write_cp0_page_grain(grain.value);
+
+#if (ARCH_WIDTH == 64)
+    // Check if big page is present
+    u32 val = 0;
+    struct cp0_config3 c3;
+    assert(read_cpu_config(3, &val));
+    c3.value = val;
+    tlb->has_big_page = c3.has_big_page;
+#endif
+
+    // Flush TLB
+    flush_tlb(tlb);
 
     kprintf("TLB initialized, entry count: %d\n", tlb->tlb_entry_count);
 }

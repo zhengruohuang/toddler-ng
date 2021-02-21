@@ -35,11 +35,6 @@ void switch_to(ulong thread_id, struct reg_context *context,
     // Set SR based on user/kernel mode, also set EXL bit - switching is enabled
     struct cp0_status status;
     read_cp0_status(status.value);
-    status.kx = 1;
-    status.sx = 1;
-    status.ux = 1;
-    status.px = 1;
-
     status.ksu = user_mode ? 0x2 : 0;
     status.exl = 1;
     status.erl = 0;
@@ -55,7 +50,7 @@ void switch_to(ulong thread_id, struct reg_context *context,
     enable_local_int();
 
     // Restore GPRs
-    restore_context_gpr(*cur_stack_top);
+    restore_context_gpr(target_ctxt);
 }
 
 void kernel_pre_dispatch(ulong thread_id, struct kernel_dispatch *kdi)

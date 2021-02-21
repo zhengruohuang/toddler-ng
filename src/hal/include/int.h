@@ -65,6 +65,7 @@ enum int_seq_state {
 };
 
 extern void init_int_seq();
+extern int set_default_int_handler(int_handler_t handler);
 extern int set_int_handler(int seq, int_handler_t hdlr);
 extern int alloc_int_seq(int_handler_t hdlr);
 extern void free_int_seq(int seq);

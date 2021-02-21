@@ -503,10 +503,11 @@ ulong vm_map_coreimg(struct process *p)
         return 0;
     }
 
+    paddr_t paddr = hal_cast_kernel_ptr_to_paddr((void *)kernel_vaddr_start);
     b->map_type = VM_MAP_TYPE_GUEST;
     spinlock_exclusive_int(&p->page_table_lock) {
         get_hal_exports()->map_range(p->page_table, b->base,
-                                     hal_cast_kernel_ptr_to_paddr((void *)kernel_vaddr_start), b->size,
+                                     paddr, b->size,
                                      1, 1, 1, 0, 0);
     }
 
@@ -527,25 +528,26 @@ ulong vm_map_devtree(struct process *p)
         return 0;
     }
 
-    ulong paddr_start = align_down_vaddr((ulong)dt, PAGE_SIZE);
-    ulong paddr_end = align_up_vaddr((ulong)dt + size, PAGE_SIZE);
-    ulong map_size = paddr_end - paddr_start;
+    ulong kernel_vaddr_start = align_down_vaddr((ulong)dt, PAGE_SIZE);
+    ulong kernel_vaddr_end = align_up_vaddr((ulong)dt + size, PAGE_SIZE);
+    ulong map_size = kernel_vaddr_end - kernel_vaddr_start;
 
-    kprintf("devtree paddr @ %lx - %lx\n", paddr_start, paddr_end);
+    kprintf("devtree paddr @ %lx - %lx\n", kernel_vaddr_start, kernel_vaddr_end);
 
     struct vm_block *b = vm_alloc(p, 0, map_size, 0);
     if (!b) {
         return 0;
     }
 
+    paddr_t paddr = hal_cast_kernel_ptr_to_paddr((void *)kernel_vaddr_start);
     b->map_type = VM_MAP_TYPE_GUEST;
     spinlock_exclusive_int(&p->page_table_lock) {
         get_hal_exports()->map_range(p->page_table, b->base,
-                                     cast_vaddr_to_paddr(paddr_start), b->size,
+                                     paddr, b->size,
                                      1, 1, 1, 0, 0);
     }
 
-    ulong offset = (ulong)dt - paddr_start;
+    ulong offset = (ulong)dt - kernel_vaddr_start;
     return b->base + offset;
 }
 

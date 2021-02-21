@@ -14,7 +14,8 @@
 #define MAX_NUM_VADDR_BITS  64
 #define MAX_NUM_PADDR_BITS  48
 
-#define USER_VADDR_LIMIT    0x3f00000000000000ul
+#define USER_VADDR_LIMIT    0xff00000000ul
+                            //0x3f00000000000000ul
 
 typedef u64                 paddr_t;
 typedef paddr_t             ppfn_t;

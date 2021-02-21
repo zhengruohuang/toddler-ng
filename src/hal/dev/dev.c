@@ -157,7 +157,7 @@ static struct dev_record *enum_devtree_node(struct devtree_node *node)
 {
     // Set up the device node
     struct dev_record *dev = mempool_alloc(sizeof(struct dev_record));
-    memzero(dev, sizeof(sizeof(struct dev_record)));
+    memzero(dev, sizeof(struct dev_record));
 
     struct fw_dev_info fw_info = { .devtree_node = node };
     probe_dev(dev, &fw_info);

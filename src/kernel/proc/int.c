@@ -2,6 +2,7 @@
 #include "kernel/include/atomic.h"
 #include "kernel/include/proc.h"
 #include "kernel/include/kernel.h"
+#include "kernel/include/lib.h"
 
 
 #define MAX_NUM_INT_HANDLERS 32
@@ -95,6 +96,12 @@ int int_handler_unregister(struct process *p, ulong seq)
  */
 int int_handler_invoke(ulong seq)
 {
+    panic_if(seq >= MAX_NUM_INT_HANDLERS,
+             "Bad user interrupt seq number: %lu\n", seq);
+    if (seq >= MAX_NUM_INT_HANDLERS) {
+        return -1;
+    }
+
     int err = -1;
     struct process *proc = NULL;
     ulong entry = 0;

@@ -24,7 +24,7 @@ extern_per_cpu(ulong, cur_int_stack_top);
 extern void init_int_entry_mp();
 extern void init_int_entry();
 
-extern void restore_context_gpr();
+extern void restore_context_gpr(struct reg_context *target_ctxt);
 
 
 /*

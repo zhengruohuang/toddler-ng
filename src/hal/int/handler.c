@@ -53,7 +53,7 @@ void int_handler(int seq, struct int_context *ictxt)
     handle_halt();
 
     // Prepare the handling
-    struct kernel_dispatch kdispatch;
+    struct kernel_dispatch kdispatch = { };
     kdispatch.regs = ictxt->regs;
     kdispatch.num = SYSCALL_INTERRUPT;
 
@@ -83,6 +83,7 @@ void int_handler(int seq, struct int_context *ictxt)
 
 void init_int_handler()
 {
+    set_default_int_handler(int_handler_dummy);
     set_int_handler(INT_SEQ_DUMMY, int_handler_dummy);
     set_int_handler(INT_SEQ_DEV, int_handler_dev);
     set_int_handler(INT_SEQ_PAGE_FAULT, int_handler_page_fault);

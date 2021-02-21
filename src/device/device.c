@@ -48,7 +48,7 @@ static void start_drivers()
 {
 #if defined(ARCH_ARMV7)
     init_pl011_driver();
-#elif defined(ARCH_MIPS32L)
+#elif defined(ARCH_MIPS32L) || defined(ARCH_MIPS64L)
     init_ns16550_driver();
 #endif
 

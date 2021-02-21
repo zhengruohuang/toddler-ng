@@ -100,14 +100,12 @@ void int_handler_entry(int except, struct reg_context *regs)
     }
 
     // Go to the generic handler!
-    struct int_context intc;
+    struct int_context intc = { };
     intc.vector = seq;
     intc.error_code = error_code;
     intc.regs = regs;
 
     int_handler(seq, &intc);
-
-    //kprintf("here? seq: %d\n", seq);
 
     // Switch back previous program
     int user_mode = get_cur_running_in_user_mode();
