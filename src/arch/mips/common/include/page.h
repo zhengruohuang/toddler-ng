@@ -5,7 +5,7 @@
 
 // MIPS32
 #if (ARCH_WIDTH == 32)
-#include "common/include/page32.h"
+#include "common/include/page64.h"
 
 // MIPS64
 #elif (ARCH_WIDTH == 64)

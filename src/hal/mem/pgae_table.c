@@ -1,6 +1,7 @@
 #include "common/include/inttypes.h"
 #include "common/include/atomic.h"
 #include "common/include/page.h"
+#include "common/include/abi.h"
 #include "hal/include/lib.h"
 #include "hal/include/kernel.h"
 #include "hal/include/hal.h"
@@ -8,7 +9,7 @@
 #include "hal/include/setup.h"
 
 
-#if (ARCH_WIDTH == 64)
+#if (defined(ARCH_MIPS))
 
 
 /*

@@ -4,18 +4,34 @@
 
 #include "common/include/compiler.h"
 #include "common/include/inttypes.h"
+#include "common/include/abi.h"
 #include "common/include/mem.h"
+
+
 
 
 /*
  * Page structure
- *  4KB page size, 512-entry per page, 4-level
  */
-#define PAGE_LEVELS              4
-
-#define PAGE_TABLE_SIZE          4096
-#define PAGE_TABLE_ENTRY_COUNT   512
-#define PAGE_TABLE_ENTRY_BITS    9
+#if (ARCH_WIDTH == 32)
+    /*
+    *  4KB page size, 1024-entry per page, 2-level
+    */
+    #define PAGE_LEVELS             2
+    #define PAGE_TABLE_SIZE         4096
+    #define PAGE_TABLE_ENTRY_COUNT  1024
+    #define PAGE_TABLE_ENTRY_BITS   10
+#elif (ARCH_WIDTH == 64)
+    /*
+     * 4KB page size, 512-entry per page, 4-level
+     */
+    #define PAGE_LEVELS              4
+    #define PAGE_TABLE_SIZE          4096
+    #define PAGE_TABLE_ENTRY_COUNT   512
+    #define PAGE_TABLE_ENTRY_BITS    9
+#else
+    #error "Unsupported arch width"
+#endif
 
 struct page_table_entry {
     union {

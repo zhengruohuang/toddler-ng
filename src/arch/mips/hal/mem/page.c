@@ -7,7 +7,7 @@
 #include "hal/include/setup.h"
 
 
-#if (ARCH_WIDTH == 32)
+#if (0)
 
 /*
  * Page table
