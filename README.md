@@ -67,9 +67,8 @@ Current = Up to date
 | aarch64v8-virt-qemu       | Planned   |
 | mips32l-ci20-generic      | Planned   |
 | mips64l-loongson3-generic | Planned   |
-| powerpc-g3-generic        | Planned   |
-| powerpc64-g3-generic      | Planned   |
-| powerpc64-g3-generic      | Planned   |
+| powerpc-mac-g3            | Planned   |
+| powerpc64-mac-g3          | Planned   |
 | powerpc64-pseries-generic | Planned   |
 | riscv32-sifive_u-qemu     | Planned   |
 | riscv64-sifive_u-qemu     | Planned   |
