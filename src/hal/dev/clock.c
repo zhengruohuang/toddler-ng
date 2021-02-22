@@ -29,7 +29,7 @@ int clock_source_register(int quality)
  * Get/Set/Advance
  */
 static volatile ulong rwlock = 0; // { 31 = update, 30:0 = num reads }
-static u64 ms = 0;
+static volatile u64 ms = 0;
 
 u64 clock_get_ms()
 {
@@ -45,7 +45,7 @@ u64 clock_get_ms()
         }
 
         new_rwlock = old_rwlock + 0x1ul;
-    } while(!atomic_cas_bool(&rwlock, old_rwlock, new_rwlock));
+    } while (!atomic_cas_bool(&rwlock, old_rwlock, new_rwlock));
 
     atomic_mb();
     copy = ms;
@@ -94,11 +94,12 @@ void clock_advance_ms(int clk_idx, ulong advance)
             atomic_mb();
             old_rwlock = rwlock;
         }
-    } while(!atomic_cas_bool(&rwlock, old_rwlock, new_rwlock));
+    } while (!atomic_cas_bool(&rwlock, old_rwlock, new_rwlock));
 
     atomic_mb();
     ms += (u64)advance;
     atomic_mb();
 
-    atomic_cas_bool(&rwlock, new_rwlock, 0);
+    int ok = atomic_cas_bool(&rwlock, new_rwlock, 0);
+    assert(ok);
 }

@@ -193,20 +193,26 @@ class fdt_toolchain(toolchain):
             self.opts['ccflags'] + ' ' + \
             self.compose_prefix_list_str('-i', 'includes', **kwargs) + \
             self.compose_prefix_list_str('-i', 'includes', **self.opts) + \
-            ' -O asm -o /dev/null -d ' + target_name + ' -I dts ' + src_name
+            ' -@ -O asm -o /dev/null -d ' + target_name + ' -I dts ' + src_name
 
     def compose_cc_dts(self, target_name, src_name, **kwargs):
         return self.opts['cc'] + ' ' + \
             self.opts['ccflags'] + ' ' + \
             self.compose_prefix_list_str('-i', 'includes', **kwargs) + \
             self.compose_prefix_list_str('-i', 'includes', **self.opts) + \
-            ' -O dtb -o ' + target_name + ' -I dts ' + src_name
+            ' -@ -O dtb -o ' + target_name + ' -I dts ' + src_name
+
+    def compose_disasm(self, target_name, src_name, **kwargs):
+        return self.opts['cc'] + ' ' + \
+            ' -O dts -o ' + target_name + ' -I dtb ' + src_name
 
     def compose(self, target_name, src_name, action, **kwargs):
         if action == 'dep.dts':
             return self.compose_dep_dts(target_name, src_name, **kwargs)
         elif action == 'cc.dts':
             return self.compose_cc_dts(target_name, src_name, **kwargs)
+        elif action == 'disasm':
+            return self.compose_disasm(target_name, src_name, **kwargs)
         else:
             print_fail('Unknown toolchain action: {0}'.format(action))
             quit()

@@ -3,6 +3,7 @@
 
 
 #include "common/include/inttypes.h"
+#include "common/include/abi.h"
 
 
 /*
@@ -76,6 +77,16 @@ static inline void atomic_wb()
 /*
  * Compare and swap
  */
+#if (ARCH_WIDTH == 32)
+#define LL  "ll"
+#define SC  "sc"
+#elif (ARCH_WIDTH == 64)
+#define LL  "lld"
+#define SC  "scd"
+#else
+#error "Unsupported arch width"
+#endif
+
 static inline ulong atomic_cas_val(volatile void *addr,
                                    ulong old_val, ulong new_val)
 {
@@ -84,12 +95,12 @@ static inline ulong atomic_cas_val(volatile void *addr,
     __asm__ __volatile__ (
         "   .set noreorder;"
         "1: sync;"
-        "   ll %[read], 0(%[ptr]);"
-        "   bne %[read], %[val_old], 2f;"
+        " " LL " %[read], 0(%[ptr]);"
+        "   bne  %[read], %[val_old], 2f;"
         "   nop;"
         "   move %[tmp], %[val_new];"
-        "   sc %[tmp], 0(%[ptr]);"
-        "   beq %[tmp], %[zero], 1b;"
+        " " SC " %[tmp], 0(%[ptr]);"
+        "   beq  %[tmp], %[zero], 1b;"
         "   nop;"
         "2: sync;"
         "   .set reorder;"

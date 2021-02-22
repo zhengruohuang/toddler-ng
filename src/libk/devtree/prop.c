@@ -228,16 +228,6 @@ int devtree_get_reg_shift(struct devtree_node *node)
 
 
 /*
- * IO port
- */
-int devtree_get_use_ioport(struct devtree_node *node)
-{
-    struct devtree_prop *prop = devtree_find_prop(node, "use-ioport");
-    return prop ? 1 : 0;
-}
-
-
-/*
  * Compatible
  *  int return value
  *      -1 - Unable to parse
@@ -290,6 +280,32 @@ int devtree_get_phandle(struct devtree_node *node)
 
 
 /*
+ * Frequency
+ */
+u64 devtree_get_clock_frequency(struct devtree_node *node)
+{
+    struct devtree_prop *prop = devtree_find_prop(node, "clock-frequency");
+    if (!prop) {
+        prop = devtree_find_prop(node, "frequency");
+    }
+    if (!prop) {
+        return 0;
+    }
+
+    u64 freq = 0;
+    if (prop->len == 4) {
+        freq = devtree_get_prop_data_u32(prop);
+    } else if (prop->len == 8) {
+        freq = devtree_get_prop_data_u64(prop);
+    } else {
+        panic("Unsupported frequency #cells: %d\n", prop->len);
+    }
+
+    return freq;
+}
+
+
+/*
  * Interrupt
  */
 int devtree_is_intc(struct devtree_node *node)
@@ -336,3 +352,20 @@ int *devtree_get_int_encode(struct devtree_node *node, int *count)
     void *data = devtree_get_prop_data(prop);
     return data;
 }
+
+
+/*
+ * Misc
+ */
+int devtree_get_use_ioport(struct devtree_node *node)
+{
+    struct devtree_prop *prop = devtree_find_prop(node, "use-ioport");
+    return prop ? 1 : 0;
+}
+
+int devtree_get_use_poll(struct devtree_node *node)
+{
+    struct devtree_prop *prop = devtree_find_prop(node, "use-poll");
+    return prop ? 1 : 0;
+}
+

@@ -7,8 +7,9 @@
  */
 #define EXCEPT_NUM_ILLEGAL              0
 #define EXCEPT_NUM_TLB_REFILL           1
-#define EXCEPT_NUM_CACHE_ERROR          2
-#define EXCEPT_NUM_GENERAL              3
+#define EXCEPT_NUM_TLB64_REFILL         2
+#define EXCEPT_NUM_CACHE_ERROR          3
+#define EXCEPT_NUM_GENERAL              4
 
 
 /*

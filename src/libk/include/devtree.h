@@ -36,17 +36,20 @@ extern int devtree_get_translated_reg(struct devtree_node *node, int idx,
 
 extern int devtree_get_reg_shift(struct devtree_node *node);
 
-extern int devtree_get_use_ioport(struct devtree_node *node);
-
 extern int devtree_get_compatible(struct devtree_node *node, int idx,
     char **name);
 
 extern int devtree_get_phandle(struct devtree_node *node);
 
+extern u64 devtree_get_clock_frequency(struct devtree_node *node);
+
 extern int devtree_is_intc(struct devtree_node *node);
 extern int devtree_get_num_int_cells(struct devtree_node *node);
 extern int devtree_get_int_parent(struct devtree_node *node, int idx);
 extern int *devtree_get_int_encode(struct devtree_node *node, int *count);
+
+extern int devtree_get_use_ioport(struct devtree_node *node);
+extern int devtree_get_use_poll(struct devtree_node *node);
 
 
 /*

@@ -133,6 +133,12 @@ def build_fdt():
         toolchain = fdt_toolchain(),
     )
 
+    disasm_exec(
+        disasm_dir + 'fdt.dts',
+        img_dir + 'fdt.dtb',
+        toolchain = fdt_toolchain(),
+    )
+
 def build_coreimg():
     print_info('coreimg', 'Building core image')
 

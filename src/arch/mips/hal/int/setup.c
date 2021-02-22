@@ -51,7 +51,7 @@ void int_handler_entry(int except, struct reg_context *regs)
     int seq = 0;
     ulong error_code = bad_addr;
 
-    //if (except == 3)
+//     if (except == 4 && cause.exc_code == 0)
 //     kprintf("General exception! Except: %d, TI: %d, IP: %d, ECode: %d"
 //             ", EXL: %d, ERL: %d, KSU: %d, PC: %lx, SP: %lx, Bad @ %lx\n",
 //             except, cause.ti, cause.ip, cause.exc_code,
@@ -59,7 +59,8 @@ void int_handler_entry(int except, struct reg_context *regs)
 //             regs->pc, regs->sp, bad_addr);
 
     switch (except) {
-    case EXCEPT_NUM_TLB_REFILL: {
+    case EXCEPT_NUM_TLB_REFILL:
+    case EXCEPT_NUM_TLB64_REFILL: {
         struct page_frame *page_table = get_cur_running_page_table();
         paddr_t paddr = translate(page_table, bad_addr);
         seq = paddr ? MIPS_INT_SEQ_TLB_REFILL : INT_SEQ_PAGE_FAULT;
@@ -128,14 +129,20 @@ void int_handler_entry(int except, struct reg_context *regs)
     // TCB
     ulong tcb = get_cur_running_tcb();
     regs->k0 = tcb;
-    regs->k1 = (ulong)regs;
+    regs->k1 = 0;
 
-    write_k1((ulong)regs);
-
-    // TODO: ASID
+    // Set ASID in TLB EntryHi
+    ulong asid = get_cur_running_asid();
+    struct cp0_entry_hi hi;
+    read_cp0_entry_hi(hi.value);
+    hi.asid = asid;
+    write_cp0_entry_hi(hi.value);
 
     // Finally enable local interrupts, since EXL is set, interrupts won't fire until eret
     enable_local_int();
+
+    // Make sure k1 points to reg_context
+    write_k1((ulong)regs);
 }
 
 

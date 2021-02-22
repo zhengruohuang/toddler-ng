@@ -84,7 +84,9 @@
 #define li_ul       li
 #define la_ul       la
 #define ld_ul       lw
+#define ll_ul       ll
 #define st_ul       sw
+#define sc_ul       sc
 #define addi_ul     addi
 #define addu_ul     addu
 #define sub_ul      sub
@@ -94,7 +96,9 @@
 #define li_ul       dli
 #define la_ul       dla
 #define ld_ul       ld
+#define ll_ul       lld
 #define st_ul       sd
+#define sc_ul       scd
 #define addi_ul     daddi
 #define addu_ul     daddu
 #define sub_ul      dsub

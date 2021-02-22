@@ -179,7 +179,7 @@ __tlb_refill_entry:
 #if (ARCH_WIDTH == 64)
 .align 7
 __tlb_refill_entry64:
-    EXCEPT_ENTRY EXCEPT_NUM_TLB_REFILL
+    EXCEPT_ENTRY EXCEPT_NUM_TLB64_REFILL
 #endif
 
 /* Cache error */
