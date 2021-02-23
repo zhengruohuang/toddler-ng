@@ -198,4 +198,28 @@ extern void dict_insert_exclusive(dict_t *d, ulong key, dict_node_t *n);
 extern dict_node_t *dict_pop_front_exclusive(dict_t *d);
 
 
+/*
+ * ID
+ */
+#define MAX_NUM_LEVELS 3
+
+typedef struct id_obj {
+    ulong base, range;
+    ulong alloc_count;
+
+    ulong mask1;
+    ulong mask2[sizeof(ulong) * 8];
+    ulong *mask3;
+
+    int num_levels;
+    ulong *bitmaps[MAX_NUM_LEVELS + 1];
+
+    spinlock_t lock;
+} id_obj_t;
+
+extern void id_alloc_create(id_obj_t *obj, ulong first, ulong last);
+extern long id_alloc(id_obj_t *obj);
+extern void id_free(id_obj_t *obj, ulong id);
+
+
 #endif

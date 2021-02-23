@@ -392,13 +392,12 @@ extern int int_handler_invoke(ulong seq);
 extern int int_handler_eoi(ulong seq);
 
 
-// /*
-//  * ASID management
-//  */
-// extern void init_asid();
-// extern void asid_release();
-// extern ulong asid_alloc();
-// extern ulong asid_recycle();
+/*
+ * ASID
+ */
+extern void init_asid();
+extern ulong alloc_asid();
+extern void free_asid(ulong asid);
 
 
 #endif

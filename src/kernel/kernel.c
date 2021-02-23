@@ -211,6 +211,7 @@ void kernel(struct hal_exports *hal_exp)
     init_dispatch();
     init_sched();
     init_vm();
+    init_asid();
     init_process();
     init_tlb_shootdown();
     init_thread();

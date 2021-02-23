@@ -211,6 +211,9 @@ static void process_cleaner(ulong param)
     // Free page table
     get_hal_exports()->free_addr_space(p->page_table);
 
+    // Free ASID
+    free_asid(p->asid);
+
     // Free process data structure
     list_remove_exclusive(&processes, &p->node);
     free(p->name);
@@ -227,7 +230,7 @@ static void process_cleaner(ulong param)
  */
 static volatile ulong cur_asid_seq = 1;
 
-static ulong alloc_asid()
+static inline ulong alloc_asid_seq()
 {
     ulong asid = atomic_fetch_and_add(&cur_asid_seq, 1);
     return asid;

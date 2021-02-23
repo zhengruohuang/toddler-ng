@@ -314,21 +314,22 @@ static struct ventry *walk_path(struct ventry *root, const char *path)
     int level = 0;
     char *prev_path_buf = NULL;
     while (vent && vent->is_symlink) {
-        kprintf("Symlink @ %s, remain path: %s\n", vent->name, path ? path : "");
+        kprintf("Symlink @ %s, remain path: %s\n", vent->name, path ? path : "(null)");
 
         // Read symlink
         // FIXME: Symlink currently must be abs path
         // FIXME: path_buf size may not be enough to hold the entire symlink
         char *path_buf = malloc(512);
         vfs_symlink_read_to_buf(vent, path_buf, 512);
-        kprintf("link to: %s\n", path_buf);
+        kprintf("link to: %s, remain: %s\n", path_buf, path ? path : "(null)");
 
         // Append remain path to the abs path
         // TODO: check if buf size is enough
         size_t len = strlen(path_buf);
-        path_buf[len] = '/';
-        if (path)
+        if (path) {
+            path_buf[len] = '/';
             strcpy(&path_buf[len + 1], path);
+        }
 
         // Done with current vent
         rwlock_wunlock(&vent->rwlock);
@@ -348,6 +349,7 @@ static struct ventry *walk_path(struct ventry *root, const char *path)
                 // skip '/'
                 link_to_path++;
             }
+            //kprintf("link_to_path: %s\n", link_to_path);
             vent = _try_walk_path(root, link_to_path, &path);
         }
     }

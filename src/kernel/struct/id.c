@@ -6,264 +6,136 @@
 #include "kernel/include/struct.h"
 
 
-#define ID_COUNT_PER_RANGE (sizeof(ulong) * sizeof(ulong))
-
-
-struct id_range {
-    ulong key;
-
-    ulong base, count;
-    ulong used;
-
-    ulong mask1;
-    ulong mask2[sizeof(ulong)];
-
-    list_node_t node_free;
-    dict_node_t node_avail;
-    dict_node_t node_inuse;
-};
-
-typedef struct id_obj {
-    ulong base, count;
-    ulong used;
-
-    list_t free_ranges;
-    dict_t avail_ranges;
-    dict_t inuse_ranges;
-
-    spinlock_t lock;
-} id_obj_t;
+#define NUM_BITS_PER_MAP    (sizeof(ulong) * 8)
+#define MAX_NUM_BITS_L1     (NUM_BITS_PER_MAP)
+#define MAX_NUM_BITS_L2     (NUM_BITS_PER_MAP * NUM_BITS_PER_MAP)
+#define MAX_NUM_BITS_L3     (NUM_BITS_PER_MAP * NUM_BITS_PER_MAP * NUM_BITS_PER_MAP)
 
 
 /*
- * ID range struct
+ * Create
  */
-static salloc_obj_t id_range_salloc_obj;
-
-static int id_range_list_compare(list_node_t *a, list_node_t *b)
+static inline void _create_l1(id_obj_t *obj)
 {
-    struct id_range *ba = list_entry(a, struct id_range, node_free);
-    struct id_range *bb = list_entry(b, struct id_range, node_free);
+    obj->num_levels = 1;
+    obj->mask1 = (0x1ul << obj->range) - 0x1ul;
+}
 
-    if (ba->base > bb->base) {
-        return 1;
-    } else if (ba->base < bb->base) {
-        return -1;
-    } else {
-        return 0;
+static inline void _create_l2(id_obj_t *obj)
+{
+    obj->num_levels = 2;
+
+    for (ulong l2idx = 0, count = obj->range; count; l2idx++) {
+        if (count >= NUM_BITS_PER_MAP) {
+            obj->mask2[l2idx] = -0x1ul;
+            count -= NUM_BITS_PER_MAP;
+        } else {
+            obj->mask2[l2idx] = (0x1ul << count) - 0x1ul;
+            count = 0;
+        }
+
+        ulong l1pos = l2idx;
+        obj->mask1 |= 0x1ul << l1pos;
     }
 }
 
-static int id_range_list_merge(list_node_t *a, list_node_t *b)
+static inline void _create_l3(id_obj_t *obj)
 {
-    struct id_range *ba = list_entry(a, struct id_range, node_free);
-    struct id_range *bb = list_entry(b, struct id_range, node_free);
+    obj->num_levels = 3;
 
-    if (ba->base + ba->count == bb->base) {
-        ba->count += bb->count;
-        return 0;
-    } else {
-        return -1;
+    int num_pages = get_vpage_count(MAX_NUM_BITS_L3);
+    obj->mask3 = palloc_ptr(num_pages);
+
+    for (ulong l3idx = 0, count = obj->range; count; l3idx++) {
+        if (count >= NUM_BITS_PER_MAP) {
+            obj->mask3[l3idx] = -0x1ul;
+            count -= NUM_BITS_PER_MAP;
+        } else {
+            obj->mask3[l3idx] = (0x1ul << count) - 0x1ul;
+            count = 0;
+        }
+
+        ulong l2idx = l3idx / NUM_BITS_PER_MAP;
+        ulong l2pos = l3idx % NUM_BITS_PER_MAP;
+        obj->mask2[l2idx] |= 0x1ul << l2pos;
+
+        ulong l1pos = l2idx;
+        obj->mask1 |= 0x1ul << l1pos;
     }
 }
 
-static void id_range_list_free(list_node_t *n)
-{
-    struct id_range *b = list_entry(n, struct id_range, node_free);
-    sfree(b);
-}
-
-
-/*
- * Init
- */
-void ialloc_init()
-{
-    salloc_create_default(&id_range_salloc_obj, "id", sizeof(struct id_range));
-}
-
-
-/*
- * Create and destroy
- */
-void ialloc_create(id_obj_t *obj, ulong first, ulong last)
+void id_alloc_create(id_obj_t *obj, ulong first, ulong last)
 {
     memzero(obj, sizeof(id_obj_t));
     obj->base = first;
-    obj->count = last - first + 1;
-    obj->used = 0;
+    obj->range = last - first + 1;
+    obj->alloc_count = 0;
 
-    list_init(&obj->free_ranges);
-    dict_create_default(&obj->avail_ranges);
-    dict_create_default(&obj->inuse_ranges);
+    if (obj->range <= MAX_NUM_BITS_L1) {
+        _create_l1(obj);
+    } else if (obj->range <= MAX_NUM_BITS_L2) {
+        _create_l2(obj);
+    } else if (obj->range <= MAX_NUM_BITS_L3) {
+        _create_l3(obj);
+    } else {
+        obj->range = MAX_NUM_BITS_L3;
+        _create_l3(obj);
+        panic("Range exceeding max limit: %lu\n", MAX_NUM_BITS_L3);
+    }
 
-    struct id_range *r = salloc(&id_range_salloc_obj);
-    r->base = obj->base;
-    r->count = obj->count;
-    list_push_back_exclusive(&obj->free_ranges, &r->node_free);
+    obj->bitmaps[1] = &obj->mask1;
+    obj->bitmaps[2] = obj->mask2;
+    obj->bitmaps[3] = obj->mask3;
 
     // Lists and Dicts will be protected by ID obj's lock
     spinlock_init(&obj->lock);
-}
-
-static void _destroy_free_ranges(list_t *l)
-{
-    list_node_t *n = list_pop_front_exclusive(l);
-    while (n) {
-        struct id_range *r = list_entry(n, struct id_range, node_free);
-        sfree(r);
-
-        n = list_pop_front_exclusive(l);
-    }
-}
-
-static void _destroy_inuse_ranges(dict_t *d)
-{
-    dict_node_t *n = dict_pop_front_exclusive(d);
-    while (n) {
-        struct id_range *r = list_entry(n, struct id_range, node_inuse);
-        sfree(r);
-
-        n = dict_pop_front_exclusive(d);
-    }
-}
-
-void ialloc_destroy(id_obj_t *obj)
-{
-    _destroy_free_ranges(&obj->free_ranges);
-    _destroy_inuse_ranges(&obj->inuse_ranges);
-
-    dict_destroy(&obj->avail_ranges);
-    dict_destroy(&obj->inuse_ranges);
-
-    obj->base = obj->count = 0;
 }
 
 
 /*
  * Alloc
  */
-static ulong _id_to_key(ulong id)
+long id_alloc(id_obj_t *obj)
 {
-    return id / ID_COUNT_PER_RANGE;
-}
+    long id = -1;
 
-static inline ulong _ialloc_in_range(id_obj_t *obj, struct id_range *r)
-{
-    int section = ctz(r->mask1);
-    int offset = ctz(r->mask2[section]);
-    panic_if(!r->mask2[section], "Inconsistent ID range masks!\n");
+    spinlock_exclusive_int(&obj->lock) {
+        if (obj->alloc_count == obj->range) {
+            break;
+        }
 
-    r->mask2[section] &= ~(0x1 << offset);
-    if (!r->mask2[section]) {
-        r->mask1 &= ~(0x1 << section);
-    }
+        ulong bitmap_idx = 0;
+        ulong bitmap_pos = 0;
+        ulong *bitmap = NULL;
 
-    r->used++;
-    obj->used++;
+        for (int level = 1; level <= obj->num_levels; level++) {
+            bitmap = &obj->bitmaps[level][bitmap_idx];
 
-    ulong id = r->base + section * sizeof(ulong) + offset;
-    return id;
-}
+            bitmap_pos = ctz(*bitmap);
+            bitmap_idx *= NUM_BITS_PER_MAP;
+            bitmap_idx += bitmap_pos;
+        }
 
-static inline long _ialloc_from_avail(id_obj_t *obj)
-{
-    dict_node_t *n = NULL;
-    dict_access_exclusive(&obj->avail_ranges) {
-        n = dict_front(&obj->avail_ranges);
-    }
-    if (!n) {
-        return -1;
-    }
+        id = obj->base + bitmap_idx;
 
-    struct id_range *r = dict_entry(n, struct id_range, node_avail);
-    ulong id = _ialloc_in_range(obj, r);
+        *bitmap &= ~(0x1ul << bitmap_pos);
+        if (!*bitmap) {
+            ulong clear_idx = bitmap_idx / NUM_BITS_PER_MAP;
+            for (int level = obj->num_levels - 1; level; level--) {
+                bitmap_idx = clear_idx / NUM_BITS_PER_MAP;
+                bitmap_pos = clear_idx % NUM_BITS_PER_MAP;
 
-    if (r->used == r->count) {
-        dict_remove_exclusive(&obj->avail_ranges, n);
-    }
+                bitmap = &obj->bitmaps[level][bitmap_idx];
+                *bitmap &= ~(0x1ul << bitmap_pos);
+                if (*bitmap) {
+                    break;
+                }
 
-    return id;
-}
-
-static inline int _ialloc_new_avail_range(id_obj_t *obj, struct id_range *new_r)
-{
-    // TODO
-    int new_r_used = 0;
-
-    // Make sure there's indeed no more avail ranges
-    dict_node_t *dn = NULL;
-    dict_access_exclusive(&obj->avail_ranges) {
-        dn = dict_front(&obj->avail_ranges);
-    }
-    if (!dn) {
-        return 0;
-    }
-
-    // Get a free range
-    list_node_t *ln = NULL;
-    list_access_exclusive(&obj->free_ranges) {
-        ln = list_front(&obj->free_ranges);
-    }
-    struct id_range *old_r = list_entry(ln, struct id_range, node_free);
-
-    if (old_r->count <= ID_COUNT_PER_RANGE) {
-        // Reuse old range
-        new_r = old_r;
-        list_pop_front_exclusive(&obj->free_ranges);
-    } else {
-        new_r_used = 1;
-        new_r->base = old_r->base;
-        new_r->count = ID_COUNT_PER_RANGE;
-        old_r->base += ID_COUNT_PER_RANGE;
-        old_r->count -= ID_COUNT_PER_RANGE;
-    }
-    new_r->used = 0;
-    new_r->key = _id_to_key(new_r->base);
-
-    ulong count = new_r->count;
-    int section = 0;
-    while (count) {
-        new_r->mask1 |= 0x1ul << section;
-        if (count >= sizeof(ulong)) {
-            new_r->mask2[section] = -0x1ul;
-            count -= sizeof(ulong);
-        } else {
-            new_r->mask2[section] = (0x1ul << count) - 0x1ul;
-            count = 0;
+                clear_idx = bitmap_idx;
+            }
         }
     }
 
-    dict_insert_exclusive(&obj->avail_ranges, new_r->key, &new_r->node_avail);
-    dict_insert_exclusive(&obj->inuse_ranges, new_r->key, &new_r->node_inuse);
-
-    return new_r_used;
-}
-
-long ialloc(id_obj_t *obj)
-{
-    long id = 0;
-
-    // Allocate from avail ranges
-    spinlock_exclusive_int(&obj->lock) {
-        id = _ialloc_from_avail(obj);
-    }
-    if (id > -1) {
-        return id;
-    }
-
-    // Create a new avail range
-    int r_used = 0;
-    struct id_range *r = salloc(&id_range_salloc_obj);
-
-    spinlock_exclusive_int(&obj->lock) {
-        r_used = _ialloc_new_avail_range(obj, r);
-        id = _ialloc_from_avail(obj);
-    }
-
-    if (!r_used) {
-        sfree(r);
-    }
     return id;
 }
 
@@ -271,61 +143,32 @@ long ialloc(id_obj_t *obj)
 /*
  * Free
  */
-static inline struct id_range *_find_range_by_id(id_obj_t *obj, ulong id)
+void id_free(id_obj_t *obj, ulong id)
 {
-    ulong key = _id_to_key(id);
-    dict_node_t *n = dict_find(&obj->inuse_ranges, key);
-    if (!n) {
-        return NULL;
+    if (!obj) {
+        return;
     }
 
-    struct id_range *r = dict_entry(n, struct id_range, node_inuse);
-    if (id < r->base || id >= r->base + r->count) {
-        return NULL;
-    }
-
-    return r;
-}
-
-static inline void _ifree_in_range(id_obj_t *obj, ulong id, struct id_range *r)
-{
-    int section = (id - r->base) / sizeof(ulong);
-    int offset = (id - r->base) % sizeof(ulong);
-    r->mask2[section] |= 0x1ul << offset;
-    r->mask1 |= 0x1ul << section;
-    r->used--;
-    obj->used--;
-}
-
-void ifree(id_obj_t *obj, ulong id)
-{
-    list_node_t *free1 = NULL, *free2 = NULL;
+    ulong idx = id - obj->base;
+    panic_if(idx >= obj->range, "ID to free exceeding range!\n");
 
     spinlock_exclusive_int(&obj->lock) {
-        struct id_range *r = _find_range_by_id(obj, id);
-        if (!r) {
-            break;
+        for (int level = obj->num_levels; level; level--) {
+            ulong bitmap_idx = idx / NUM_BITS_PER_MAP;
+            ulong bitmap_pos = idx % NUM_BITS_PER_MAP;
+
+            ulong *bitmap = &obj->bitmaps[level][bitmap_idx];
+            assert(bitmap);
+
+            ulong mask = 0x1ul << bitmap_pos;
+            if (level == obj->num_levels) {
+                panic_if(*bitmap & mask, "Inconsistent ID alloc!\n");
+            }
+            *bitmap |= mask;
+
+            idx = bitmap_idx;
         }
 
-        int range_was_full = r->used == r->count;
-        _ifree_in_range(obj, id, r);
-
-        // Add back to avail ranges
-        if (range_was_full) {
-            dict_insert_exclusive(&obj->avail_ranges, r->key, &r->node_avail);
-        }
-
-        // Move to free
-        if (!r->used) {
-            dict_remove_exclusive(&obj->avail_ranges, &r->node_avail);
-            dict_remove_exclusive(&obj->inuse_ranges, &r->node_inuse);
-            list_insert_merge_sorted_exclusive(&obj->free_ranges, &r->node_free,
-                                               id_range_list_compare,
-                                               id_range_list_merge,
-                                               &free1, &free2);
-        }
+        obj->alloc_count--;
     }
-
-    if (free1) id_range_list_free(free1);
-    if (free2) id_range_list_free(free2);
 }
