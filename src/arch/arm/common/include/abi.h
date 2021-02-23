@@ -2,6 +2,8 @@
 #define __ARCH_ARM_COMMON_INCLUDE_ABI_H__
 
 
+#define ARCH_ARM
+
 #define ARCH_WIDTH          32
 #define ARCH_LITTLE_ENDIAN  1
 #define ARCH_BIG_ENDIAN     0

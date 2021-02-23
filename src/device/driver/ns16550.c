@@ -4,7 +4,6 @@
 #include <kth.h>
 #include <drv/drv.h>
 
-#include "common/include/io.h"
 #include "libk/include/mem.h"
 
 
@@ -107,9 +106,9 @@ static inline u8 __mmio_read8(ulong addr)
     volatile u8 *ptr = (u8 *)addr;
     u8 val = 0;
 
-    mmio_mb();
+    atomic_mb();
     val = *ptr;
-    mmio_mb();
+    atomic_mb();
 
     return val;
 }
@@ -118,9 +117,9 @@ static inline void __mmio_write8(ulong addr, u8 val)
 {
     volatile u8 *ptr = (u8 *)addr;
 
-    mmio_mb();
+    atomic_mb();
     *ptr = val;
-    mmio_mb();
+    atomic_mb();
 }
 
 

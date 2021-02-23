@@ -1,7 +1,7 @@
 #include "common/include/inttypes.h"
+#include "common/include/atomic.h"
 #include "common/include/page.h"
 #include "common/include/abi.h"
-#include "common/include/io.h"
 #include "common/include/msr.h"
 #include "loader/include/lib.h"
 #include "loader/include/mem.h"
@@ -19,14 +19,35 @@
 #define UART_DATA_ADDR          (UART_BASE_ADDR + 0x0)
 #define UART_LINE_STAT_ADDR     (UART_BASE_ADDR + 0x28)
 
+static inline u8 _raw_mmio_read8(ulong addr)
+{
+    volatile u8 *ptr = (u8 *)(SEG_DIRECT_UNCACHED | addr);
+    u8 val = 0;
+
+    atomic_mb();
+    val = *ptr;
+    atomic_mb();
+
+    return val;
+}
+
+static inline void _raw_mmio_write8(ulong addr, u8 val)
+{
+    volatile u8 *ptr = (u8 *)(SEG_DIRECT_UNCACHED | addr);
+
+    atomic_mb();
+    *ptr = val;
+    atomic_mb();
+}
+
 static int malta_putchar(int ch)
 {
     u32 ready = 0;
     while (!ready) {
-        ready = mmio_read8(UART_LINE_STAT_ADDR) & 0x20;
+        ready = _raw_mmio_read8(UART_LINE_STAT_ADDR) & 0x20;
     }
 
-    mmio_write8(UART_DATA_ADDR, (u8)ch & 0xff);
+    _raw_mmio_write8(UART_DATA_ADDR, (u8)ch & 0xff);
     return 1;
 }
 

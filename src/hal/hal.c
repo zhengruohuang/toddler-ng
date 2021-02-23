@@ -118,6 +118,31 @@ ulong arch_hal_direct_access(paddr_t paddr, int count, int cache)
     return 0;
 }
 
+int arch_hal_has_io_port()
+{
+    return arch_funcs.has_ioport;
+}
+
+ulong arch_hal_ioport_read(ulong port, int size)
+{
+    if (arch_funcs.has_ioport && arch_funcs.ioport_read) {
+        return arch_funcs.ioport_read(port, size);
+    }
+
+    panic("ioport_read not available by HAL!");
+    return 0;
+}
+
+void arch_hal_ioport_write(ulong port, int size, ulong val)
+{
+    if (arch_funcs.has_ioport && arch_funcs.ioport_write) {
+        arch_funcs.ioport_write(port, size, val);
+        return;
+    }
+
+    panic("ioport_write not available by HAL!");
+}
+
 ulong arch_get_cur_mp_id()
 {
     if (arch_funcs.get_cur_mp_id) {

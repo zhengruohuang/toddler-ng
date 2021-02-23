@@ -111,4 +111,29 @@ extern void clock_set_ms(int clk_idx, u64 new_ms);
 extern void clock_advance_ms(int clk_idx, ulong advance);
 
 
+/*
+ * IO
+ */
+extern u8 mmio_read8(ulong addr);
+extern void mmio_write8(ulong addr, u8 val);
+extern u16 mmio_read16(ulong addr);
+extern void mmio_write16(ulong addr, u16 val);
+extern u32 mmio_read32(ulong addr);
+extern void mmio_write32(ulong addr, u32 val);
+
+extern u8 port_read8(ulong addr);
+extern void port_write8(ulong addr, u8 val);
+extern u16 port_read16(ulong addr);
+extern void port_write16(ulong addr, u16 val);
+extern u32 port_read32(ulong addr);
+extern void port_write32(ulong addr, u32 val);
+
+#if (ARCH_WIDTH == 64)
+extern u64 mmio_read64(ulong addr);
+extern void mmio_write64(ulong addr, u64 val);
+extern u64 port_read64(ulong addr);
+extern void port_write64(ulong addr, u64 val);
+#endif
+
+
 #endif

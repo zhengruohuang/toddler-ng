@@ -1,7 +1,6 @@
 #include "common/include/compiler.h"
 #include "common/include/inttypes.h"
 #include "common/include/mem.h"
-#include "common/include/io.h"
 #include "hal/include/kprintf.h"
 #include "hal/include/devtree.h"
 #include "hal/include/lib.h"

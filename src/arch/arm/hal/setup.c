@@ -1,6 +1,6 @@
 #include "common/include/inttypes.h"
+#include "common/include/atomic.h"
 #include "common/include/msr.h"
-#include "common/include/io.h"
 #include "common/include/page.h"
 #include "hal/include/hal.h"
 #include "hal/include/setup.h"
@@ -20,16 +20,36 @@
 #define PL011_DR                (PL011_BASE)
 #define PL011_FR                (PL011_BASE + 0x18ul)
 
+static inline u8 _raw_mmio_read8(ulong addr)
+{
+    volatile u8 *ptr = (u8 *)addr;
+    u8 val = 0;
+
+    atomic_mb();
+    val = *ptr;
+    atomic_mb();
+
+    return val;
+}
+
+static inline void _raw_mmio_write8(ulong addr, u8 val)
+{
+    volatile u8 *ptr = (u8 *)addr;
+    atomic_mb();
+    *ptr = val;
+    atomic_mb();
+}
+
 static int raspi2_putchar(int ch)
 {
     // Wait until the UART has an empty space in the FIFO
     u32 ready = 0;
     while (!ready) {
-        ready = !(mmio_read8(PL011_FR) & 0x20);
+        ready = !(_raw_mmio_read8(PL011_FR) & 0x20);
     }
 
     // Write the character to the FIFO for transmission
-    mmio_write8(PL011_DR, ch & 0xff);
+    _raw_mmio_write8(PL011_DR, ch & 0xff);
 
     return 1;
 }

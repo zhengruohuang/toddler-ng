@@ -11,6 +11,9 @@
 #include "hal/include/dispatch.h"
 
 
+typedef ulong (*ioport_read_t)(ulong port, int size);
+typedef void (*ioport_write_t)(ulong port, int size, ulong val);
+
 typedef ppfn_t (*palloc_t)(int count);
 typedef int (*generic_map_range_t)(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
                      int cache, int exec, int write, int kernel, int override,
@@ -34,6 +37,11 @@ struct hal_arch_funcs {
     int has_direct_access;
     direct_paddr_to_vaddr_t direct_paddr_to_vaddr;
     direct_vaddr_to_paddr_t direct_vaddr_to_paddr;
+
+    // IO port
+    int has_ioport;
+    ioport_read_t ioport_read;
+    ioport_write_t ioport_write;
 
     // Map and unmap
     generic_map_range_t map_range;
@@ -81,28 +89,46 @@ struct hal_arch_funcs {
 };
 
 
+/*
+ * Loader and arch funcs
+ */
 extern struct loader_args *get_loader_args();
 extern struct hal_arch_funcs *get_hal_arch_funcs();
 
 extern ulong arch_hal_direct_access(paddr_t paddr, int count, int cache);
+
+extern int arch_hal_has_io_port();
+extern ulong arch_hal_ioport_read(ulong port, int size);
+extern void arch_hal_ioport_write(ulong port, int size, ulong val);
+
 extern ulong arch_get_cur_mp_id();
+
 extern void arch_start_cpu(int mp_seq, ulong mp_id, ulong entry);
+
 extern void arch_register_drivers();
+
 extern ulong arch_get_syscall_params(struct reg_context *regs, ulong *param0, ulong *param1, ulong *param2);
 extern void arch_set_syscall_return(struct reg_context *regs, int succeed, ulong return0, ulong return1);
 extern int arch_handle_syscall(ulong num, ulong param0, ulong param1, ulong param2, ulong *return0, ulong *return1);
+
 extern void arch_disable_local_int();
 extern void arch_enable_local_int();
+
 extern void arch_switch_to(ulong thread_id, struct reg_context *context,
                            void *page_table, int user_mode, ulong asid, ulong tcb);
+
 extern int arch_has_auto_tlb_flush_on_switch();
 extern void arch_flush_tlb();
+
 extern void arch_kernel_pre_dispatch(ulong sched_id, struct kernel_dispatch *kdi);
 extern void arch_kernel_post_dispatch(ulong sched_id, struct kernel_dispatch *kdi);
 
+
+/*
+ * Entry
+ */
 extern void hal(struct loader_args *largs, struct hal_arch_funcs *funcs);
 extern void hal_mp();
-
 
 
 #endif

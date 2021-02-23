@@ -1,3 +1,5 @@
+#include "common/include/abi.h"
+
 #if (defined(ARCH_MIPS))
 
 
