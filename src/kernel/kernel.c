@@ -155,6 +155,16 @@ u64 hal_get_ms()
     return hal->get_ms();
 }
 
+ulong hal_get_asid_limit()
+{
+    return hal->asid_limit;
+}
+
+ulong hal_get_vaddr_limit()
+{
+    return hal->vaddr_limit;
+}
+
 void hal_set_syscall_return(struct reg_context *context, int success, ulong return0, ulong return1)
 {
     return hal->set_syscall_return(context, success, return0, return1);

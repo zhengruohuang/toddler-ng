@@ -253,15 +253,21 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.arch_disable_local_int = disable_local_int;
     funcs.arch_enable_local_int = enable_local_int;
 
+    funcs.vaddr_limit = USER_VADDR_LIMIT;
+    funcs.asid_limit = ASID_LIMIT;
     funcs.init_addr_space = init_user_page_table;
     funcs.free_addr_space = free_user_page_table;
+
     funcs.init_context = init_thread_context;
     funcs.set_context_param = set_thread_context_param;
     funcs.switch_to = switch_to;
+
     funcs.kernel_pre_dispatch = kernel_pre_dispatch;
     funcs.kernel_post_dispatch = kernel_post_dispatch;
 
+    funcs.has_auto_tlb_flush_on_switch = 0;
     funcs.invalidate_tlb = invalidate_tlb;
+    funcs.flush_tlb = flush_tlb;
 
     hal(largs, &funcs);
 }

@@ -47,6 +47,11 @@ static inline void shootdown(ulong asid, ulong base, ulong size)
     get_hal_exports()->invalidate_tlb(asid, base, size);
 }
 
+static inline void flush()
+{
+    get_hal_exports()->flush_tlb();
+}
+
 
 /*
  * Init
@@ -95,15 +100,23 @@ void service_tlb_shootdown_requests()
     atomic_mb();
     ulong my_seq = get_my_cpu_seq();
 
+    int has_asid = asid_supported();
+
     list_foreach_exclusive(&tlb_shootdown_reqs, n) {
         struct vm_block *b = list_entry(n, struct vm_block, node_tlb_shootdown);
         if (my_seq < b->tlb_shootdown_seq) {
-            shootdown(b->proc->asid, b->base, b->size);
+            if (has_asid) {
+                shootdown(b->proc->asid, b->base, b->size);
+            }
             atomic_dec(&b->wait_acks);
             atomic_mb();
 
             my_seq = set_my_cpu_seq(b->tlb_shootdown_seq);
         }
+    }
+
+    if (!has_asid) {
+        flush();
     }
 
     list_access_exclusive(&tlb_shootdown_reqs) {

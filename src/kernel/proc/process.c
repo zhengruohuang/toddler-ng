@@ -281,7 +281,7 @@ ulong create_process(ulong parent_id, char *name, enum process_type type)
     p->vm.program.end = 0;
 
     p->vm.dynamic.start = 0x100000ul;   // 1MB
-    p->vm.dynamic.end = USER_VADDR_LIMIT;
+    p->vm.dynamic.end = hal_get_vaddr_limit();
 
     ref_count_init(&p->vm.num_active_blocks, 0);
     list_init(&p->vm.avail_unmapped);

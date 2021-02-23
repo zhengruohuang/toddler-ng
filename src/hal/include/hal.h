@@ -60,6 +60,8 @@ struct hal_arch_funcs {
     void (*arch_enable_local_int)();
 
     // Address space
+    ulong vaddr_limit;
+    ulong asid_limit;   // 0 indicates ASID not supported
     init_addr_space_t init_addr_space;
     free_addr_space_t free_addr_space;
 
@@ -67,11 +69,15 @@ struct hal_arch_funcs {
     init_context_t init_context;
     set_context_param_t set_context_param;
     switch_context_t switch_to;
+
+    // Kernel dispatch
     void (*kernel_pre_dispatch)(ulong thread_id, struct kernel_dispatch *kdi);
     void (*kernel_post_dispatch)(ulong thread_id, struct kernel_dispatch *kdi);
 
     // TLB
+    int has_auto_tlb_flush_on_switch;
     invalidate_tlb_t invalidate_tlb;
+    flush_tlb_t flush_tlb;
 };
 
 
@@ -89,6 +95,8 @@ extern void arch_disable_local_int();
 extern void arch_enable_local_int();
 extern void arch_switch_to(ulong thread_id, struct reg_context *context,
                            void *page_table, int user_mode, ulong asid, ulong tcb);
+extern int arch_has_auto_tlb_flush_on_switch();
+extern void arch_flush_tlb();
 extern void arch_kernel_pre_dispatch(ulong sched_id, struct kernel_dispatch *kdi);
 extern void arch_kernel_post_dispatch(ulong sched_id, struct kernel_dispatch *kdi);
 

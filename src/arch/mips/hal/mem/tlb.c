@@ -1,4 +1,5 @@
 #include "common/include/inttypes.h"
+#include "common/include/atomic.h"
 #include "common/include/page.h"
 #include "common/include/msr.h"
 #include "hal/include/lib.h"
@@ -112,7 +113,7 @@ static void write_invalid_ftlb_entry(struct tlb_config *tlb, int index)
     write_tlb_entry(tlb, index, 0, 0, 0, 0, 0);
 }
 
-static void flush_tlb(struct tlb_config *tlb)
+static void do_flush_tlb(struct tlb_config *tlb)
 {
     int i;
 
@@ -225,7 +226,7 @@ __done:
 /*
  * Invalidate
  */
-static void invalidate_tlb_line(ulong asid, ulong vaddr)
+__unused_func static void invalidate_tlb_line(ulong asid, ulong vaddr)
 {
 //     kprintf("TLB shootdown @ %lx, ASID: %lx ...", vaddr, asid);
 //     inv_tlb_all();
@@ -246,7 +247,15 @@ void invalidate_tlb(ulong asid, ulong vaddr, size_t size)
 //     }
 
     struct tlb_config *tlb = get_per_cpu(struct tlb_config, tlb_geometry);
-    flush_tlb(tlb);
+    do_flush_tlb(tlb);
+    atomic_ib();
+}
+
+void flush_tlb()
+{
+    struct tlb_config *tlb = get_per_cpu(struct tlb_config, tlb_geometry);
+    do_flush_tlb(tlb);
+    atomic_ib();
 }
 
 
@@ -418,7 +427,7 @@ void init_tlb_mp()
 #endif
 
     // Flush TLB
-    flush_tlb(tlb);
+    do_flush_tlb(tlb);
 
     kprintf("TLB initialized, entry count: %d\n", tlb->tlb_entry_count);
 }

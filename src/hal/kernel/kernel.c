@@ -112,8 +112,8 @@ static void fill_hal_exports()
     hexp.translate = funcs->translate;
 
     // Address space
-    //hexp.user_page_dir_page_count = 0;     // TODO: funcs->exports.user_page_dir_page_count;
-    hexp.vaddr_space_end = 0;  // TODO: funcs->exports.vaddr_space_end;
+    hexp.vaddr_limit = funcs->vaddr_limit;
+    hexp.asid_limit = funcs->asid_limit;
     hexp.init_addr_space = funcs->init_addr_space;
     hexp.free_addr_space = funcs->free_addr_space;
 
@@ -125,6 +125,7 @@ static void fill_hal_exports()
 
     // TLB
     hexp.invalidate_tlb = funcs->invalidate_tlb;
+    hexp.flush_tlb = funcs->flush_tlb;
 }
 
 static void call_kernel_entry()

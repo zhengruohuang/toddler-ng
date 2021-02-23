@@ -396,6 +396,7 @@ extern int int_handler_eoi(ulong seq);
  * ASID
  */
 extern void init_asid();
+extern int asid_supported();
 extern ulong alloc_asid();
 extern void free_asid(ulong asid);
 

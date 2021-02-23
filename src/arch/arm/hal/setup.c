@@ -135,26 +135,18 @@ static void halt_cur_cpu(int count, va_list args)
     while (1);
 }
 
-
-static void invalidate_tlb_line(ulong asid, ulong vaddr)
-{
-//     kprintf("TLB shootdown @ %lx, ASID: %lx ...", vaddr, asid);
-    inv_tlb_all();
-    // TODO: atomic_mb();
-}
-
 static void invalidate_tlb(ulong asid, ulong vaddr, size_t size)
 {
-    ulong vstart = ALIGN_DOWN(vaddr, PAGE_SIZE);
-    ulong vend = ALIGN_UP(vaddr + size, PAGE_SIZE);
-    ulong page_count = (vend - vstart) >> PAGE_BITS;
+    atomic_mb();
+    inv_tlb_all();
+    atomic_ib();
+}
 
-    ulong i;
-    ulong vcur = vstart;
-    for (i = 0; i < page_count; i++) {
-        invalidate_tlb_line(asid, vcur);
-        vcur += PAGE_SIZE;
-    }
+static void flush_tlb()
+{
+    atomic_mb();
+    inv_tlb_all();
+    atomic_ib();
 }
 
 static void start_cpu(int mp_seq, ulong mp_id, ulong entry)
@@ -247,15 +239,21 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.arch_disable_local_int = disable_local_int;
     funcs.arch_enable_local_int = enable_local_int;
 
+    funcs.vaddr_limit = USER_VADDR_LIMIT;
+    funcs.asid_limit = 0; // TODO: ASID requires PAE and 64-bit TTBRs
     funcs.init_addr_space = init_user_page_table;
     funcs.free_addr_space = free_user_page_table;
+
     funcs.init_context = init_thread_context;
     funcs.set_context_param = set_thread_context_param;
     funcs.switch_to = switch_to;
+
     funcs.kernel_pre_dispatch = kernel_pre_dispatch;
     funcs.kernel_post_dispatch = kernel_post_dispatch;
 
+    funcs.has_auto_tlb_flush_on_switch = 0;
     funcs.invalidate_tlb = invalidate_tlb;
+    funcs.flush_tlb = flush_tlb;
 
     hal(largs, &funcs);
 }

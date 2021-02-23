@@ -56,6 +56,7 @@ extern int unmap_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size)
  * TLB
  */
 extern void invalidate_tlb(ulong asid, ulong vaddr, size_t size);
+extern void flush_tlb();
 
 extern void init_tlb_mp();
 extern void init_tlb();

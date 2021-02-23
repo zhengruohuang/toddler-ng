@@ -5,19 +5,35 @@
 
 #include "common/include/inttypes.h"
 #include "kernel/include/struct.h"
+#include "kernel/include/kernel.h"
 #include "kernel/include/lib.h"
 
 
+static int supports_asid = 0;
 static id_obj_t asid_alloc;
 
 
 /*
- * Alloc
+ * Init
  */
 void init_asid()
 {
-    ulong first = 1, last = 255;
+    ulong limit = hal_get_asid_limit();
+    if (!limit) {
+        supports_asid = 0;
+        return;
+    }
+
+    ulong first = 1, last = limit - 1;
     id_alloc_create(&asid_alloc, first, last);
+    supports_asid = 1;
+
+    atomic_mb();
+}
+
+int asid_supported()
+{
+    return supports_asid;
 }
 
 
@@ -26,6 +42,10 @@ void init_asid()
  */
 ulong alloc_asid()
 {
+    if (!supports_asid) {
+        return 0;
+    }
+
     long asid = id_alloc(&asid_alloc);
     panic_if(asid <= 0, "Run out of ASID!\n");
 
@@ -35,6 +55,10 @@ ulong alloc_asid()
 
 void free_asid(ulong asid)
 {
+    if (!supports_asid || !asid) {
+        return;
+    }
+
     id_free(&asid_alloc, asid);
     kprintf("ASID freed: %lu\n", asid);
 }

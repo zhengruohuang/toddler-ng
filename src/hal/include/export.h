@@ -84,6 +84,7 @@ typedef void (*set_syscall_return_t)(struct reg_context *context,
 
 // TLB
 typedef void (*invalidate_tlb_t)(ulong asid, ulong vaddr, size_t length);
+typedef void (*flush_tlb_t)();
 
 
 struct hal_exports {
@@ -137,8 +138,8 @@ struct hal_exports {
     page_translate_t translate;
 
     // Address space
-    //int user_page_dir_page_count;
-    ulong vaddr_space_end;
+    ulong vaddr_limit;
+    ulong asid_limit;
     init_addr_space_t init_addr_space;
     free_addr_space_t free_addr_space;
 
@@ -150,6 +151,7 @@ struct hal_exports {
 
     // TLB
     invalidate_tlb_t invalidate_tlb;
+    flush_tlb_t flush_tlb;
 };
 
 

@@ -33,6 +33,11 @@ void switch_context(ulong thread_id, struct reg_context *context,
     rctxt->tcb = tcb;
     rctxt->asid = asid;
 
+    // Flush TLB if needed
+    if (user_mode && !asid && !arch_has_auto_tlb_flush_on_switch()) {
+        arch_flush_tlb();
+    }
+
     // Do the actual switch
     arch_switch_to(thread_id, per_cpu_context, page_table, user_mode, asid, tcb);
 }
