@@ -1,4 +1,5 @@
 #include "common/include/inttypes.h"
+#include "common/include/compiler.h"
 #include "loader/include/kprintf.h"
 #include "loader/include/firmware.h"
 
@@ -18,7 +19,7 @@ static void io_write8(void *addr, u8 val)
 
 
 static void *ns16550_base = NULL;
-static int ns16550_size = 0;
+__unused_var static int ns16550_size = 0;
 static int reg_shift = 0;
 
 #define DATA_ADDR           (ns16550_base + (0x0 << reg_shift))
@@ -48,7 +49,7 @@ static int putchar(int ch)
     return ch & 0xff;
 }
 
-static void resolve_opts(const char *opts,
+__unused_func static void resolve_opts(const char *opts,
     int *data, int *parity, int *stop, int *baud)
 {
     if (!opts || !opts[0]) {

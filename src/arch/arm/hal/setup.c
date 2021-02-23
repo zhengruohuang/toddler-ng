@@ -132,7 +132,9 @@ static void set_syscall_return(struct reg_context *regs, int success, ulong retu
 
 static void halt_cur_cpu(int count, va_list args)
 {
-    while (1);
+    while (1) {
+        __asm__ __volatile__ ( "wfi;" : : : "memory" );
+    }
 }
 
 static void invalidate_tlb(ulong asid, ulong vaddr, size_t size)
