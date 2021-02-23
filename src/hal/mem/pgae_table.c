@@ -1,3 +1,6 @@
+#if (defined(ARCH_MIPS))
+
+
 #include "common/include/inttypes.h"
 #include "common/include/atomic.h"
 #include "common/include/page.h"
@@ -7,9 +10,6 @@
 #include "hal/include/hal.h"
 #include "hal/include/mem.h"
 #include "hal/include/setup.h"
-
-
-#if (defined(ARCH_MIPS))
 
 
 /*

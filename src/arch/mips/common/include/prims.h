@@ -14,9 +14,9 @@ static inline void __atomic_empty()
     __asm__ __volatile__ ( "" : : : "memory" );
 }
 
-static inline void __atomic_synci()
+static inline void __atomic_ehb()
 {
-    __asm__ __volatile__ ( "synci;" : : : "memory" );
+    __asm__ __volatile__ ( "ehb;" : : : "memory" );
 }
 
 static inline void __atomic_sync()
@@ -45,13 +45,14 @@ static inline void atomic_notify()
 // Execution barrier: Insturctions after atomic_eb execute after DSB completes
 static inline void atomic_eb()
 {
-    __atomic_synci();
+    __atomic_ehb();
 }
 
 // Instruction barrier: Instructions after atomic_ib are fetched after atomic_ib completes
 static inline void atomic_ib()
 {
-    __atomic_synci();
+    __atomic_sync();
+    __atomic_ehb();
 }
 
 
