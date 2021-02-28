@@ -2,6 +2,7 @@
 #include "loader/include/loader.h"
 #include "loader/include/firmware.h"
 #include "loader/include/boot.h"
+#include "loader/include/mem.h"
 #include "loader/include/devtree.h"
 #include "loader/include/kprintf.h"
 

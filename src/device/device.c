@@ -38,6 +38,7 @@ static void init_device()
  */
 extern void init_pl011_driver();
 extern void init_ns16550_driver();
+extern void init_or1k_ns16550_driver();
 
 extern void init_dev_zero();
 extern void init_dev_null();
@@ -50,6 +51,8 @@ static void start_drivers()
     init_pl011_driver();
 #elif defined(ARCH_MIPS32L) || defined(ARCH_MIPS64L)
     init_ns16550_driver();
+#elif defined(ARCH_OPENRISC)
+    init_or1k_ns16550_driver();
 #endif
 
     init_dev_zero();

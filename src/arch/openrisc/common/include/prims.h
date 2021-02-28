@@ -7,6 +7,36 @@
 
 
 /*
+ * OpenRISC barriers
+ */
+// Execution of context synchronization instruction results in
+// completion of all operations inside the processor and a flush of the
+// instruction pipelines. When all operations are complete, the RISC core
+// resumes with an empty instruction pipeline and fresh context in all units
+// (MMU for example).
+static inline void atomic_or1k_csync()
+{
+    __asm__ __volatile__ ( "l.csync" : : : "memory" );
+}
+
+// Execution of pipeline synchronization instruction results in
+// completion of all instructions that were fetched before l.psync instruction.
+// Once all instructions are completed, instructions fetched after l.psync are
+// flushed from the pipeline and fetched again.
+static inline void atomic_or1k_psync()
+{
+    __asm__ __volatile__ ( "l.psync" : : : "memory" );
+}
+
+// Execution of the memory synchronization instruction results in
+// completion of all load/store operations before the RISC core continues.
+static inline void atomic_or1k_msync()
+{
+    __asm__ __volatile__ ( "l.msync" : : : "memory" );
+}
+
+
+/*
  * Pause
  */
 static inline void atomic_pause()
@@ -26,13 +56,13 @@ static inline void atomic_notify()
 // Execution barrier: Insturctions after atomic_eb execute after DSB completes
 static inline void atomic_eb()
 {
-    __asm__ __volatile__ ( "" : : : "memory" );
+    atomic_or1k_psync();
 }
 
 // Instruction barrier: Instructions after atomic_ib are fetched after atomic_ib completes
 static inline void atomic_ib()
 {
-    __asm__ __volatile__ ( "" : : : "memory" );
+    atomic_or1k_psync();
 }
 
 
@@ -42,19 +72,19 @@ static inline void atomic_ib()
 // Full memory barrier
 static inline void atomic_mb()
 {
-    __asm__ __volatile__ ( "" : : : "memory" );
+    atomic_or1k_msync();
 }
 
 // Read barrier
 static inline void atomic_rb()
 {
-    __asm__ __volatile__ ( "" : : : "memory" );
+    atomic_or1k_msync();
 }
 
 // Write barrier
 static inline void atomic_wb()
 {
-    __asm__ __volatile__ ( "" : : : "memory" );
+    atomic_or1k_msync();
 }
 
 

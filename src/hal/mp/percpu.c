@@ -8,7 +8,7 @@
 #include "hal/include/hal.h"
 
 
-#define PER_CPU_AREA_PAGE_COUNT     1
+#define PER_CPU_AREA_PAGE_COUNT     2
 #define PER_CPU_AREA_SIZE           (PAGE_SIZE * PER_CPU_AREA_PAGE_COUNT)
 #define PER_CPU_DATA_START_OFFSET   ((PER_CPU_AREA_SIZE / 2) + 16)
 

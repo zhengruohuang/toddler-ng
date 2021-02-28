@@ -43,7 +43,14 @@ ulong pre_valloc(int count, paddr_t paddr, int cache)
 {
     struct hal_arch_funcs *arch_funcs = get_hal_arch_funcs();
 
-    if (arch_funcs->has_direct_access) {
+    int use_direct_access = arch_funcs->has_direct_access;
+    if (use_direct_access &&
+        !cache && !arch_funcs->has_direct_access_uncached
+    ) {
+        use_direct_access = 0;
+    }
+
+    if (use_direct_access) {
         return arch_hal_direct_access(paddr, count, cache);
     } else {
         ulong vaddr = 0;

@@ -1,4 +1,5 @@
 #include "common/include/inttypes.h"
+#include "common/include/compiler.h"
 #include "common/include/abi.h"
 #include "common/include/elf.h"
 #include "loader/include/kprintf.h"
@@ -102,8 +103,8 @@ static void inflate_elf(elf_native_header_t *elf,
     }
 }
 
-static elf_native_section_t *find_section(elf_native_header_t *elf,
-    const char *name)
+__unused_func static elf_native_section_t *find_section(elf_native_header_t *elf,
+                                                        const char *name)
 {
     if (!elf->elf_shoff) {
         return NULL;

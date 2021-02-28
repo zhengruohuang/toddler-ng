@@ -294,14 +294,43 @@ struct itlb_trans_reg {
 /*
  * Exception
  */
+struct except_base_reg {
+    union {
+        u32 value;
+
+        struct {
+            u32 ppn             : 19;
+            u32 reserved        : 13;
+        };
+    };
+} packed4_struct;
+
+#define read_evbar(value)       __mfspr(value, 0, 11)
+#define write_evbar(value)      __mtspr(value, 0, 11)
+
 #define read_eear(value, idx)   __mfspr(value, 0, 48 + idx)
 #define read_eear0(value)       __mfspr(value, 0, 48)
 
 #define read_epcr(value, idx)   __mfspr(value, 0, 32 + idx)
 #define read_epcr0(value)       __mfspr(value, 0, 32)
+#define write_epcr0(value)      __mtspr(value, 0, 32)
 
 #define read_esr(value, idx)    __mfspr(value, 0, 64 + idx)
 #define read_esr0(value)        __mfspr(value, 0, 64)
+#define write_esr0(value)       __mtspr(value, 0, 64)
+
+
+/*
+ * Shadow registers
+ */
+#define read_gpr0(value, idx)   __mfspr(value, 0, 1024 + idx)
+#define write_gpr0(value, idx)  __mtspr(value, 0, 1024 + idx)
+
+#define read_gpr1(value, idx)   __mfspr(value, 0, 1024 + 32 + idx)
+#define write_gpr1(value, idx)  __mtspr(value, 0, 1024 + 32 + idx)
+
+#define read_gpr2(value, idx)   __mfspr(value, 0, 1024 + 64 + idx)
+#define write_gpr2(value, idx)  __mtspr(value, 0, 1024 + 64 + idx)
 
 
 #endif

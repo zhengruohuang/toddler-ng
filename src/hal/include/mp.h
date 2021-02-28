@@ -21,6 +21,10 @@
 #define get_per_cpu(type, name)     ((type *)access_per_cpu_var(&__##name##_per_cpu_offset, sizeof(type)))
 #endif
 
+#ifndef get_per_cpu_val
+#define get_per_cpu_val(type, name) (*(type *)access_per_cpu_var(&__##name##_per_cpu_offset, sizeof(type)))
+#endif
+
 extern ulong get_my_cpu_area_start_vaddr();
 extern ulong get_my_cpu_data_area_start_vaddr();
 extern ulong get_my_cpu_stack_top_vaddr();

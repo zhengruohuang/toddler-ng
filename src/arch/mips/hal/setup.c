@@ -255,8 +255,10 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.halt = halt_cur_cpu;
 
     funcs.has_direct_access = 1;
+    funcs.has_direct_access_uncached = 1;
     funcs.direct_paddr_to_vaddr = hal_direct_paddr_to_vaddr;
     funcs.direct_vaddr_to_paddr = hal_direct_vaddr_to_paddr;
+
     funcs.map_range = map_range;
     funcs.unmap_range = unmap_range;
     funcs.translate = translate;

@@ -34,7 +34,7 @@ struct hal_arch_funcs {
     void (*halt)(int count, va_list args);
 
     // Indicates if direct physical address access is possible
-    int has_direct_access;
+    int has_direct_access, has_direct_access_uncached;
     direct_paddr_to_vaddr_t direct_paddr_to_vaddr;
     direct_vaddr_to_paddr_t direct_vaddr_to_paddr;
 

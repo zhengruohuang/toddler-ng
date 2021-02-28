@@ -38,4 +38,7 @@ void init_mem_map()
     hal_page_table = largs->page_table;
     generic_map_range = funcs->map_range;
     generic_translate = funcs->translate;
+
+    panic_if(!generic_map_range, "map_range must be supplied\n");
+    panic_if(!generic_translate, "translate must be supplied\n");
 }

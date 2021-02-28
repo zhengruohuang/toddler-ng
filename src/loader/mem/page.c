@@ -1,4 +1,5 @@
 #include "common/include/inttypes.h"
+#include "common/include/abi.h"
 #include "loader/include/loader.h"
 #include "loader/include/lib.h"
 #include "loader/include/mem.h"
@@ -16,7 +17,7 @@ static void map_memmap_1to1()
 
     paddr_t pmemstart = cast_u64_to_paddr(memstart);
     ulong vmemstart = cast_paddr_to_vaddr(pmemstart);
-    ulong vmemsize = (ulong)memsize;    // FIXME: need a safe way
+    ulong vmemsize = cast_paddr_to_vaddr(memsize);    // FIXME: need a safe way
 
     page_map_virt_to_phys(vmemstart, pmemstart, vmemsize, 1, 1, 1);
 }
@@ -34,7 +35,7 @@ void init_page()
 }
 
 int page_map_virt_to_phys(ulong vaddr, paddr_t paddr, ulong size,
-    int cache, int exec, int write)
+                          int cache, int exec, int write)
 {
     //kprintf("To map %p -> %p, size: %lx\n", vaddr, paddr, size);
 
@@ -45,3 +46,4 @@ int page_map_virt_to_phys(ulong vaddr, paddr_t paddr, ulong size,
 
     return 0;
 }
+

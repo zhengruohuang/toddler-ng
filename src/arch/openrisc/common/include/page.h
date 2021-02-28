@@ -1,42 +1,22 @@
-#ifndef __ARCH_OPENRISC_COMMON_INCLUDE_PAGE_H__
-#define __ARCH_OPENRISC_COMMON_INCLUDE_PAGE_H__
+#ifndef __ARCH_MIPS_COMMON_INCLUDE_PAGE_H__
+#define __ARCH_MIPS_COMMON_INCLUDE_PAGE_H__
 
 
 #include "common/include/compiler.h"
 #include "common/include/inttypes.h"
+#include "common/include/abi.h"
 #include "common/include/mem.h"
+#include "common/include/mmu.h"
 
 
 /*
- * User address space
+ * Page structure
+ *  8KB page size, 2048-entry per page, 2-level
  */
-// #define USER_VADDR_SPACE_BEGIN  0x10000ul
-// #define USER_VADDR_SPACE_END    0x7f000000ul
-
-
-/*
- * Paging
- *  8KB page size, 256-entry per L1 table, 2048-entry per L2 table, 2-level
- */
-
-#define PAGE_LEVELS                 2
-
-#define L1PAGE_TABLE_SIZE           1024
-#define L1PAGE_TABLE_ENTRY_COUNT    256
-#define L1PAGE_TABLE_ENTRY_BITS     8
-#define L1PAGE_TABLE_SIZE_IN_PAGES  8
-
-#define L2PAGE_TABLE_SIZE           8192
-#define L2PAGE_TABLE_ENTRY_COUNT    2048
-#define L2PAGE_TABLE_ENTRY_BITS     11
-#define L2PAGE_TABLE_SIZE_IN_PAGES  1
-
-#define L1BLOCK_SIZE                0x1000000ul
-#define L1BLOCK_PAGE_COUNT          2048
-
-#define GET_L1PTE_INDEX(addr)       ((addr) >> 24)
-#define GET_L2PTE_INDEX(addr)       (((addr) >> 13) & 0x1fful)
-#define GET_PAGE_OFFSET(addr)       ((addr) & 0x1ffful)
+#define PAGE_LEVELS             2
+#define PAGE_TABLE_SIZE         8192
+#define PAGE_TABLE_ENTRY_COUNT  2048
+#define PAGE_TABLE_ENTRY_BITS   11
 
 struct page_table_entry {
     union {
@@ -57,85 +37,139 @@ struct page_table_entry {
 } packed4_struct;
 
 struct page_frame {
-    u8 bytes[PAGE_SIZE];
-} packed4_struct;
-
-struct l1table {
     union {
         u8 bytes[PAGE_SIZE];
-        struct page_frame page;
-
-        struct {
-            struct page_table_entry entries[L1PAGE_TABLE_ENTRY_COUNT];
-            struct page_table_entry entries_dup[L1PAGE_TABLE_SIZE_IN_PAGES - 1][L1PAGE_TABLE_ENTRY_COUNT];
-        };
-    };
-} packed4_struct;
-
-struct l2table {
-    union {
-        u8 bytes[PAGE_SIZE];
-        struct page_frame page;
-
-        struct page_table_entry entries[L2PAGE_TABLE_ENTRY_COUNT];
+        struct page_table_entry entries[PAGE_TABLE_ENTRY_COUNT];
     };
 } packed4_struct;
 
 
 /*
- * MMUPR
+ * Arch-specific page table functions
  */
-#define COMPOSE_PROTECT_TYPE(k, r, w, x) \
-            (((k) << 3) | ((r) << 2) | ((w) << 1) | (x))
+static inline void *page_get_pte(void *page_table, int level, ulong vaddr)
+{
+    struct page_frame *table = page_table;
+    ulong idx = vaddr >> PAGE_BITS;
+    idx >>= (PAGE_LEVELS - level) * PAGE_TABLE_ENTRY_BITS;
+    idx &= PAGE_TABLE_ENTRY_COUNT - 0x1ul;
 
-#define DECOMPOSE_DMMU_PROTECT_TYPE(scheme, kr, kw, ur, uw) \
-            do {                                            \
-                kr = ((scheme) >> 0) & 0x1;                 \
-                kw = ((scheme) >> 1) & 0x1;                 \
-                ur = ((scheme) >> 2) & 0x1;                 \
-                uw = ((scheme) >> 3) & 0x1;                 \
-            } while (0)
-
-#define DECOMPOSE_IMMU_PROTECT_TYPE(scheme, kx, ux)         \
-            do {                                            \
-                kx = ((scheme) >> 0) & 0x1;                 \
-                ux = ((scheme) >> 1) & 0x1;                 \
-            } while (0)
-
-struct mmu_protect_reg_setup {
-    u8 type;
-    u8 field;
-    u8 immupr;
-    u8 dmmupr;
-};
-
-#define MMU_PROTECT_SCHEME_TO_REG_IDX { \
-    /* 0x0: ____ */ 0,                  \
-    /* 0x1: ___X */ 6,                  \
-    /* 0x2: ____ */ 0,                  \
-    /* 0x3: ____ */ 0,                  \
-    /* 0x4: _R__ */ 5,                  \
-    /* 0x5: ____ */ 0,                  \
-    /* 0x6: _RW_ */ 4,                  \
-    /* 0x7: _RWX */ 3,                  \
-    /* 0x8: ____ */ 0,                  \
-    /* 0x9: ____ */ 0,                  \
-    /* 0xa: ____ */ 0,                  \
-    /* 0xb: ____ */ 0,                  \
-    /* 0xc: ____ */ 0,                  \
-    /* 0xd: ____ */ 0,                  \
-    /* 0xe: KRW_ */ 2,                  \
-    /* 0xf: KRWX */ 1,                  \
+    struct page_table_entry *pte = &table->entries[idx];
+    return pte;
 }
 
-#define MMU_PROTECT_REG_SETUP { \
-    { .type = 0x0 /* ____ */, .field = 0, .immupr = 0x0 /* K_ U_ */, .dmmupr = 0x0 /* K__ U__ */ }, \
-    { .type = 0xf /* KRWX */, .field = 1, .immupr = 0x1 /* KX U_ */, .dmmupr = 0x3 /* KRW U__ */ }, \
-    { .type = 0xe /* KRW_ */, .field = 2, .immupr = 0x0 /* K_ U_ */, .dmmupr = 0x3 /* KRW U__ */ }, \
-    { .type = 0x7 /* _RWX */, .field = 3, .immupr = 0x2 /* K_ UX */, .dmmupr = 0xf /* KRW URW */ }, \
-    { .type = 0x6 /* _RW_ */, .field = 4, .immupr = 0x0 /* K_ U_ */, .dmmupr = 0xf /* KRW URW */ }, \
-    { .type = 0x4 /* _R__ */, .field = 5, .immupr = 0x0 /* K_ U_ */, .dmmupr = 0x7 /* KRW UR_ */ }, \
-    { .type = 0x1 /* ___X */, .field = 6, .immupr = 0x2 /* K_ UX */, .dmmupr = 0x3 /* KRW U__ */ }, \
+static inline int page_is_pte_valid(void *entry, int level)
+{
+    struct page_table_entry *pte = entry;
+    return pte->protect_field ? 1 : 0;
+}
+
+static inline int page_is_pte_leaf(void *entry, int level)
+{
+    struct page_table_entry *pte = entry;
+    return pte->has_next ? 0 : 1;
+}
+
+static inline ppfn_t page_get_pte_dest_ppfn(void *entry, int level)
+{
+    struct page_table_entry *pte = entry;
+    return (ppfn_t)pte->pfn;
+}
+
+static inline ppfn_t page_get_pte_next_table(void *entry, int level)
+{
+    return page_get_pte_dest_ppfn(entry, level);
+}
+
+static inline ppfn_t page_get_pte_attri(void *entry, int level, ulong vaddr,
+                                        int *exec, int *read, int *write, int *cache, int *kernel)
+{
+    struct page_table_entry *pte = entry;
+
+    get_prot_attri(pte->protect_field, kernel, read, write, exec);
+    if (cache) *cache = !pte->cache_disabled;
+
+    return (ppfn_t)pte->pfn;
+}
+
+static inline int page_compare_pte_attri(void *entry, int level, paddr_t ppfn,
+                                         int exec, int read, int write, int cache, int kernel)
+{
+    struct page_table_entry *pte = entry;
+
+    int pte_cache = !pte->cache_disabled;
+    int pte_exec, pte_read, pte_write, pte_kernel;
+    get_prot_attri(pte->protect_field,
+                   &pte_kernel, &pte_read, &pte_write, &pte_exec);
+
+    if (pte->pfn != ppfn ||
+        pte_exec != exec || pte_write != write ||
+        pte_cache != cache || pte_kernel != kernel
+    ) {
+        return -1;
+    }
+
+    return 0;
+}
+
+static inline void page_set_pte_attri(void *entry, int level, paddr_t ppfn,
+                                      int exec, int read, int write, int cache, int kernel)
+{
+    struct page_table_entry *pte = entry;
+    pte->value = 0;
+
+    pte->protect_field = get_prot_field(kernel, read, write, exec);
+    pte->has_next = 0;
+    pte->pfn = ppfn;
+    pte->coherent = 1;
+    pte->cache_disabled = !cache;
+    pte->write_back = 1;
+    pte->weak_order = 1;
+}
+
+static inline void page_set_pte_next_table(void *entry, int level, ppfn_t ppfn)
+{
+    struct page_table_entry *pte = entry;
+    pte->value = 0;
+
+    pte->protect_field = get_prot_field(1, 1, 1, 1);
+    pte->has_next = 1;
+    pte->pfn = ppfn;
+}
+
+static inline void page_zero_pte(void *entry, int level)
+{
+    struct page_table_entry *pte = entry;
+    pte->value = 0;
+}
+
+static inline int page_is_mappable(ulong vaddr, paddr_t paddr,
+                                   int exec, int read, int write, int cache, int kernel)
+{
+    return 1;
+}
+
+static inline int page_is_empty_table(void *page_table, int level)
+{
+    struct page_frame *table = page_table;
+    for (int i = 0; i < PAGE_TABLE_ENTRY_COUNT; i++) {
+        if (table->entries[i].value) {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+static inline int page_get_num_table_pages(int level)
+{
+    return 1;
+}
+
+static inline ulong page_get_block_page_count(int level)
+{
+    ulong page_count = 0x1ul << ((PAGE_LEVELS - level) * PAGE_TABLE_ENTRY_BITS);
+    return page_count;
 }
 
 

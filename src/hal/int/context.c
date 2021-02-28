@@ -49,6 +49,9 @@ void init_context_mp()
 
     struct running_context *rctxt = get_per_cpu(struct running_context, cur_running_context);
     memzero(rctxt, sizeof(struct running_context));
+
+    // Set current kernel table to kernel's
+    rctxt->page_table = get_loader_args()->page_table;
 }
 
 void init_context()

@@ -193,12 +193,5 @@ static inline ulong page_get_block_page_count(int level)
     return page_count;
 }
 
-static inline ulong page_get_block_vmask(int level)
-{
-    ulong vmask = PAGE_SIZE - 0x1;
-    vmask |= ((0x1ul << ((PAGE_LEVELS - level) * PAGE_TABLE_ENTRY_BITS)) - 0x1ul) << PAGE_BITS;
-    return vmask;
-}
-
 
 #endif
