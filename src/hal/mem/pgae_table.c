@@ -109,6 +109,7 @@ static inline void page_free_table(void *page_table, int level, ppfn_t ppfn)
 /*
  * Page table
  */
+#if (defined(ARCH_MIPS))
 void *init_user_page_table()
 {
     int num_pages = page_get_num_table_pages(1);
@@ -121,6 +122,7 @@ void free_user_page_table(void *ptr)
 {
     kernel_pfree_ptr(ptr);
 }
+#endif
 
 
 /*
@@ -241,7 +243,17 @@ static void map_page(void *page_table, ulong vaddr, paddr_t paddr, int block,
     if (page_is_pte_valid(pte, level)) {
         int err = page_compare_pte_attri(pte, level, ppfn,
                                          exec, 1, write, cache, kernel);
-        panic_if(err, "Trying to change existing mapping!");
+        if (err) {
+            int ori_e, ori_w, ori_c, ori_k;
+            translate_attri2(page_table, vaddr, &ori_e, NULL, &ori_w, &ori_c, &ori_k);
+            panic("Trying to change existing mapping @ %lx -> "
+                  "ori @ %llx (e: %d, w: %d, c: %d, k: %d), "
+                  "new @ %llx (e: %d, w: %d, c: %d, k: %d)\n",
+                  vaddr,
+                  (u64)ppfn_to_paddr(ppfn), ori_e, ori_w, ori_c, ori_k,
+                  (u64)paddr, exec, write, cache, kernel);
+        }
+
     } else {
         page_set_pte_attri(pte, level, ppfn, exec, 1, write, exec, kernel);
     }

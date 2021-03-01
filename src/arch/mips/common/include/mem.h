@@ -3,6 +3,7 @@
 
 
 #include "common/include/abi.h"
+#include "common/include/inttypes.h"
 
 
 /*
@@ -19,6 +20,7 @@
     #define MAX_NUM_PADDR_BITS  32
 
     #define ASID_LIMIT          256
+    #define USER_VADDR_BASE     0x100000ul
     #define USER_VADDR_LIMIT    0x78000000ul
 
     typedef u32                 paddr_t;
@@ -52,6 +54,7 @@
     #define MAX_NUM_PADDR_BITS      48
 
     #define ASID_LIMIT              256
+    #define USER_VADDR_BASE         0x100000ul
     #define USER_VADDR_LIMIT        0xff00000000ul
                                     //0x3f00000000000000ul
 

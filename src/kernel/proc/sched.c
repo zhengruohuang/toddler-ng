@@ -70,6 +70,8 @@ void switch_to_thread(struct thread *t)
  */
 void sched()
 {
+    //kprintf("Num threads: %lu\n", sched_queue.count);
+
     // Pick a thread
     struct thread *t = NULL;
     do {

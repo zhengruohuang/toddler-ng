@@ -13,9 +13,8 @@ decl_per_cpu(struct running_context, cur_running_context);
 void switch_context(ulong thread_id, struct reg_context *context,
                     void *page_table, int user_mode, ulong asid, ulong tcb)
 {
-//     kprintf("To switch context, R0: %x, PC: %x, SP: %x, CPSR: %x, ASID: %lx, user: %d, page dir: %lx, TCB @ %lx, sched: %lx\n",
-//           context->r0, context->pc, context->sp, context->cpsr,
-//           asid, user_mode, page_dir_pfn, tcb, sched_id);
+//     kprintf("To switch context, thread_id: %lx, page_table @ %lx, user_mode: %d\n",
+//             thread_id, page_table, user_mode);
 
     // Disable local interrupts
     disable_local_int();

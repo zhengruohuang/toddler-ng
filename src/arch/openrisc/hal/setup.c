@@ -31,6 +31,11 @@ static int or1k_putchar(int ch)
     return 1;
 }
 
+void test_or1k_putchar(int ch)
+{
+    or1k_putchar(ch);
+}
+
 
 /*
  * Per-arch funcs
@@ -113,14 +118,8 @@ static ulong get_cur_mp_id()
 
 static void register_drivers()
 {
-//     REGISTER_DEV_DRIVER(bcm2835_armctrl_intc);
-//     REGISTER_DEV_DRIVER(bcm2836_percpu_intc);
-//
-//     REGISTER_DEV_DRIVER(armv7_generic_timer);
-//
-//     REGISTER_DEV_DRIVER(armv7_cpu);
-//
-//     REGISTER_DEV_DRIVER(arm_pl011);
+    REGISTER_DEV_DRIVER(or1k_intc);
+    REGISTER_DEV_DRIVER(or1k_cpu_timer);
 }
 
 static ulong get_syscall_params(struct reg_context *regs, ulong *p1, ulong *p2, ulong *p3)
@@ -146,47 +145,29 @@ static void halt_cur_cpu(int count, va_list args)
     }
 }
 
-// static void invalidate_tlb(ulong asid, ulong vaddr, size_t size)
-// {
-//     atomic_mb();
-// //     inv_tlb_all();
-//     atomic_ib();
-// }
-//
-// static void flush_tlb()
-// {
-//     atomic_mb();
-// //     inv_tlb_all();
-//     atomic_ib();
-// }
-
 static void start_cpu(int mp_seq, ulong mp_id, ulong entry)
 {
 }
 
-// static void *init_user_page_table()
-// {
-//     return NULL;
-//
-//     struct l1table *page_table = kernel_palloc_ptr(L1PAGE_TABLE_SIZE / PAGE_SIZE);
-//     memzero(page_table, L1PAGE_TABLE_SIZE);
-//
-//     struct loader_args *largs = get_loader_args();
-//     struct l1table *kernel_page_table = largs->page_table;
-//
-//     // Duplicate the last 4MB mapping
-//     page_table->value_u32[4095] = kernel_page_table->value_u32[4095];
-//     page_table->value_u32[4094] = kernel_page_table->value_u32[4094];
-//     page_table->value_u32[4093] = kernel_page_table->value_u32[4093];
-//     page_table->value_u32[4092] = kernel_page_table->value_u32[4092];
-//
-//     return page_table;
-// }
-//
-// static void free_user_page_table(void *ptr)
-// {
-//     kernel_pfree_ptr(ptr);
-// }
+static void *init_user_page_table()
+{
+    int num_pages = page_get_num_table_pages(1);
+    struct page_frame *page_table = kernel_palloc_ptr(num_pages);
+    memzero(page_table, num_pages * PAGE_SIZE);
+
+    struct page_frame *kernel_page_table = get_kernel_page_table();
+    for (int i = 0; i < 4; i++) {
+        page_table->entries[i].value = kernel_page_table->entries[i].value;
+    }
+    page_table->entries[1023].value = kernel_page_table->entries[1023].value;
+
+    return page_table;
+}
+
+static void free_user_page_table(void *ptr)
+{
+    kernel_pfree_ptr(ptr);
+}
 
 static void set_thread_context_param(struct reg_context *context, ulong param)
 {
@@ -213,7 +194,7 @@ static void init_thread_context(struct reg_context *context, ulong entry,
     sr.icache_enabled = 1;
     sr.dcache_enabled = 1;
     sr.int_enabled = 1;
-    // FIXME sr.timer_enabled = 0;
+    sr.timer_enabled = 1;
     sr.supervisor = !user_mode;
     context->sr = sr.value;
 }

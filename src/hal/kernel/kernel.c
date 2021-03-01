@@ -112,6 +112,7 @@ static void fill_hal_exports()
     hexp.translate = funcs->translate;
 
     // Address space
+    hexp.vaddr_base = USER_VADDR_BASE;
     hexp.vaddr_limit = funcs->vaddr_limit;
     hexp.asid_limit = funcs->asid_limit;
     hexp.init_addr_space = funcs->init_addr_space;

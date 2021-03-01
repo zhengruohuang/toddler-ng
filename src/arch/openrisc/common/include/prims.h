@@ -94,10 +94,25 @@ static inline void atomic_wb()
 static inline ulong atomic_cas_val(volatile ulong *addr,
                                    ulong old_val, ulong new_val)
 {
-    ulong read = *addr;
-    if (read == old_val) {
-        *addr = new_val;
-    }
+    ulong read;
+
+    __asm__ __volatile__ (
+        "1: l.msync;"
+        "   l.nop;"
+        "   l.lwa   %[read], 0(%[ptr]);"    // Load ptr and place atomic resv
+        "   l.sfeq  %[read], %[val_old];"   // Compare loaded val against old_val
+        "   l.bnf   2f;"                    // Fail if not equal
+        "   l.nop;"
+        "   l.swa   0(%[ptr]), %[val_new];" // Store new_val to ptr if atomic resv
+        "   l.bnf   1b;"                    // Try again if atomic resv was lost
+        "   l.nop;"
+        "2: l.msync;"
+        : [read] "=&r" (read)
+        : [ptr] "r" (addr), [zero] "i" (0),
+          [val_old] "r" (old_val), [val_new] "r" (new_val)
+        : "memory"
+    );
+
     return read;
 }
 

@@ -77,12 +77,10 @@ void quick_int_handler_entry(int except, struct reg_context *regs)
     ulong eear = 0;
     read_eear0(eear);
 
-    //char *ename = except_names[except];
-    //kprintf("%s (%d), EPC @ %lx, EEAR @ %lx\n", ename, except, epc, eear);
-
-    //struct running_context *rctxt = get_per_cpu(struct running_context, cur_running_context);
-    //void *page_table = rctxt->page_table;
-    //ulong asid = rctxt->asid;
+//     if (show_tlb_miss) {
+//     char *ename = except_names[except];
+//     kprintf("%s (%d), EPC @ %lx, EEAR @ %lx\n", ename, except, epc, eear);
+//     }
 
     int itlb = except == EXCEPT_NUM_ITLB_MISS ? 1 : 0;
     int err = tlb_refill(itlb, eear);
@@ -90,22 +88,14 @@ void quick_int_handler_entry(int except, struct reg_context *regs)
         restore_context_gpr_from_shadow1();
         unreachable();
     }
-
-//     //int exec, write, cache, kernel;
-//     //paddr_t paddr = translate_attri2(page_table, eear, &exec, NULL, &write, &cache, &kernel);
-//     if (paddr) {
-//         tlb_refill(page_table, itlb, eear, asid, paddr, exec, write, cache, kernel);
-//
-//         //kprintf("TLB refill done, itlb: %d, vaddr @ %lx, paddr @ %llx, exec: %d, write: %d, cache: %d, kernel: %d\n",
-//         //        itlb, eear, (u64)paddr, exec, write, cache, kernel);
-//         restore_context_gpr_from_shadow1();
-//         unreachable();
-//     }
 }
 
 void kernel_int_handler_entry(int except, struct reg_context *regs)
 {
     //kprintf("kernel int handler entry @ %p, %p\n",  kernel_regs, quick_regs);
+
+    disable_mmu();
+    disable_local_int();
 
     // Save registers to memory
     save_ctxt1_regs_to_mem(regs);
@@ -120,6 +110,7 @@ void kernel_int_handler_entry(int except, struct reg_context *regs)
     int seq = 0;
     ulong error_code = eear;
 
+//     if (except != EXCEPT_NUM_SYSCALL && except != EXCEPT_NUM_TIMER)
 //     kprintf("Exception #%d: %s, EPC @ %lx, EEAR @ %lx\n",
 //             except, get_except_name(except), epc, eear);
 
@@ -132,6 +123,8 @@ void kernel_int_handler_entry(int except, struct reg_context *regs)
         seq = INT_SEQ_SYSCALL;
         break;
     case EXCEPT_NUM_TIMER:
+       seq = EXCEPT_NUM_TIMER;
+       break;
     case EXCEPT_NUM_INTERRUPT:
         seq = INT_SEQ_DEV;
         break;
@@ -142,6 +135,13 @@ void kernel_int_handler_entry(int except, struct reg_context *regs)
         break;
     }
 
+    // TODO: add ns16550 hal driver and move following to kernel_dispatch
+    disable_mmu();
+    flush_tlb();
+    void *page_table = get_kernel_page_table();
+    set_page_table(page_table);
+    enable_mmu();
+
     // Go to the generic handler!
     struct int_context intc = { };
     intc.vector = seq;
@@ -149,6 +149,12 @@ void kernel_int_handler_entry(int except, struct reg_context *regs)
     intc.regs = regs;
 
     int_handler(seq, &intc);
+
+    // TODO
+    disable_mmu();
+    struct running_context *rctxt = get_cur_running_context();
+    set_page_table(rctxt->page_table);
+    flush_tlb();
 
     // Return to the context prior to exception
     //kprintf("To return, seq: %d\n", seq);
@@ -176,7 +182,7 @@ static inline ulong _setup_kernel_stack()
     ulong stack_top = get_my_cpu_stack_top_vaddr() - sizeof(struct reg_context);
 
     // Align the stack to 16B
-    stack_top = ALIGN_DOWN(stack_top, 16);
+    stack_top = ALIGN_DOWN(stack_top, 16) - 16;
 
     // Remember the stack top
     ulong *cur_kernel_stack_top = get_per_cpu(ulong, kernel_int_stack_top);

@@ -34,8 +34,8 @@ extern void kernel_post_dispatch(ulong thread_id, struct kernel_dispatch *kdi);
 /*
  * Page
  */
-extern void *init_user_page_table();
-extern void free_user_page_table(void *ptr);
+// extern void *init_user_page_table();
+// extern void free_user_page_table(void *ptr);
 
 extern paddr_t translate_attri(void *page_table, ulong vaddr,
                                int *exec, int *read, int *write, int *cache);

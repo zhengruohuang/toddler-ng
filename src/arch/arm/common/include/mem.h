@@ -11,6 +11,7 @@
 #define MAX_NUM_VADDR_BITS  32
 #define MAX_NUM_PADDR_BITS  32
 
+#define USER_VADDR_BASE     0x100000ul
 #define USER_VADDR_LIMIT    0xf0000000ul
 
 typedef u32                 paddr_t;

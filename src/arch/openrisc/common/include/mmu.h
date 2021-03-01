@@ -92,12 +92,12 @@ static inline int get_prot_field(int k, int r, int w, int x)
 static inline void get_prot_attri(int field, int *k, int *r, int *w, int *x)
 {
     const struct mmu_protect_attri protect_attris[] = MMU_PROTECT_ATTRI_SETUP;
-    const struct mmu_protect_attri attri = protect_attris[field];
+    const struct mmu_protect_attri *attri = &protect_attris[field];
 
-    if (k) *k = attri.k;
-    if (r) *r = attri.r;
-    if (w) *w = attri.w;
-    if (x) *x = attri.x;
+    if (k) *k = attri->k;
+    if (r) *r = attri->r;
+    if (w) *w = attri->w;
+    if (x) *x = attri->x;
 }
 
 

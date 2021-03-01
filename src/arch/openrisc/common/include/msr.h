@@ -333,4 +333,37 @@ struct except_base_reg {
 #define write_gpr2(value, idx)  __mtspr(value, 0, 1024 + 64 + idx)
 
 
+/*
+ * PIC
+ */
+#define read_pic_mask(value)    __mfspr(value, 9, 0)
+#define write_pic_mask(value)   __mtspr(value, 9, 0)
+
+#define read_pic_status(value)  __mfspr(value, 9, 2)
+#define write_pic_status(value) __mtspr(value, 9, 2)
+
+
+/*
+ * Timer
+ */
+struct tick_mode_reg {
+    union {
+        u32 value;
+
+        struct {
+            u32 mode        : 2;
+            u32 int_enabled : 1;
+            u32 int_pending : 1;
+            u32 period      : 28;
+        };
+    };
+} packed4_struct;
+
+#define read_tick_mode(value)   __mfspr(value, 10, 0)
+#define write_tick_mode(value)  __mtspr(value, 10, 0)
+
+#define read_tick_count(value)  __mfspr(value, 10, 1)
+#define write_tick_count(value) __mtspr(value, 10, 1)
+
+
 #endif

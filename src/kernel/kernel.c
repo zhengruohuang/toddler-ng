@@ -160,6 +160,11 @@ ulong hal_get_asid_limit()
     return hal->asid_limit;
 }
 
+ulong hal_get_vaddr_base()
+{
+    return hal->vaddr_base;
+}
+
 ulong hal_get_vaddr_limit()
 {
     return hal->vaddr_limit;

@@ -32,6 +32,7 @@ extern int hal_restore_local_int(int enabled);
 extern u64 hal_get_ms();
 
 extern ulong hal_get_asid_limit();
+extern ulong hal_get_vaddr_base();
 extern ulong hal_get_vaddr_limit();
 
 extern void hal_set_syscall_return(struct reg_context *context, int success, ulong return0, ulong return1);

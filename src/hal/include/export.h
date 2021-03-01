@@ -138,7 +138,7 @@ struct hal_exports {
     page_translate_t translate;
 
     // Address space
-    ulong vaddr_limit;
+    ulong vaddr_base, vaddr_limit;
     ulong asid_limit;
     init_addr_space_t init_addr_space;
     free_addr_space_t free_addr_space;

@@ -138,10 +138,10 @@ static inline int or1k_ns16550_read_one()
 
 static inline void or1k_ns16550_write_one(char ch)
 {
-//     u32 ready = 0;
-//     while (!ready) {
-//         ready = __mmio_read8(or1k_ns16550.mmio_base + UART_LINE_STAT_REG) & 0x20;
-//     }
+    u32 ready = 0;
+    while (!ready) {
+        ready = __mmio_read8(or1k_ns16550.mmio_base + UART_LINE_STAT_REG) & 0x20;
+    }
 
     __mmio_write8(or1k_ns16550.mmio_base + UART_DATA_REG, (u8)ch & 0xff);
 }
@@ -154,7 +154,7 @@ static sema_t or1k_ns16550_sema = SEMA_INITIALIZER(sizeof(unsigned long) - 1);
 
 static void or1k_ns16550_int_handler(unsigned long param)
 {
-    //kprintf("NS16550 int handler!\n");
+    //kprintf("OR1K NS16550 int handler!\n");
 
     // Disable all interrupts
     __mmio_write8(or1k_ns16550.mmio_base + UART_INT_ENABLE_REG, 0x0);
@@ -259,21 +259,21 @@ static inline void start_or1k_ns16550()
     unsigned long offset = UART_BASE_ADDR - ppfn_to_paddr(paddr_to_ppfn(UART_BASE_ADDR));
     or1k_ns16550.mmio_base = vbase + offset;
 
-//     __mmio_write8(or1k_ns16550.mmio_base + UART_INT_ENABLE_REG, 0x0);    // Disable interrupts
-//     __mmio_write8(or1k_ns16550.mmio_base + UART_INT_ID_FIFO_REG, 0x6);   // Disable FIFO
-//     __mmio_write8(or1k_ns16550.mmio_base + UART_LINE_CTRL_REG, 0x80);    // Enable DLAB (set baud rate divisor)
-//     __mmio_write8(or1k_ns16550.mmio_base + UART_DIV_LSB_REG, 0x3);       // Set divisor to 3 (lo byte) 38400 baud
-//     __mmio_write8(or1k_ns16550.mmio_base + UART_DIV_MSB_REG, 0x0);       //                  (hi byte)
-//     __mmio_write8(or1k_ns16550.mmio_base + UART_LINE_CTRL_REG, 0x3);     // 8 bits, no parity, one stop bit
-// //     __mmio_write8(or1k_ns16550.mmio_base + UART_INT_ID_FIFO_REG, 0x7);  // Enable FIFO, clear them, with 1-byte threshold
-//     __mmio_write8(or1k_ns16550.mmio_base + UART_MODEM_CTRL_REG, 0xb);    // IRQs enabled, RTS/DSR set
-//     __mmio_write8(or1k_ns16550.mmio_base + UART_INT_ENABLE_REG, 0x1);    // Enable interrupts
+    __mmio_write8(or1k_ns16550.mmio_base + UART_INT_ENABLE_REG, 0x0);    // Disable interrupts
+    __mmio_write8(or1k_ns16550.mmio_base + UART_INT_ID_FIFO_REG, 0x6);   // Disable FIFO
+    __mmio_write8(or1k_ns16550.mmio_base + UART_LINE_CTRL_REG, 0x80);    // Enable DLAB (set baud rate divisor)
+    __mmio_write8(or1k_ns16550.mmio_base + UART_DIV_LSB_REG, 0x3);       // Set divisor to 3 (lo byte) 38400 baud
+    __mmio_write8(or1k_ns16550.mmio_base + UART_DIV_MSB_REG, 0x0);       //                  (hi byte)
+    __mmio_write8(or1k_ns16550.mmio_base + UART_LINE_CTRL_REG, 0x3);     // 8 bits, no parity, one stop bit
+//     __mmio_write8(or1k_ns16550.mmio_base + UART_INT_ID_FIFO_REG, 0x7);  // Enable FIFO, clear them, with 1-byte threshold
+    __mmio_write8(or1k_ns16550.mmio_base + UART_MODEM_CTRL_REG, 0xb);    // IRQs enabled, RTS/DSR set
+    __mmio_write8(or1k_ns16550.mmio_base + UART_INT_ENABLE_REG, 0x1);    // Enable interrupts
 }
 
 void init_or1k_ns16550_driver()
 {
     // Register handler
-    //or1k_ns16550.seq = syscall_int_handler(0x2, or1k_ns16550_int_handler);
+    or1k_ns16550.seq = syscall_int_handler(0x2, or1k_ns16550_int_handler);
 
     // Register driver
     create_drv("/dev", "serial", 0, &dev_or1k_ns16550_ops, 1);

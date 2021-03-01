@@ -51,6 +51,7 @@ static unsigned long monitor_worker(unsigned long param)
         seconds++;
     }
 
+    kprintf("Montor: %lu seconds\n", seconds);
     return 0;
 }
 
@@ -89,6 +90,8 @@ int exec_test(int argc, char **argv)
     }
 
     stop = 1;
+    atomic_mb();
+
     kth_join(&monitor, NULL);
 
     return 0;
