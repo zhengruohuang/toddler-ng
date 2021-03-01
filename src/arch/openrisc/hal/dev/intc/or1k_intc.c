@@ -83,8 +83,6 @@ static void disable_all(struct or1k_intc_record *record)
     write_pic_mask(0);
 }
 
-extern void test_or1k_putchar(int ch);
-
 
 /*
  * Interrupt handler

@@ -31,11 +31,6 @@ static int or1k_putchar(int ch)
     return 1;
 }
 
-void test_or1k_putchar(int ch)
-{
-    or1k_putchar(ch);
-}
-
 
 /*
  * Per-arch funcs
