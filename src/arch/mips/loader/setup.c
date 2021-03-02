@@ -139,93 +139,11 @@ static void *setup_page()
     return root_page;
 }
 
-// static int get_page_table_index(ulong vaddr, int level)
-// {
-//     vaddr >>= PAGE_BITS;
-//
-//     for (int shift = PAGE_LEVELS - 1 - level; shift > 0; shift--) {
-//         vaddr >>= PAGE_TABLE_ENTRY_BITS;
-//     }
-//
-//     return vaddr & ((ulong)PAGE_TABLE_ENTRY_COUNT - 0x1ul);
-// }
-//
-// static void map_page(void *page_table, ulong vaddr, paddr_t paddr,
-//                      int cache, int exec, int write)
-// {
-//     panic("Never tested!\n");
-//
-//     struct page_frame *page = page_table;
-//     struct page_table_entry *entry = NULL;
-//
-//     for (int level = 0; level < PAGE_LEVELS; level++) {
-//         int idx = get_page_table_index(vaddr, level);
-//         entry = &page->entries[idx];
-//
-//         if (level != PAGE_LEVELS - 1) {
-//             if (!entry->present) {
-//                 page = alloc_page();
-//                 memzero(page, sizeof(struct page_frame));
-//
-//                 paddr_t page_paddr = cast_cached_seg_to_paddr(page);
-//                 ppfn_t page_ppfn = paddr_to_ppfn(page_paddr);
-//
-//                 entry->present = 1;
-//                 entry->pfn = page_ppfn; //ACC_DATA_TO_PHYS(ADDR_TO_PFN((ulong)page));
-//             } else {
-//                 paddr_t page_paddr = ppfn_to_paddr((ppfn_t)entry->pfn);
-//                 page = cast_paddr_to_cached_seg(page_paddr);
-//             }
-//         }
-//     }
-//
-//     if (entry->present) {
-//         panic_if((ppfn_t)entry->pfn != paddr_to_ppfn(paddr),
-//             "Trying to change an existing mapping!");
-//
-//         panic_if((int)entry->cache_allow != cache,
-//             "Trying to change cacheable attribute!");
-//
-//         if (exec) entry->exec_allow = 1;
-//         if (write) entry->write_allow = 1;
-//     } else {
-//         entry->present = 1;
-//         entry->cache_allow = cache;
-//         entry->exec_allow = exec;
-//         entry->read_allow = 1;
-//         entry->write_allow = write;
-//         entry->kernel = 1;
-//         entry->pfn = (u32)paddr_to_ppfn(paddr);
-//     }
-// }
-//
-// static int map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
-//                      int cache, int exec, int write)
-// {
-//     kprintf("Loader map range @ %lx -> %llx, size: %lx\n",
-//             vaddr, (u64)paddr, size);
-//
-//     ulong mapped_pages = 0;
-//
-//     ulong vaddr_start = align_down_vaddr(vaddr, PAGE_SIZE);
-//     ulong vaddr_end = align_up_vaddr(vaddr + size, PAGE_SIZE);
-//
-//     paddr_t paddr_start = align_down_paddr(paddr, PAGE_SIZE);
-//     paddr_t cur_paddr = paddr_start;
-//
-//     for (ulong cur_vaddr = vaddr_start; cur_vaddr < vaddr_end;
-//          cur_vaddr += PAGE_SIZE, cur_paddr += PAGE_SIZE
-//     ) {
-//         if (cur_vaddr >= SEG_DIRECT_SIZE && cur_vaddr < SEG_USER_SIZE) {
-//             map_page(page_table, cur_vaddr, cur_paddr, cache, exec, write);
-//             mapped_pages++;
-//         }
-//     }
-//
-//     kprintf("Loader mapped pages: %lu, start @ %lx, end @ %lx\n",
-//             mapped_pages, vaddr_start, vaddr_end);
-//     return mapped_pages;
-// }
+static int map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
+                     int cache, int exec, int write)
+{
+    return generic_map_range(page_table, vaddr, paddr, size, cache, exec, write, 1, 0);
+}
 
 
 /*
@@ -310,6 +228,7 @@ static void init_arch()
 static void init_libk()
 {
     init_libk_putchar(malta_putchar);
+    init_libk_page_table(memmap_palloc, NULL, phys_to_access_win);
 }
 
 
@@ -351,7 +270,7 @@ void loader_entry(int kargc, u32 *kargv, u32 *env, ulong mem_size)
     funcs.init_libk = init_libk;
     funcs.init_arch = init_arch;
     funcs.setup_page = setup_page;
-    funcs.map_range = loader_map_range;
+    funcs.map_range = map_range;
     funcs.has_direct_access = 1;
     funcs.access_win_to_phys = access_win_to_phys;
     funcs.phys_to_access_win = phys_to_access_win;

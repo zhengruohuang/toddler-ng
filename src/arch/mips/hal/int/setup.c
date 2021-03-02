@@ -62,7 +62,7 @@ void int_handler_entry(int except, struct reg_context *regs)
     case EXCEPT_NUM_TLB_REFILL:
     case EXCEPT_NUM_TLB64_REFILL: {
         struct page_frame *page_table = get_cur_running_page_table();
-        paddr_t paddr = translate(page_table, bad_addr);
+        paddr_t paddr = generic_translate(page_table, bad_addr);
         seq = paddr ? MIPS_INT_SEQ_TLB_REFILL : INT_SEQ_PAGE_FAULT;
         break;
     }
@@ -81,7 +81,7 @@ void int_handler_entry(int except, struct reg_context *regs)
             // meaning the other ppfn slot out of the two is mapped,
             // but not the one for bad_vaddr
             struct page_frame *page_table = get_cur_running_page_table();
-            paddr_t paddr = translate(page_table, bad_addr);
+            paddr_t paddr = generic_translate(page_table, bad_addr);
             seq = paddr ? MIPS_INT_SEQ_TLB_REFILL : INT_SEQ_PAGE_FAULT;
             break;
         }

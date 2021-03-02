@@ -270,7 +270,7 @@ static int int_handler_tlb_refill(struct int_context *ictxt, struct kernel_dispa
 
     // Get faulting vaddr
     ulong bad_addr = ictxt->error_code;
-    paddr_t bad_paddr = translate(page_table, bad_addr);
+    paddr_t bad_paddr = generic_translate(page_table, bad_addr);
     panic_if(!bad_paddr, "Page fault not handled @ %lx", bad_addr);
 
     // Get pair of vaddrs and VPN2
@@ -279,10 +279,10 @@ static int int_handler_tlb_refill(struct int_context *ictxt, struct kernel_dispa
     ulong vpn2 = bad_addr >> TLB_VPN2_SHIFT_BITS;
 
     // Get paddr
-    int exec0 = 0, write0 = 0, cache0 = 0;
-    int exec1 = 0, write1 = 0, cache1 = 0;
-    paddr_t paddr0 = translate_attri(page_table, vaddr0, &exec0, NULL, &write0, &cache0);
-    paddr_t paddr1 = translate_attri(page_table, vaddr1, &exec1, NULL, &write1, &cache1);
+    int exec0 = 0, write0 = 0, cache0 = 0, kernel0;
+    int exec1 = 0, write1 = 0, cache1 = 0, kernel1;
+    paddr_t paddr0 = generic_translate_attri(page_table, vaddr0, &exec0, NULL, &write0, &cache0, &kernel0);
+    paddr_t paddr1 = generic_translate_attri(page_table, vaddr1, &exec1, NULL, &write1, &cache1, &kernel1);
 
     // Map
     struct tlb_config *tlb = get_per_cpu(struct tlb_config, tlb_geometry);

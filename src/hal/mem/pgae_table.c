@@ -1,6 +1,6 @@
 #include "common/include/abi.h"
 
-#if (defined(ARCH_MIPS) || defined(ARCH_OPENRISC))
+#if 0
 
 
 #include "common/include/inttypes.h"

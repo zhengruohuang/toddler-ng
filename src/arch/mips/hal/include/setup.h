@@ -38,21 +38,6 @@ extern void kernel_post_dispatch(ulong thread_id, struct kernel_dispatch *kdi);
 
 
 /*
- * Page
- */
-extern void *init_user_page_table();
-extern void free_user_page_table(void *ptr);
-
-extern paddr_t translate_attri(void *page_table, ulong vaddr,
-                               int *exec, int *read, int *write, int *cache);
-extern paddr_t translate(void *page_table, ulong vaddr);
-extern int map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
-                     int cache, int exec, int write, int kernel, int override,
-                     palloc_t palloc);
-extern int unmap_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size);
-
-
-/*
  * TLB
  */
 extern void invalidate_tlb(ulong asid, ulong vaddr, size_t size);

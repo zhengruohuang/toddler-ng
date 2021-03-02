@@ -89,6 +89,14 @@ static void init_mm_mp()
 {
 }
 
+static void init_kernel_pre()
+{
+}
+
+static void init_kernel_post()
+{
+}
+
 
 /*
  * Simple and quick funcs
@@ -197,6 +205,18 @@ static void free_user_page_table(void *ptr)
     kernel_pfree_ptr(ptr);
 }
 
+static int arch_hal_map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
+                              int cache, int exec, int write, int kernel, int override)
+{
+    return map_range(page_table, vaddr, paddr, size, cache, exec, write, kernel, override, pre_palloc);
+}
+
+static int arch_kernel_map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
+                                 int cache, int exec, int write, int kernel, int override)
+{
+    return map_range(page_table, vaddr, paddr, size, cache, exec, write, kernel, override, kernel_palloc);
+}
+
 static void set_thread_context_param(struct reg_context *context, ulong param)
 {
     context->r0 = param;
@@ -239,13 +259,16 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.init_int_mp = init_int_mp;
     funcs.init_mm = init_mm;
     funcs.init_mm_mp = init_mm_mp;
+    funcs.init_kernel_pre = init_kernel_pre;
+    funcs.init_kernel_post = init_kernel_post;
 
     funcs.putchar = raspi2_putchar;
     funcs.halt = halt_cur_cpu;
 
     funcs.has_direct_access = 0;
-    funcs.map_range = map_range;
-    funcs.unmap_range = unmap_range;
+    funcs.hal_map_range = arch_hal_map_range;
+    funcs.kernel_map_range = arch_kernel_map_range;
+    funcs.kernel_unmap_range = unmap_range;
     funcs.translate = translate;
 
     funcs.get_cur_mp_id = get_cur_mp_id;

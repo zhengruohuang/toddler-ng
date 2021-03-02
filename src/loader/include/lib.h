@@ -7,6 +7,7 @@
 #include "libk/include/math.h"
 #include "libk/include/string.h"
 #include "libk/include/coreimg.h"
+#include "libk/include/page.h"
 
 
 #endif

@@ -104,6 +104,20 @@ static void arch_init_mm_mp()
     }
 }
 
+void arch_init_kernel_pre()
+{
+    if (arch_funcs.init_kernel_pre) {
+        arch_funcs.init_kernel_pre();
+    }
+}
+
+void arch_init_kernel_post()
+{
+    if (arch_funcs.init_kernel_post) {
+        arch_funcs.init_kernel_post();
+    }
+}
+
 
 /*
  * Per-arch wrappers

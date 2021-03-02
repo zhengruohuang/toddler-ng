@@ -33,11 +33,32 @@ static int or1k_putchar(int ch)
 
 
 /*
+ * Direct access
+ */
+static ulong hal_direct_paddr_to_vaddr(paddr_t paddr, int count, int cached)
+{
+    panic_if(!cached, "Uncached direct access not supported!\n");
+    return cast_paddr_to_vaddr(paddr);
+}
+
+static paddr_t hal_direct_vaddr_to_paddr(ulong vaddr, int count)
+{
+    return cast_vaddr_to_paddr(vaddr);
+}
+
+static void *hal_direct_paddr_to_ptr(paddr_t paddr)
+{
+    return (void *)hal_direct_paddr_to_vaddr(paddr, 0, 1);
+}
+
+
+/*
  * Per-arch funcs
  */
 static void init_libk()
 {
     init_libk_putchar(or1k_putchar);
+    init_libk_page_table(pre_palloc, NULL, hal_direct_paddr_to_ptr);
 }
 
 static void init_arch()
@@ -68,19 +89,14 @@ static void init_mm_mp()
 {
 }
 
-
-/*
- * Direct access
- */
-static ulong hal_direct_paddr_to_vaddr(paddr_t paddr, int count, int cached)
+static void init_kernel_pre()
 {
-    panic_if(!cached, "Uncached direct access not supported!\n");
-    return cast_paddr_to_vaddr(paddr);
+    init_libk_page_table_alloc(NULL, NULL);
 }
 
-static paddr_t hal_direct_vaddr_to_paddr(ulong vaddr, int count)
+static void init_kernel_post()
 {
-    return cast_vaddr_to_paddr(vaddr);
+    init_libk_page_table_alloc(kernel_palloc, kernel_pfree);
 }
 
 
@@ -210,6 +226,8 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.init_int_mp = init_int_mp;
     funcs.init_mm = init_mm;
     funcs.init_mm_mp = init_mm_mp;
+    funcs.init_kernel_pre = init_kernel_pre;
+    funcs.init_kernel_post = init_kernel_post;
 
     funcs.putchar = or1k_putchar;
     funcs.halt = halt_cur_cpu;
@@ -220,9 +238,10 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.direct_paddr_to_vaddr = hal_direct_paddr_to_vaddr;
     funcs.direct_vaddr_to_paddr = hal_direct_vaddr_to_paddr;
 
-    funcs.map_range = map_range;
-    funcs.unmap_range = unmap_range;
-    funcs.translate = translate;
+    funcs.hal_map_range = generic_map_range;
+    funcs.kernel_map_range = generic_map_range;
+    funcs.kernel_unmap_range = generic_unmap_range;
+    funcs.translate = generic_translate;
 
     funcs.get_cur_mp_id = get_cur_mp_id;
     funcs.mp_entry = largs->mp_entry;

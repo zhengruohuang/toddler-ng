@@ -55,7 +55,7 @@ paddr_t translate(void *page_table, ulong vaddr)
 /*
  * Map
  */
-static struct l2table *alloc_l2table(palloc_t palloc)
+static struct l2table *alloc_l2table(page_table_palloc_t palloc)
 {
     ppfn_t ppfn = palloc(1);
     paddr_t paddr = ppfn_to_paddr(ppfn);
@@ -64,7 +64,7 @@ static struct l2table *alloc_l2table(palloc_t palloc)
 }
 
 static void map_page(void *page_table, ulong vaddr, paddr_t paddr, int block,
-    int cache, int exec, int write, int kernel, int override, palloc_t palloc)
+    int cache, int exec, int write, int kernel, int override, page_table_palloc_t palloc)
 {
     //kprintf("Map page, page_table: %lx, vaddr @ %lx, paddr @ %lx, block: %d, "
     //       "cache: %d, exec: %d, write: %d, kernel: %d, override: %d\n",
@@ -151,7 +151,7 @@ static void map_page(void *page_table, ulong vaddr, paddr_t paddr, int block,
 
 int map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
               int cache, int exec, int write, int kernel, int override,
-              palloc_t palloc)
+              page_table_palloc_t palloc)
 {
     //kprintf("Map range, page_table: %lx, vaddr @ %lx, paddr @ %lx, size: %ld, "
     //       "cache: %d, exec: %d, write: %d, kernel: %d, override: %d\n",

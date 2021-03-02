@@ -61,6 +61,12 @@ static void *setup_page()
     return root_page;
 }
 
+static int map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
+                     int cache, int exec, int write)
+{
+    return generic_map_range(page_table, vaddr, paddr, size, cache, exec, write, 1, 0);
+}
+
 
 /*
  * Exception Handler
@@ -150,7 +156,7 @@ static void disable_mmu_and_caches()
 static void final_arch()
 {
     // FIXME: map UART
-    loader_map_range(root_page, UART_BASE_ADDR, UART_BASE_ADDR, 0x100, 0, 0, 1);
+    map_range(root_page, UART_BASE_ADDR, UART_BASE_ADDR, 0x100, 0, 0, 1);
 
     // Override sysarea
     struct loader_args *largs = get_loader_args();
@@ -188,6 +194,7 @@ static void init_arch()
 static void init_libk()
 {
     init_libk_putchar(or1k_putchar);
+    init_libk_page_table(memmap_palloc, NULL, phys_to_access_win);
 }
 
 
@@ -216,7 +223,7 @@ void loader_entry()
     funcs.init_libk = init_libk;
     funcs.init_arch = init_arch;
     funcs.setup_page = setup_page;
-    funcs.map_range = loader_map_range;
+    funcs.map_range = map_range;
     funcs.final_memmap = final_memmap;
     funcs.final_arch = final_arch;
     funcs.jump_to_hal = jump_to_hal;

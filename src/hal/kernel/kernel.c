@@ -107,8 +107,9 @@ static void fill_hal_exports()
     hexp.get_ms = clock_get_ms;
 
     // Mapping
-    hexp.map_range = kernel_map_range;
-    hexp.unmap_range = funcs->unmap_range;
+    //hexp.map_range = kernel_map_range;
+    hexp.map_range = funcs->kernel_map_range;
+    hexp.unmap_range = funcs->kernel_unmap_range;
     hexp.translate = funcs->translate;
 
     // Address space
@@ -135,7 +136,11 @@ static void call_kernel_entry()
     kernel_entry_t kernel_entry = largs->kernel_entry;
 
     kprintf("\tKernel entry: %p\n", kernel_entry);
+
+    arch_init_kernel_pre();
     kernel_entry(&hexp);
+    arch_init_kernel_post();
+
     kprintf("Kernel has been initialized!\n");
 }
 

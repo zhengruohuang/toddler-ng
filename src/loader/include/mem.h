@@ -8,7 +8,8 @@
  */
 extern u64 get_memmap_range(u64 *start);
 extern paddr_t memmap_alloc_phys(ulong size, ulong align);
-extern paddr_t memmap_alloc_phys_page(int count);
+// extern paddr_t memmap_alloc_phys_page(int count);
+extern ppfn_t memmap_palloc(int count);
 extern void init_memmap();
 
 /*
@@ -23,7 +24,7 @@ extern int page_map_virt_to_phys(ulong vaddr, paddr_t paddr, ulong size,
  */
 #include "common/include/abi.h"
 
-#if (defined(ARCH_MIPS) || (defined(ARCH_OPENRISC)))
+#if 0
 extern paddr_t translate_attri(void *page_table, ulong vaddr,
                                int *exec, int *read, int *write, int *cache);
 extern paddr_t translate(void *page_table, ulong vaddr);

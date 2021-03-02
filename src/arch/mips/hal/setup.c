@@ -1,5 +1,6 @@
 #include "common/include/inttypes.h"
 #include "common/include/atomic.h"
+#include "common/include/page.h"
 #include "common/include/msr.h"
 #include "hal/include/hal.h"
 #include "hal/include/setup.h"
@@ -49,43 +50,6 @@ static int malta_putchar(int ch)
 
     _raw_mmio_write8(UART_DATA_ADDR, (u8)ch & 0xff);
     return 1;
-}
-
-
-/*
- * Per-arch init
- */
-static void init_libk()
-{
-    init_libk_putchar(malta_putchar);
-}
-
-static void init_arch()
-{
-}
-
-static void init_arch_mp()
-{
-}
-
-static void init_int()
-{
-    init_tlb();
-    init_int_entry();
-}
-
-static void init_int_mp()
-{
-    init_tlb_mp();
-    init_int_entry_mp();
-}
-
-static void init_mm()
-{
-}
-
-static void init_mm_mp()
-{
 }
 
 
@@ -142,6 +106,59 @@ static paddr_t hal_direct_vaddr_to_paddr(ulong vaddr, int count)
 #endif
     ulong lower = vaddr & (ulong)SEG_DIRECT_MASK;
     return cast_vaddr_to_paddr(lower);
+}
+
+static void *hal_direct_paddr_to_ptr(paddr_t paddr)
+{
+    return (void *)hal_direct_paddr_to_vaddr(paddr, 0, 1);
+}
+
+
+/*
+ * Per-arch init
+ */
+static void init_libk()
+{
+    init_libk_putchar(malta_putchar);
+    init_libk_page_table(pre_palloc, NULL, hal_direct_paddr_to_ptr);
+}
+
+static void init_arch()
+{
+}
+
+static void init_arch_mp()
+{
+}
+
+static void init_int()
+{
+    init_tlb();
+    init_int_entry();
+}
+
+static void init_int_mp()
+{
+    init_tlb_mp();
+    init_int_entry_mp();
+}
+
+static void init_mm()
+{
+}
+
+static void init_mm_mp()
+{
+}
+
+static void init_kernel_pre()
+{
+    init_libk_page_table_alloc(NULL, NULL);
+}
+
+static void init_kernel_post()
+{
+    init_libk_page_table_alloc(kernel_palloc, kernel_pfree);
 }
 
 
@@ -210,6 +227,19 @@ static void start_cpu(int mp_seq, ulong mp_id, ulong entry)
 {
 }
 
+static void *init_user_page_table()
+{
+    int num_pages = page_get_num_table_pages(1);
+    void *page_table = kernel_palloc_ptr(num_pages);
+    memzero(page_table, num_pages * PAGE_SIZE);
+    return page_table;
+}
+
+static void free_user_page_table(void *ptr)
+{
+    kernel_pfree_ptr(ptr);
+}
+
 static void set_thread_context_param(struct reg_context *regs, ulong param)
 {
     regs->a0 = param;
@@ -250,6 +280,8 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.init_int_mp = init_int_mp;
     funcs.init_mm = init_mm;
     funcs.init_mm_mp = init_mm_mp;
+    funcs.init_kernel_pre = init_kernel_pre;
+    funcs.init_kernel_post = init_kernel_post;
 
     funcs.putchar = malta_putchar;
     funcs.halt = halt_cur_cpu;
@@ -259,9 +291,10 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.direct_paddr_to_vaddr = hal_direct_paddr_to_vaddr;
     funcs.direct_vaddr_to_paddr = hal_direct_vaddr_to_paddr;
 
-    funcs.map_range = map_range;
-    funcs.unmap_range = unmap_range;
-    funcs.translate = translate;
+    funcs.hal_map_range = generic_map_range;
+    funcs.kernel_map_range = generic_map_range;
+    funcs.kernel_unmap_range = generic_unmap_range;
+    funcs.translate = generic_translate;
 
     funcs.get_cur_mp_id = get_cur_mp_id;
     funcs.mp_entry = largs->mp_entry;

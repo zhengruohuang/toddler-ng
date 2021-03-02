@@ -7,7 +7,7 @@
 /*
  * Generic page talbe
  */
-#if (defined(ARCH_MIPS) || defined(ARCH_OPENRISC))
+#if 0
 
 #include "common/include/atomic.h"
 #include "common/include/page.h"

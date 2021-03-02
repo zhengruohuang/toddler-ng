@@ -14,10 +14,9 @@
 typedef ulong (*ioport_read_t)(ulong port, int size);
 typedef void (*ioport_write_t)(ulong port, int size, ulong val);
 
-typedef ppfn_t (*palloc_t)(int count);
-typedef int (*generic_map_range_t)(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
-                     int cache, int exec, int write, int kernel, int override,
-                     palloc_t palloc);
+// typedef ppfn_t (*palloc_t)(int count);
+// typedef int (*map_range_t)(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
+//                      int cache, int exec, int write, int kernel, int override);
 
 struct hal_arch_funcs {
     // Inits
@@ -28,6 +27,8 @@ struct hal_arch_funcs {
     void (*init_int_mp)();
     void (*init_mm)();
     void (*init_mm_mp)();
+    void (*init_kernel_pre)();
+    void (*init_kernel_post)();
 
     // General
     putchar_t putchar;
@@ -44,8 +45,9 @@ struct hal_arch_funcs {
     ioport_write_t ioport_write;
 
     // Map and unmap
-    generic_map_range_t map_range;
-    unmap_range_t unmap_range;
+    map_range_t hal_map_range;
+    map_range_t kernel_map_range;
+    unmap_range_t kernel_unmap_range;
     page_translate_t translate;
 
     // Get CPU index
@@ -94,6 +96,9 @@ struct hal_arch_funcs {
  */
 extern struct loader_args *get_loader_args();
 extern struct hal_arch_funcs *get_hal_arch_funcs();
+
+extern void arch_init_kernel_pre();
+extern void arch_init_kernel_post();
 
 extern ulong arch_hal_direct_access(paddr_t paddr, int count, int cache);
 

@@ -10,7 +10,6 @@
 /*
  * Int
  */
-//extern_per_cpu(ulong, cur_int_stack_top);
 extern_per_cpu(ulong, quick_int_stack_top);
 extern_per_cpu(ulong, kernel_int_stack_top);
 
@@ -29,23 +28,6 @@ extern void switch_to(ulong thread_id, struct reg_context *context,
 
 extern void kernel_pre_dispatch(ulong thread_id, struct kernel_dispatch *kdi);
 extern void kernel_post_dispatch(ulong thread_id, struct kernel_dispatch *kdi);
-
-
-/*
- * Page
- */
-// extern void *init_user_page_table();
-// extern void free_user_page_table(void *ptr);
-
-extern paddr_t translate_attri(void *page_table, ulong vaddr,
-                               int *exec, int *read, int *write, int *cache);
-extern paddr_t translate_attri2(void *page_table, ulong vaddr,
-                                int *exec, int *read, int *write, int *cache, int *kernel);
-extern paddr_t translate(void *page_table, ulong vaddr);
-extern int map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
-                     int cache, int exec, int write, int kernel, int override,
-                     palloc_t palloc);
-extern int unmap_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size);
 
 
 /*

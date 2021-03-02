@@ -139,7 +139,8 @@ int tlb_refill(int itlb, ulong vaddr)
     panic_if(!page_table, "Unable to obtain current page table!\n");
 
     int exec, read, write, cache, kernel;
-    paddr_t paddr = translate_attri2(page_table, vaddr, &exec, &read, &write, &cache, &kernel);
+    paddr_t paddr = generic_translate_attri(page_table, vaddr,
+                                            &exec, &read, &write, &cache, &kernel);
     if (!paddr) {
         return -1;
     }

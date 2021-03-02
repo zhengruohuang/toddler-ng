@@ -4,6 +4,7 @@
 
 #include "common/include/inttypes.h"
 #include "hal/include/hal.h"
+#include "hal/include/lib.h"
 #include "hal/include/mp.h"
 
 
@@ -34,7 +35,7 @@ extern void kernel_post_dispatch(ulong thread_id, struct kernel_dispatch *kdi);
 extern paddr_t translate(void *page_table, ulong vaddr);
 extern int map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
                      int cache, int exec, int write, int kernel, int override,
-                     palloc_t palloc);
+                     page_table_palloc_t palloc);
 extern int unmap_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size);
 
 

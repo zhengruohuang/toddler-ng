@@ -49,6 +49,12 @@ paddr_t memmap_alloc_phys_page(int count)
     return memmap_alloc_phys(PAGE_SIZE * (ulong)count, PAGE_SIZE);
 }
 
+ppfn_t memmap_palloc(int count)
+{
+    paddr_t paddr = memmap_alloc_phys(PAGE_SIZE * (ulong)count, PAGE_SIZE);
+    return paddr_to_ppfn(paddr);
+}
+
 
 /*
  * Construct memmap
