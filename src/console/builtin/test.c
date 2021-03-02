@@ -35,23 +35,36 @@ static ref_count_t rounds;
 
 static unsigned long monitor_worker(unsigned long param)
 {
-    ulong last_round = 0;
     ulong seconds = 0;
+    ulong last_round = 0;
+    ulong max_rounds_per_sec = 0;
+
     while (!stop) {
         ulong cur_round = ref_count_read(&rounds);
-        if (cur_round && cur_round - last_round < 10) {
-            stop = 1;
-            kprintf("Too slow!\n");
+        if (cur_round) {
+            ulong rounds_per_sec = cur_round - last_round;
+            if (rounds_per_sec > max_rounds_per_sec) {
+                max_rounds_per_sec = rounds_per_sec;
+            }
+
+            if (rounds_per_sec < max_rounds_per_sec / 2) {
+                stop = 1;
+                atomic_mb();
+
+                kprintf("Too slow!\n");
+            }
         }
 
-        kprintf("Monitor: %lu seconds, %lu rounds per second\n", seconds, cur_round - last_round);
+        kprintf("Monitor: %lu seconds, %lu rounds per second\n",
+                seconds, cur_round - last_round);
         last_round = cur_round;
 
         syscall_wait_on_timeout(1000);
         seconds++;
     }
 
-    kprintf("Montor: %lu seconds\n", seconds);
+    kprintf("Montor: %lu seconds, max rounds per second: %lu\n",
+            seconds, max_rounds_per_sec);
     return 0;
 }
 
