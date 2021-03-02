@@ -245,21 +245,6 @@ void arch_switch_to(ulong thread_id, struct reg_context *context,
     panic("Arch HAL must implement switch_to!");
 }
 
-int arch_has_auto_tlb_flush_on_switch()
-{
-    return arch_funcs.has_auto_tlb_flush_on_switch;
-}
-
-void arch_flush_tlb()
-{
-    if (arch_funcs.flush_tlb) {
-        arch_funcs.flush_tlb();
-        return;
-    }
-
-    panic("Arch HAL must implement flush_tlb!");
-}
-
 void arch_kernel_pre_dispatch(ulong sched_id, struct kernel_dispatch *kdi)
 {
     if (arch_funcs.kernel_pre_dispatch) {

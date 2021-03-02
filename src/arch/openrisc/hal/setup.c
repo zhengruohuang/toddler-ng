@@ -268,7 +268,6 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.kernel_pre_dispatch = kernel_pre_dispatch;
     funcs.kernel_post_dispatch = kernel_post_dispatch;
 
-    funcs.has_auto_tlb_flush_on_switch = 0;
     funcs.invalidate_tlb = invalidate_tlb;
     funcs.flush_tlb = flush_tlb;
 
