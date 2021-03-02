@@ -15,13 +15,6 @@ int hal_map_range(ulong vaddr, paddr_t paddr, ulong size, int cache)
                               cache, 1, 1, 1, 0);
 }
 
-// int kernel_map_range(void *page_table, ulong vaddr, paddr_t paddr, size_t length,
-//                      int cacheable, int exec, int write, int kernel, int override)
-// {
-//     return arch_kernel_map_range(page_table, vaddr, paddr, length,
-//                                  cacheable, exec, write, kernel, override);
-// }
-
 ulong hal_translate(ulong vaddr)
 {
     return arch_translate(hal_page_table, vaddr);

@@ -21,9 +21,6 @@ extern void init_pre_palloc();
  * Mapping
  */
 extern int hal_map_range(ulong vaddr, paddr_t paddr, ulong size, int cache);
-extern int kernel_map_range(void *page_table, ulong vaddr, paddr_t paddr,
-                            size_t length, int cacheable, int exec, int write,
-                            int kernel, int override);
 extern ulong hal_translate(ulong vaddr);
 
 extern void init_mem_map();
