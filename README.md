@@ -52,7 +52,7 @@ Current = Up to date
 | riscv64-virt-qemu     | Current   | Planned   | Minor fixes needed |
 | m68k-atari-aranym     | Active    | Planned   |                    |
 | sh4-r2d-qemu          | Active    | Planned   |                    |
-| openrisc-sim-qemu     | Current   | Planned   | Minor fixes needed |
+| openrisc-sim-qemu     | Current   | Current   |                    |
 | ia64-sim-ski          | Initial   | Planned   |                    |
 | s390-virtio-qemu      | Planned   | Planned   |                    |
 | zarch-virtio-qemu     | Planned   | Planned   |                    |
