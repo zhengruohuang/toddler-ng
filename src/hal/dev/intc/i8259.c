@@ -206,7 +206,7 @@ static inline u8 read_isr(struct i8259_record *record, int chip)
     return isr;
 }
 
-static void init_i8259(struct i8259_record *record)
+static inline void init_i8259(struct i8259_record *record)
 {
     // ICW1 - Init
     u8 icw1 = ICW1_INIT | ICW1_ICW4;

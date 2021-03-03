@@ -296,9 +296,6 @@ void hal(struct loader_args *largs, struct hal_arch_funcs *funcs)
     init_int_handler();
     init_syscall();
 
-    // Init devices
-    init_dev();
-
     // Init CPU
     init_topo();
     init_per_cpu_area();
@@ -307,6 +304,9 @@ void hal(struct loader_args *largs, struct hal_arch_funcs *funcs)
     init_context();
     init_int_state();
     arch_init_int();
+
+    // Init devices
+    init_dev();
 
     // Init kernel
     init_kernel();

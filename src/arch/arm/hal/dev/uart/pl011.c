@@ -8,141 +8,85 @@
 #include "hal/include/mem.h"
 
 
-struct arm_pl011_mmio {
-    // 0x0
-    union {
-        u16 value;
-        struct {
-            u16 reserved    : 4;
-            u16 overrun_err : 1;
-            u16 break_err   : 1;
-            u16 parity_err  : 1;
-            u16 frame_err   : 1;
-            u16 data        : 8;
-        };
-    } data;
-    u8 zero1[2];
-
-    // 0x4
-    union {
-        u8 recv_status;
-        u8 err_clear;
-    };
-    u8 zero2[3];
-
-    // 0x8, 0xc, 0x10, 0x14
-    u32 reserved1[4];
-
-    // 0x18
-    union {
-        u16 value;
-        struct {
-            u16 reserved        : 7;
-            u16 ring            : 1;
-            u16 tx_fifo_empty   : 1;
-            u16 fx_fifl_full    : 1;
-            u16 tx_fifo_full    : 1;
-            u16 rx_fifo_empty   : 1;
-            u16 busy            : 1;
-            u16 data_carrier_detect : 1;
-            u16 data_set_ready  : 1;
-            u16 clear_to_send   : 1;
-        };
-    } flag;
-
-    // 0x1c
-    u32 reserved2;
-
-    // 0x20 - 0xfff
-    u32 others[1016];
-} packed_struct;
+#define PL011_DATA_REG 0x0
+#define PL011_FLAG_REG 0x18
 
 struct arm_pl011_record {
-    volatile struct arm_pl011_mmio *mmio;
+    int reg_shift;
+    ulong mmio_base;
 };
+
+
+/*
+ * IO helpers
+ */
+static inline u16 arm_pl011_io_read(struct arm_pl011_record *record, int reg_sel)
+{
+    ulong addr = record->mmio_base + ((ulong)reg_sel << record->reg_shift);
+    return mmio_read16(addr);
+}
+
+static inline void arm_pl011_io_write(struct arm_pl011_record *record, int reg_sel, u8 val)
+{
+    ulong addr = record->mmio_base + ((ulong)reg_sel << record->reg_shift);
+    mmio_write8(addr, val);
+}
 
 
 /*
  * putchar
  */
-static volatile struct arm_pl011_mmio *pl011_mmio = NULL;
+static struct arm_pl011_record *pl011_putchar_record = NULL;
 
-static int pl011_putchar(int ch)
+static int arm_pl011_putchar(int ch)
 {
-    do {
-        atomic_mb();
-    } while (pl011_mmio->flag.tx_fifo_full);
+    u16 busy = 1;
+    while (busy) {
+        u16 flags = arm_pl011_io_read(pl011_putchar_record, PL011_FLAG_REG);
+        busy = flags & 0x28;
+    }
 
-    atomic_mb();
-    pl011_mmio->data.data = ch;
-    atomic_mb();
-
+    arm_pl011_io_write(pl011_putchar_record, PL011_DATA_REG, ch);
     return 1;
 }
-
-
-// /*
-//  * Interrupt
-//  */
-// static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
-// {
-//     panic("Not implemented!\n");
-//     return INT_HANDLE_CALL_KERNEL;
-// }
 
 
 /*
  * Driver interface
  */
-static void start(struct driver_param *param)
-{
-}
-
 static void setup(struct driver_param *param)
 {
     struct arm_pl011_record *record = param->record;
-    pl011_mmio = record->mmio;
-
-    init_libk_putchar(pl011_putchar);
-    kprintf("Putchar switched to PL011 driver\n");
+    pl011_putchar_record = record;
 }
 
-static int probe(struct fw_dev_info *fw_info, struct driver_param *param)
+static void create(struct fw_dev_info *fw_info, struct driver_param *param)
 {
-    static const char *devtree_names[] = {
-        "arm,pl011",
-        NULL
-    };
+    struct arm_pl011_record *record = mempool_alloc(sizeof(struct arm_pl011_record));
+    memzero(record, sizeof(struct arm_pl011_record));
+    param->record = record;
 
-    if (fw_info->devtree_node &&
-        match_devtree_compatibles(fw_info->devtree_node, devtree_names)
-    ) {
-        struct arm_pl011_record *record = mempool_alloc(sizeof(struct arm_pl011_record));
-        memzero(record, sizeof(struct arm_pl011_record));
-        param->record = record;
-        //param->int_seq = alloc_int_seq(handler);
+    u64 reg = 0, size = 0;
+    int next = devtree_get_translated_reg(fw_info->devtree_node, 0, &reg, &size);
+    panic_if(next, "arm,pl011 only supports one reg field!");
 
-        u64 reg = 0, size = 0;
-        int next = devtree_get_translated_reg(fw_info->devtree_node, 0, &reg, &size);
-        panic_if(next, "arm,pl011 only supports one reg field!");
+    paddr_t mmio_paddr = cast_u64_to_paddr(reg);
+    ulong mmio_size = cast_paddr_to_vaddr(size);
+    ulong mmio_vaddr = get_dev_access_window(mmio_paddr, mmio_size, DEV_PFN_UNCACHED);
+    record->mmio_base = mmio_vaddr;
 
-        paddr_t mmio_paddr = cast_u64_to_paddr(reg);
-        ulong mmio_size = cast_paddr_to_vaddr(size);
-        ulong mmio_vaddr = get_dev_access_window(mmio_paddr, mmio_size, DEV_PFN_UNCACHED);
+    int reg_shift = devtree_get_reg_shift(fw_info->devtree_node);
+    record->reg_shift = reg_shift;
 
-        record->mmio = (void *)mmio_vaddr;
-
-        kprintf("Found ARM PrimeCell UART PL011 @ %lx, window @ %lx\n",
-                mmio_paddr, mmio_vaddr);
-        return FW_DEV_PROBE_OK;
-    }
-
-    return FW_DEV_PROBE_FAILED;
+    kprintf("Found ARM PrimeCell UART PL011 @ %lx, window @ %lx\n",
+            mmio_paddr, mmio_vaddr);
 }
 
-DECLARE_DEV_DRIVER(arm_pl011) = {
-    .name = "ARM PrimeCell UART PL011",
-    .probe = probe,
-    .setup = setup,
-    .start = start,
+
+static const char *arm_pl011_devtree_names[] = {
+    "arm,pl011",
+    NULL
 };
+
+DECLARE_SERIAL_DRIVER(arm_pl011, "ARM PrimeCell UART PL011",
+                      arm_pl011_devtree_names, create, setup, arm_pl011_putchar);

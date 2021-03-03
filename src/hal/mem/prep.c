@@ -64,7 +64,7 @@ ulong pre_valloc(int count, paddr_t paddr, int cache)
             vaddr = sysarea_lower;
         }
 
-        //kprintf("pre_valloc @ %lx -> %lx\n", vaddr, paddr);
+        kprintf("pre_valloc @ %lx -> %lx\n", vaddr, paddr);
 
         int mapped = hal_map_range(vaddr, paddr, size, cache);
         panic_if(mapped != count, "Failed to map pages to HAL");
@@ -82,4 +82,7 @@ void init_pre_palloc()
     sysarea_grows_up = largs->sysarea_grows_up;
     sysarea_lower = align_down_vaddr(largs->sysarea_lower, PAGE_SIZE);
     sysarea_upper = align_up_vaddr(largs->sysarea_upper, PAGE_SIZE);
+
+    kprintf("Sysarea @ %lx - %lx, grows %s\n", sysarea_lower, sysarea_upper,
+            sysarea_grows_up ? "up" : "down");
 }

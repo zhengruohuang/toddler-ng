@@ -162,7 +162,7 @@ static void final_arch()
     struct loader_args *largs = get_loader_args();
     largs->sysarea_grows_up = 1;
     largs->sysarea_lower = 0xfff00000;
-    largs->sysarea_upper = 0xfffff000;
+    largs->sysarea_upper = 0xfff00000;
 }
 
 

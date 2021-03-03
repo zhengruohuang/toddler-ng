@@ -200,6 +200,8 @@ static void map_page(void *page_table, ulong vaddr, paddr_t paddr, int block,
 //             page_table, vaddr, (u64)paddr, block,
 //             cache, exec, write, kernel, override);
 
+    panic_if(!vaddr && paddr, "Illegal mapping @ %lx -> %llx\n", vaddr, (u64)paddr);
+
     ppfn_t ppfn = paddr_to_ppfn(paddr);
     int level = 0;
     void *pte = NULL;
@@ -217,7 +219,17 @@ static void map_page(void *page_table, ulong vaddr, paddr_t paddr, int block,
             if (page_is_pte_leaf(pte, level)) {
                 int err = page_compare_pte_attri(pte, level, ppfn,
                                                  exec, 1, write, cache, kernel);
-                panic_if(err, "Incompatible mapping!");
+                if (err) {
+                    int ori_e, ori_w, ori_c, ori_k;
+                    generic_translate_attri(page_table, vaddr,
+                                            &ori_e, NULL, &ori_w, &ori_c, &ori_k);
+                    panic("Incompatible mapping @ %lx -> "
+                        "ori @ %llx (e: %d, w: %d, c: %d, k: %d), "
+                        "new @ %llx (e: %d, w: %d, c: %d, k: %d)\n",
+                        vaddr,
+                        (u64)ppfn_to_paddr(ppfn), ori_e, ori_w, ori_c, ori_k,
+                        (u64)paddr, exec, write, cache, kernel);
+                }
             }
 
             ppfn_t next_ppfn = page_get_pte_next_table(pte, level);

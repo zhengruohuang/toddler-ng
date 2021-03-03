@@ -18,19 +18,6 @@ struct or1k_intc_record {
 
 
 /*
- * Hack
- */
-#define IO_BASE_ADDR (0x90000000ul)
-
-static inline void _write_io()
-{
-    volatile u8 *ptr = (u8 *)(IO_BASE_ADDR);
-    *ptr = 0;
-    atomic_mb();
-}
-
-
-/*
  * Int manipulation
  */
 static void eoi_irq(struct or1k_intc_record *record, int seq)
@@ -91,7 +78,10 @@ static int handle(struct int_context *ictxt, struct kernel_dispatch *kdi,
                   struct or1k_intc_record *record, int seq)
 {
     disable_irq(record, seq);
-    _write_io();
+
+    // FIXME: for some strange reason, there's a suprious interrupt even after
+    // disabling the IRQ, writing something to UART seems to fix this issue
+    kprintf("%c", 24);
 
     struct driver_param *int_dev = record->int_devs[seq];
 

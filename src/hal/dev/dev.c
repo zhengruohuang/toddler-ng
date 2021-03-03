@@ -75,6 +75,8 @@ void register_dev_driver(struct internal_dev_driver *drv)
 static void register_internal_drivers()
 {
     REGISTER_DEV_DRIVER(i8259_intc);
+
+    REGISTER_DEV_DRIVER(ns16550_uart);
 }
 
 
@@ -140,15 +142,35 @@ static void probe_dev(struct dev_record *dev, struct fw_dev_info *fw_info)
          drv; drv = drv->next
     ) {
         //kprintf("try drv @ %p, name @ %p, name: %s, probe @ %p\n", drv, drv->name, drv->name, drv->probe);
+        int prob = FW_DEV_PROBE_FAILED;
+
+        // Custom probe
         if (drv->probe) {
-            int prob = drv->probe(fw_info, &dev->driver_param);
-            if (prob != FW_DEV_PROBE_FAILED) {
-                dev->driver = drv;
-                if (drv->setup) {
-                    drv->setup(&dev->driver_param);
-                }
-                break;
+            prob = drv->probe(fw_info, &dev->driver_param);
+        }
+
+        // Devtree probe
+        if (prob == FW_DEV_PROBE_FAILED &&
+            drv->probe_devtree_compatible && fw_info->devtree_node &&
+            match_devtree_compatibles(fw_info->devtree_node, drv->probe_devtree_compatible)
+        ) {
+            prob = FW_DEV_PROBE_OK;
+        }
+
+        // Create and setup
+        if (prob != FW_DEV_PROBE_FAILED) {
+            dev->driver = drv;
+            dev->driver_param.driver = drv;
+
+            if (drv->create) {
+                drv->create(fw_info, &dev->driver_param);
             }
+
+            if (drv->setup) {
+                drv->setup(&dev->driver_param);
+            }
+
+            break;
         }
     }
 }
