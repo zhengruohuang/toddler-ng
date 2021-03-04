@@ -15,5 +15,6 @@ extern int exec_cd(int argc, char **argv);
 extern int exec_tree(int argc, char **argv);
 extern int exec_stats(int argc, char **argv);
 extern int exec_test(int argc, char **argv);
+extern int exec_timer(int argc, char **argv);
 
 #endif
