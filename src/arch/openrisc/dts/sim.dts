@@ -43,6 +43,9 @@
         compatible = "or1k,or1k-cpu-timer";
         clock-frequency = <20000000>;
         always-on;
+
+        interrupt-parent = <&pic>;
+        interrupts = <32>;
     };
 
     serial0: serial@90000000 {

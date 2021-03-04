@@ -163,7 +163,8 @@ static void probe_dev(struct dev_record *dev, struct fw_dev_info *fw_info)
             dev->driver_param.driver = drv;
 
             if (drv->create) {
-                drv->create(fw_info, &dev->driver_param);
+                void *record = drv->create(fw_info, &dev->driver_param);
+                dev->driver_param.record = record;
             }
 
             if (drv->setup) {
@@ -276,7 +277,7 @@ static void build_int_hierarchy()
 int handle_dev_int(struct int_context *ictxt, struct kernel_dispatch *kdi)
 {
     int seq = int_hierarchy->dev->driver_param.int_seq;
-    ictxt->param = int_hierarchy->dev->driver_param.record;
+    ictxt->param = &int_hierarchy->dev->driver_param;
     return invoke_int_handler(seq, ictxt, kdi);
 }
 

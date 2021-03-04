@@ -15,7 +15,6 @@
 struct mips_cpu_timer_record {
     ulong freq;
     u32 timer_step;
-    int clock_idx;
 };
 
 
@@ -36,19 +35,9 @@ static void update_compare(struct mips_cpu_timer_record *record)
 /*
  * Interrupt
  */
-static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
+static int mips_cpu_timer_int_handler(struct driver_param *param, int mp_seq, ulong mp_id)
 {
-    //kprintf("Timer!\n");
-
-    struct mips_cpu_timer_record *record = ictxt->param;
-
-    // Clock
-    //kprintf("clock idx: %d\n", record->clock_idx);
-    if (!ictxt->mp_seq && record->clock_idx) {
-        clock_advance_ms(record->clock_idx, MS_PER_INT);
-    }
-
-    // Next round
+    struct mips_cpu_timer_record *record = param->record;
     update_compare(record);
 
     return INT_HANDLE_CALL_KERNEL;
@@ -81,43 +70,27 @@ static void setup(struct driver_param *param)
     // Set up the actual freq
     record->timer_step = record->freq / INT_FREQ_DIV;
     kprintf("Timer freq @ %luHz, step set @ %u, record @ %p\n", record->timer_step, record);
-
-    // Register special function
-    REG_SPECIAL_DRV_FUNC(cpu_power_on, param, cpu_power_on);
-
-    // Register clock source
-    record->clock_idx = clock_source_register(CLOCK_QUALITY_PERIODIC_LOW_RES);
 }
 
-static int probe(struct fw_dev_info *fw_info, struct driver_param *param)
+static void *create(struct fw_dev_info *fw_info, struct driver_param *param)
 {
-    static const char *devtree_names[] = {
-        "mips,mips-cpu-timer",
-        "mti,cpu-timer",
-        NULL
-    };
+    struct mips_cpu_timer_record *record = mempool_alloc(sizeof(struct mips_cpu_timer_record));
+    memzero(record, sizeof(struct mips_cpu_timer_record));
 
-    if (fw_info->devtree_node &&
-        match_devtree_compatibles(fw_info->devtree_node, devtree_names)
-    ) {
-        struct mips_cpu_timer_record *record = mempool_alloc(sizeof(struct mips_cpu_timer_record));
-        memzero(record, sizeof(struct mips_cpu_timer_record));
+    record->freq = devtree_get_clock_frequency(fw_info->devtree_node);
 
-        param->record = record;
-        param->int_seq = alloc_int_seq(handler);
-
-        record->freq = devtree_get_clock_frequency(fw_info->devtree_node);
-
-        kprintf("Found MIPS CPU timer!\n");
-        return FW_DEV_PROBE_OK;
-    }
-
-    return FW_DEV_PROBE_FAILED;
+    kprintf("Found MIPS CPU timer!\n");
+    return record;
 }
 
-DECLARE_DEV_DRIVER(mips_cpu_timer) = {
-    .name = "MIPS CPU Timer",
-    .probe = probe,
-    .setup = setup,
-    .start = start,
+static const char *mips_cpu_timer_devtree_names[] = {
+    "mips,mips-cpu-timer",
+    "mti,cpu-timer",
+    NULL
 };
+
+DECLARE_TIMER_DRIVER(mips_cpu_timer, "MIPS CPU Timer",
+                     mips_cpu_timer_devtree_names,
+                     create, setup, start, cpu_power_on,
+                     CLOCK_QUALITY_PERIODIC_LOW_RES, MS_PER_INT,
+                     INT_SEQ_ALLOC_START, mips_cpu_timer_int_handler);

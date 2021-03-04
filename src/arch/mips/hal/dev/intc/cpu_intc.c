@@ -66,7 +66,7 @@ static int handle(struct int_context *ictxt, struct kernel_dispatch *kdi,
 
     int handle_type = INT_HANDLE_SIMPLE;
     if (int_dev && int_dev->int_seq) {
-        ictxt->param = int_dev->record;
+        ictxt->param = int_dev;
         handle_type = invoke_int_handler(int_dev->int_seq, ictxt, kdi);
 
         if (INT_HANDLE_KEEP_MASKED & ~handle_type) {
@@ -84,7 +84,8 @@ static int handle(struct int_context *ictxt, struct kernel_dispatch *kdi,
 
 static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
 {
-    struct mips_cpu_intc_record *record = ictxt->param;
+    struct driver_param *param = ictxt->param;
+    struct mips_cpu_intc_record *record = param->record;
 
     struct cp0_cause cause;
     read_cp0_cause(cause.value);

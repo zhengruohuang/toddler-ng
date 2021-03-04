@@ -84,11 +84,10 @@ static void setup(struct driver_param *param)
     putchar_record = record;
 }
 
-static void create(struct fw_dev_info *fw_info, struct driver_param *param)
+static void *create(struct fw_dev_info *fw_info, struct driver_param *param)
 {
     struct ns16550_record *record = mempool_alloc(sizeof(struct ns16550_record));
     memzero(record, sizeof(struct ns16550_record));
-    param->record = record;
 
     u64 reg = 0, size = 0;
     int next = devtree_get_translated_reg(fw_info->devtree_node, 0, &reg, &size);
@@ -105,6 +104,7 @@ static void create(struct fw_dev_info *fw_info, struct driver_param *param)
     record->ioport = ioport;
 
     kprintf("Found NS16550 @ %lx, window @ %lx\n", mmio_paddr, mmio_vaddr);
+    return record;
 }
 
 static const char *ns16550_devtree_names[] = {

@@ -22,6 +22,9 @@ int syscall_handler_stats_kernel(struct process *p, struct thread *t,
     paddr_t paddr = get_hal_exports()->translate(p->page_table, vaddr);
     struct kernel_stats *stats = hal_cast_paddr_to_kernel_ptr(paddr);
 
+    // Time
+    stats->uptime_ms = hal_get_ms();
+
     // Proc
     stats->num_procs = get_num_processes();
     stats->num_threads = get_num_threads();

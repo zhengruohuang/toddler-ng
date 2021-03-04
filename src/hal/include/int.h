@@ -33,6 +33,7 @@ struct int_context {
 
     struct reg_context *regs;
 
+    ulong mp_id;
     ulong mp_seq;
     void *param;
 } natural_struct;

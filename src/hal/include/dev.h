@@ -63,7 +63,7 @@ struct special_drv_funcs {
 };
 
 #define REG_SPECIAL_DRV_FUNC(type, param, func)             \
-    extern void reg_##type##_t(void *param, type##_t func); \
+    extern void reg_##type##_t(void *p, type##_t f);        \
     reg_##type##_t(param, func)
 
 #define DECLARE_REG_SPECIAL_DRV_FUNC(type, param, func)     \

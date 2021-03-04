@@ -280,6 +280,19 @@ struct proc_status_reg {
 /*
  * Generic timer
  */
+struct generic_timer_phys_ctrl_reg {
+    union {
+        u32 value;
+
+        struct {
+            u32 enabled     : 1;
+            u32 masked      : 1;
+            u32 asserted    : 1;
+            u32 reserved    : 29;
+        };
+    };
+} packed4_struct;
+
 #define read_generic_timer_freq(value)      __mrc(value, p15, 0, 0, c14, c0)
 
 #define read_generic_timer_phys_ctrl(value)     __mrc(value, p15, 0, 1, c14, c2)

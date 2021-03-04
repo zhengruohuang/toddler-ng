@@ -314,7 +314,7 @@ static int invoke(struct bcm2836_record *record, int cpu,
 
     int handle_type = INT_HANDLE_SIMPLE;
     if (int_dev && int_dev->int_seq) {
-        ictxt->param = int_dev->record;
+        ictxt->param = int_dev;
         handle_type = invoke_int_handler(int_dev->int_seq, ictxt, kdi);
 
         if (INT_HANDLE_KEEP_MASKED & ~handle_type) {
@@ -328,7 +328,8 @@ static int invoke(struct bcm2836_record *record, int cpu,
 
 static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
 {
-    struct bcm2836_record *record = ictxt->param;
+    struct driver_param *param = ictxt->param;
+    struct bcm2836_record *record = param->record;
     int cpu = ictxt->mp_seq;
 
     u32 irq_mask = record->mmio->core_irq_src[cpu].value;

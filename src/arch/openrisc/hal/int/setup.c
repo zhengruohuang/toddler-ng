@@ -123,10 +123,9 @@ void kernel_int_handler_entry(int except, struct reg_context *regs)
         seq = INT_SEQ_SYSCALL;
         break;
     case EXCEPT_NUM_TIMER:
-       seq = EXCEPT_NUM_TIMER;
-       break;
     case EXCEPT_NUM_INTERRUPT:
         seq = INT_SEQ_DEV;
+        error_code = except;
         break;
     default:
         seq = INT_SEQ_PANIC;

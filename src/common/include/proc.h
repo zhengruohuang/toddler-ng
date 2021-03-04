@@ -130,6 +130,9 @@ struct proc_stat {
 };
 
 struct kernel_stats {
+    // Time
+    u64 uptime_ms;
+
     // Proc
     ulong num_procs;
     ulong num_threads, num_threads_wait, num_threads_ipc;

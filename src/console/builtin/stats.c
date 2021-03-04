@@ -32,6 +32,7 @@ static void stats_kernel()
 
     kprintf(
         "Kernel statistics:\n"
+        "  uptime: %llu s %llu ms\n"
 
         "  num processes:    %lu\n"
         "  num threads:      %lu\n"
@@ -51,6 +52,9 @@ static void stats_kernel()
 
         "  num usable pages:    %llu\n"
         "  num allocated pages: %llu\n",
+
+        (u64)((ulong)stats->kernel.uptime_ms / 1000),
+        (u64)((ulong)stats->kernel.uptime_ms % 1000),
 
         stats->kernel.num_procs,
         stats->kernel.num_threads,

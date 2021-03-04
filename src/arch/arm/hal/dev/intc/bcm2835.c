@@ -216,7 +216,7 @@ static int invoke(struct bcm2835_record *record, int bank,
 
     int handle_type = INT_HANDLE_SIMPLE;
     if (int_dev && int_dev->int_seq) {
-        ictxt->param = int_dev->record;
+        ictxt->param = int_dev;
         handle_type = invoke_int_handler(int_dev->int_seq, ictxt, kdi);
 
         if (INT_HANDLE_KEEP_MASKED & ~handle_type) {
@@ -258,7 +258,8 @@ static int handle(struct int_context *ictxt, struct kernel_dispatch *kdi,
 
 static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
 {
-    struct bcm2835_record *record = ictxt->param;
+    struct driver_param *param = ictxt->param;
+    struct bcm2835_record *record = param->record;
 
     struct bcm2835_irqs_basic_pending basic_pending;
     basic_pending.value = record->mmio->pending_basic.value;

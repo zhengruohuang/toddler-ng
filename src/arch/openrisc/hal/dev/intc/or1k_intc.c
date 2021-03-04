@@ -3,13 +3,15 @@
 #include "common/include/msr.h"
 #include "hal/include/kprintf.h"
 #include "hal/include/devtree.h"
+#include "hal/include/vecnum.h"
 #include "hal/include/lib.h"
 #include "hal/include/mem.h"
 #include "hal/include/int.h"
 #include "hal/include/dev.h"
 
 
-#define MAX_NUM_INT_SRCS 32
+// Seq == 32: timer
+#define MAX_NUM_INT_SRCS 33
 
 struct or1k_intc_record {
     int last_seq;
@@ -27,12 +29,16 @@ static void eoi_irq(struct or1k_intc_record *record, int seq)
         return;
     }
 
-    u32 bitmap = 0x1 << seq;
-    write_pic_status(bitmap);
+    if (seq >= 32) {
+        // TODO
+    } else {
+        u32 bitmap = 0x1 << seq;
+        write_pic_status(bitmap);
 
-    read_pic_mask(bitmap);
-    bitmap |= 0x1 << seq;
-    write_pic_mask(bitmap);
+        read_pic_mask(bitmap);
+        bitmap |= 0x1 << seq;
+        write_pic_mask(bitmap);
+    }
 }
 
 static void enable_irq(struct or1k_intc_record *record, int seq)
@@ -42,10 +48,14 @@ static void enable_irq(struct or1k_intc_record *record, int seq)
         return;
     }
 
-    u32 bitmap;
-    read_pic_mask(bitmap);
-    bitmap |= 0x1 << seq;
-    write_pic_mask(bitmap);
+    if (seq >= 32) {
+        // TODO
+    } else {
+        u32 bitmap;
+        read_pic_mask(bitmap);
+        bitmap |= 0x1 << seq;
+        write_pic_mask(bitmap);
+    }
 }
 
 static void disable_irq(struct or1k_intc_record *record, int seq)
@@ -55,14 +65,17 @@ static void disable_irq(struct or1k_intc_record *record, int seq)
         return;
     }
 
-    u32 bitmap = 0;
+    if (seq >= 32) {
+        // TODO
+    } else {
+        u32 bitmap = 0;
+        read_pic_mask(bitmap);
+        bitmap &= ~(0x1 << seq);
+        write_pic_mask(bitmap);
 
-    read_pic_mask(bitmap);
-    bitmap &= ~(0x1 << seq);
-    write_pic_mask(bitmap);
-
-    bitmap = 0x1 << seq;
-    write_pic_status(bitmap);
+        bitmap = 0x1 << seq;
+        write_pic_status(bitmap);
+    }
 }
 
 static void disable_all(struct or1k_intc_record *record)
@@ -79,15 +92,18 @@ static int handle(struct int_context *ictxt, struct kernel_dispatch *kdi,
 {
     disable_irq(record, seq);
 
-    // FIXME: for some strange reason, there's a suprious interrupt even after
-    // disabling the IRQ, writing something to UART seems to fix this issue
-    kprintf("%c", 24);
+    if (seq < 32) {
+        // FIXME: for some strange reason, there's a suprious interrupt right
+        // after disabling the IRQ
+        // Writing anything to UART seems to fix this issue
+        kprintf("%c", 24);
+    }
 
     struct driver_param *int_dev = record->int_devs[seq];
 
     int handle_type = INT_HANDLE_SIMPLE;
     if (int_dev && int_dev->int_seq) {
-        ictxt->param = int_dev->record;
+        ictxt->param = int_dev;
         handle_type = invoke_int_handler(int_dev->int_seq, ictxt, kdi);
 
         if (INT_HANDLE_KEEP_MASKED & ~handle_type) {
@@ -105,29 +121,37 @@ static int handle(struct int_context *ictxt, struct kernel_dispatch *kdi,
 
 static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
 {
-    struct or1k_intc_record *record = ictxt->param;
+    struct driver_param *param = ictxt->param;
+    struct or1k_intc_record *record = param->record;
 
-    u32 enabled_bitmap, pending_bitmap;
-    read_pic_mask(enabled_bitmap);
-    read_pic_status(pending_bitmap);
+    if (ictxt->error_code == EXCEPT_NUM_TIMER) {
+        int seq = 32;
+        return handle(ictxt, kdi, record, seq);
+    } else {
+        panic_if(ictxt->error_code != EXCEPT_NUM_INTERRUPT,
+                 "error_code must be EXCEPT_NUM_INTERRUPT!\n");
 
-    u32 bitmap = enabled_bitmap & pending_bitmap;
+        u32 enabled_bitmap, pending_bitmap;
+        read_pic_mask(enabled_bitmap);
+        read_pic_status(pending_bitmap);
 
-//     if (bitmap)
-//     kprintf("Interrupt, enabled: %x, pending: %x, bitmap: %x\n", enabled_bitmap, pending_bitmap, bitmap);
+        u32 bitmap = enabled_bitmap & pending_bitmap;
+    //     kprintf("Interrupt, enabled: %x, pending: %x, bitmap: %x\n",
+    //             enabled_bitmap, pending_bitmap, bitmap);
 
-    int seq = record->last_seq + 1;
-    if (seq >= MAX_NUM_INT_SRCS) {
-        seq = 0;
-    }
-
-    for (int i = 0; i < MAX_NUM_INT_SRCS; i++) {
-        if (bitmap & (0x1ul << seq) && record->int_devs[seq]) {
-            return handle(ictxt, kdi, record, seq);
+        int seq = record->last_seq + 1;
+        if (seq >= MAX_NUM_INT_SRCS) {
+            seq = 0;
         }
 
-        if (++seq >= MAX_NUM_INT_SRCS) {
-            seq = 0;
+        for (int i = 0; i < MAX_NUM_INT_SRCS; i++) {
+            if (bitmap & (0x1ul << seq) && record->int_devs[seq]) {
+                return handle(ictxt, kdi, record, seq);
+            }
+
+            if (++seq >= MAX_NUM_INT_SRCS) {
+                seq = 0;
+            }
         }
     }
 

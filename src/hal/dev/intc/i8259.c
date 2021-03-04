@@ -259,7 +259,7 @@ static inline int invoke(struct i8259_record *record, int chip, int chip_irq,
 
     int handle_type = INT_HANDLE_SIMPLE;
     if (int_dev && int_dev->int_seq) {
-        ictxt->param = int_dev->record;
+        ictxt->param = int_dev;
         handle_type = invoke_int_handler(int_dev->int_seq, ictxt, kdi);
     } else if (int_dev) {
         // TODO: need a better way
@@ -278,7 +278,8 @@ static inline int invoke(struct i8259_record *record, int chip, int chip_irq,
 
 static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
 {
-    struct i8259_record *record = ictxt->param;
+    struct driver_param *param = ictxt->param;
+    struct i8259_record *record = param->record;
 
     int chip = 0;
     u8 cascade_mask = get_cascade_mask(record);
