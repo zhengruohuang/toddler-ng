@@ -158,10 +158,16 @@ static void set_syscall_return(struct reg_context *regs, int success, ulong retu
     regs->r2 = return1;
 }
 
+static void idle_cur_cpu()
+{
+    __asm__ __volatile__ ( "wfi;" : : : "memory" );
+}
+
 static void halt_cur_cpu(int count, va_list args)
 {
     while (1) {
-        __asm__ __volatile__ ( "wfi;" : : : "memory" );
+        disable_local_int();
+        idle_cur_cpu();
     }
 }
 
@@ -263,6 +269,7 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.init_kernel_post = init_kernel_post;
 
     funcs.putchar = raspi2_putchar;
+    funcs.idle = idle_cur_cpu;
     funcs.halt = halt_cur_cpu;
 
     funcs.has_direct_access = 0;

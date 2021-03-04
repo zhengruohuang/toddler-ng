@@ -23,6 +23,7 @@ extern struct hal_exports *get_hal_exports();
 extern int hal_get_num_cpus();
 extern ulong hal_get_cur_mp_seq();
 
+extern void hal_idle();
 extern void hal_stop();
 
 extern int hal_disable_local_int();

@@ -32,6 +32,7 @@ struct hal_arch_funcs {
 
     // General
     putchar_t putchar;
+    void (*idle);
     void (*halt)(int count, va_list args);
 
     // Indicates if direct physical address access is possible

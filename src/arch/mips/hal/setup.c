@@ -215,11 +215,16 @@ static void set_syscall_return(struct reg_context *regs, int success, ulong retu
     regs->a1 = return1;
 }
 
+static void idle_cur_cpu()
+{
+    __asm__ __volatile__ ( "wait;" : : : "memory" );
+}
+
 static void halt_cur_cpu(int count, va_list args)
 {
-    disable_local_int();
     while (1) {
-        __asm__ __volatile__ ("wait;");
+        disable_local_int();
+        idle_cur_cpu();
     }
 }
 
@@ -284,6 +289,7 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.init_kernel_post = init_kernel_post;
 
     funcs.putchar = malta_putchar;
+    funcs.idle = idle_cur_cpu;
     funcs.halt = halt_cur_cpu;
 
     funcs.has_direct_access = 1;

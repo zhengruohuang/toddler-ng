@@ -289,6 +289,9 @@ ulong create_thread(struct process *p, ulong entry_point, ulong param,
         t->memory.block_base + t->memory.stack.top_offset,
         t->user_mode);
 
+    // Sched class
+    t->sched_class = SCHED_CLASS_NORMAL;
+
     //kprintf("Stack top @ %lx\n", t->memory.block_base + t->memory.stack.top_offset);
 
     // Done

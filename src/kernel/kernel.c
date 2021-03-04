@@ -126,6 +126,13 @@ ulong hal_get_cur_mp_seq()
     return 0;
 }
 
+void hal_idle()
+{
+    if (hal && hal->idle) {
+        hal->idle();
+    }
+}
+
 void hal_stop()
 {
     if (hal && hal->halt) {
@@ -230,6 +237,7 @@ void kernel(struct hal_exports *hal_exp)
     init_process();
     init_tlb_shootdown();
     init_thread();
+    init_idle();
     init_wait();
     init_ipc();
     init_startup();

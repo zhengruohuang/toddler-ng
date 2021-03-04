@@ -83,6 +83,9 @@ struct thread {
     ulong wait_obj;
     u64 wait_timeout_ms;
 
+    // Sched
+    int sched_class;
+
     // CPU affinity
     int pin_cpu_id;
 
@@ -140,6 +143,12 @@ extern void thread_save_context(struct thread *t, struct reg_context *ctxt);
 
 extern void set_thread_state(struct thread *t, int state);
 extern void run_thread(struct thread *t);
+
+
+/*
+ * Idle
+ */
+extern void init_idle();
 
 
 /*
@@ -322,6 +331,16 @@ extern void init_startup();
 /*
  * Scheduling
  */
+enum sched_class {
+    SCHED_CLASS_IGNORE = 0,
+    SCHED_CLASS_REAL_TIME,
+    SCHED_CLASS_TIMER,
+    SCHED_CLASS_NORMAL,
+    SCHED_CLASS_IDLE,
+
+    NUM_SCHED_CLASSES,
+};
+
 extern void init_sched();
 
 extern void sched_put(struct thread *t);
@@ -341,6 +360,8 @@ extern void init_wait();
 extern list_t *acquire_wait_queue_exclusive();
 extern void release_wait_queue();
 extern ulong get_num_wait_threads();
+
+extern int is_wait_queue_ready();
 
 extern void sleep_thread(struct thread *t);
 

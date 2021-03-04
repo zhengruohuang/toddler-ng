@@ -69,6 +69,7 @@ static void fill_hal_exports()
     // General functions
     hexp.putchar = funcs->putchar;
     hexp.time = NULL;
+    hexp.idle = funcs->idle;
     hexp.halt = halt_all_cpus;
 
     // Direct access

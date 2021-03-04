@@ -57,6 +57,25 @@ ulong get_num_wait_threads()
 
 
 /*
+ * Next ready
+ */
+int is_wait_queue_ready()
+{
+    u64 cur_ms = hal_get_ms();
+    u64 next_ready_ms = -1ull;
+    list_access_exclusive(&wait_queue) {
+        list_node_t *node = list_front(&wait_queue);
+        if (node) {
+            struct thread *wait_t = list_entry(node, struct thread, node_wait);
+            next_ready_ms = wait_t->wait_timeout_ms;
+        }
+    };
+
+    return cur_ms >= next_ready_ms ? 1 : 0;
+}
+
+
+/*
  * Wait object
  */
 struct wait_object {
@@ -355,6 +374,8 @@ void init_wait()
     salloc_create_default(&wait_object_salloc_obj, "wait", sizeof(struct wait_object));
 
     create_and_run_kernel_thread(tid, t, &timeout_wakeup_worker, 0, NULL) {
+        t->sched_class = SCHED_CLASS_TIMER;
+
         kprintf("\tWait timeout wakeup worker created, tid: %lx, thread block base: %p\n",
                 tid, t->memory.block_base);
     }
