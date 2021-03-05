@@ -30,6 +30,7 @@ void spinlock_lock(spinlock_t *lock)
         do {
             old_val.value = lock->value;
             atomic_pause();
+            atomic_mb();
         } while (old_val.locked);
         atomic_mb();
     } while (!atomic_cas_bool(&lock->value, old_val.value, new_val.value));

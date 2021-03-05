@@ -1,4 +1,5 @@
 #include "common/include/inttypes.h"
+#include "common/include/atomic.h"
 #include "loader/include/export.h"
 #include "hal/include/hal.h"
 #include "hal/include/kprintf.h"
@@ -23,6 +24,50 @@ static void init_bss()
     for (cur = &__bss_start; cur < &__bss_end; cur++) {
         *cur = 0;
     }
+}
+
+
+/*
+ * MP-safe kprintf
+ */
+static volatile ulong _kprintf_lock_value = 0;
+
+static inline void _kprintf_lock()
+{
+    ulong old_val;
+
+    do {
+        do {
+            old_val = _kprintf_lock_value;
+            atomic_pause();
+            atomic_mb();
+        } while (old_val);
+    } while (!atomic_cas_bool(&_kprintf_lock_value, old_val, 1));
+}
+
+static inline void _kprintf_unlock()
+{
+    atomic_mb();
+
+    assert(_kprintf_lock_value);
+    _kprintf_lock_value = 0;
+
+    atomic_mb();
+    atomic_notify();
+}
+
+int kprintf(const char *fmt, ...)
+{
+    int ret = 0;
+    va_list va;
+    va_start(va, fmt);
+
+    _kprintf_lock();
+    ret = __vkprintf(fmt, va);
+    _kprintf_unlock();
+
+    va_end(va);
+    return ret;
 }
 
 
