@@ -107,10 +107,11 @@ void sched()
 
     // Pick a thread
     struct thread *t = _pick_from_sched_queue(SCHED_CLASS_REAL_TIME);
+    if (!t) t = _pick_from_sched_queue(SCHED_CLASS_INTERRUPT);
     if (!t) t = _pick_from_sched_queue_timer();
     if (!t) t = _pick_from_sched_queue(SCHED_CLASS_NORMAL);
     if (!t) t = _pick_from_sched_queue(SCHED_CLASS_IDLE);
-    panic_if(!t, "Unable to find a thread\n");
+    panic_if(!t, "Unable to find a thread to schedule\n");
 
     switch_to_thread(t);
     unreachable();

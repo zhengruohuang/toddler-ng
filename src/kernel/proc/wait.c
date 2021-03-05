@@ -76,87 +76,6 @@ int is_wait_queue_ready()
 
 
 /*
- * Wait object
- */
-struct wait_object {
-    list_node_t node;
-    list_node_t node_proc;
-
-    ulong id;
-
-    ulong pid;
-    ulong user_obj_id;
-    int global;
-
-    ulong total;
-    ulong count;
-};
-
-static salloc_obj_t wait_object_salloc_obj;
-static list_t wait_objects;
-
-static ulong alloc_wait_object_id(struct wait_object *wait_obj)
-{
-    return (ulong)wait_obj;
-}
-
-__unused_func static struct wait_object *get_wait_object(struct process *p, ulong obj_id)
-{
-    panic_if(!spinlock_is_locked(&wait_objects.lock), "wait_objects must be locked!\n");
-
-    struct wait_object *obj = NULL;
-
-    list_foreach(&wait_objects, n) {
-        struct wait_object *o = list_entry(n, struct wait_object, node);
-        if (o->pid == p->pid && o->id == obj_id) {
-            obj = o;
-            break;
-        }
-    }
-
-    return obj;
-}
-
-#define access_wait_object_exclusive(obj, p, obj_id) \
-    for (spinlock_t *__lock = &wait_objects.lock; __lock; __lock = NULL) \
-        for (spinlock_lock_int(__lock); __lock; spinlock_unlock_int(__lock), __lock = NULL) \
-            for (struct wait_object *obj = get_wait_object(p, obj_id); obj; obj = NULL)
-
-ulong alloc_wait_object(struct process *p, ulong user_obj_id,
-                        ulong total, int global)
-{
-    struct wait_object *obj = NULL;
-
-    list_access_exclusive(&wait_objects) {
-        list_foreach(&wait_objects, n) {
-            struct wait_object *o = list_entry(n, struct wait_object, node);
-            if (o->pid == p->pid && o->user_obj_id == user_obj_id) {
-                obj = o;
-                break;
-            }
-        }
-        if (obj) {
-            break;
-        }
-
-        obj = (struct wait_object *)salloc(&wait_object_salloc_obj);
-        obj->pid = p->pid;
-        obj->user_obj_id = user_obj_id;
-        obj->id = alloc_wait_object_id(obj);
-        obj->total = total;
-        obj->count = total;
-        obj->global = global;
-
-        list_push_back(&wait_objects, &obj->node);
-        list_push_back_exclusive(&p->wait_objects, &obj->node_proc);
-    }
-
-    panic_if(!obj, "Unable to allocate wait object!\n");
-    return obj->id;
-}
-
-
-/*
  * Wait
  */
 int wait_on_object(struct process *p, struct thread *t, int wait_type, ulong wait_obj, ulong wait_value, ulong timeout_ms)
@@ -172,9 +91,20 @@ int wait_on_object(struct process *p, struct thread *t, int wait_type, ulong wai
         wait_obj = t->tid;
         break;
     case WAIT_ON_FUTEX: {
-        paddr_t paddr = get_hal_exports()->translate(p->page_table, wait_obj);
-        if (paddr) {
-            futex_t *futex = hal_cast_paddr_to_kernel_ptr(paddr);
+        futex_t *futex = NULL;
+        if (p == get_kernel_proc()) {
+            futex = (void *)wait_obj;
+        } else {
+            paddr_t paddr = get_hal_exports()->translate(p->page_table, wait_obj);
+            if (paddr) {
+                futex = hal_cast_paddr_to_kernel_ptr(paddr);
+            }
+        }
+
+        //paddr_t paddr = get_hal_exports()->translate(p->page_table, wait_obj);
+        //if (paddr) {
+        //    futex_t *futex = hal_cast_paddr_to_kernel_ptr(paddr);
+        if (futex) {
             futex_t futex_val;
             futex_val.value = futex->value;
 
@@ -282,9 +212,20 @@ ulong wake_on_object(struct process *p, struct thread *t, int wait_type, ulong w
 
     switch (wait_type) {
     case WAIT_ON_FUTEX: {
-        paddr_t paddr = get_hal_exports()->translate(p->page_table, wait_obj);
-        if (paddr) {
-            futex_t *futex = hal_cast_paddr_to_kernel_ptr(paddr);
+        futex_t *futex = NULL;
+        if (p == get_kernel_proc()) {
+            futex = (void *)wait_obj;
+        } else {
+            paddr_t paddr = get_hal_exports()->translate(p->page_table, wait_obj);
+            if (paddr) {
+                futex = hal_cast_paddr_to_kernel_ptr(paddr);
+            }
+        }
+
+        if (futex) {
+        //paddr_t paddr = get_hal_exports()->translate(p->page_table, wait_obj);
+        //if (paddr) {
+        //    futex_t *futex = hal_cast_paddr_to_kernel_ptr(paddr);
             futex_t futex_val;
             futex_val.value = futex->value;
 
@@ -364,14 +305,12 @@ ulong purge_wait_queue(struct process *p)
 
 
 /*
- * Init
+ * Init wait queue
  */
 void init_wait()
 {
     kprintf("Initializing wait queue\n");
     list_init(&wait_queue);
-    list_init(&wait_objects);
-    salloc_create_default(&wait_object_salloc_obj, "wait", sizeof(struct wait_object));
 
     create_and_run_kernel_thread(tid, t, &timeout_wakeup_worker, 0, NULL) {
         t->sched_class = SCHED_CLASS_TIMER;

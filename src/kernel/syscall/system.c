@@ -346,18 +346,6 @@ int syscall_handler_thread_exit(struct process *p, struct thread *t,
 /*
  * Wait
  */
-int syscall_handler_alloc_wait(struct process *p, struct thread *t,
-                               struct kernel_dispatch *kdi)
-{
-    int user_obj_id = kdi->param0;
-    ulong total = kdi->param1;
-    ulong global = kdi->param2;
-    ulong wait_obj_id = alloc_wait_object(p, user_obj_id, total, global);
-
-    hal_set_syscall_return(kdi->regs, 0, wait_obj_id, 0);
-    return SYSCALL_HANDLED_CONTINUE;
-}
-
 int syscall_handler_wait(struct process *p, struct thread *t,
                          struct kernel_dispatch *kdi)
 {

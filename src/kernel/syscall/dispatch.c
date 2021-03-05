@@ -42,7 +42,6 @@ void init_dispatch()
     handlers[SYSCALL_THREAD_YIELD] = syscall_handler_thread_yield;
     handlers[SYSCALL_THREAD_EXIT] = syscall_handler_thread_exit;
 
-    handlers[SYSCALL_EVENT_ALLOC] = syscall_handler_alloc_wait;
     handlers[SYSCALL_EVENT_WAIT] = syscall_handler_wait;
     handlers[SYSCALL_EVENT_WAKE] = syscall_handler_wake;
 

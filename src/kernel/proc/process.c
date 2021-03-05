@@ -18,7 +18,13 @@
 /*
  * Kernel and system process
  */
+static struct process *kernel_proc = NULL;
 static ulong kernel_pid = 0;
+
+struct process *get_kernel_proc()
+{
+    return kernel_proc;
+}
 
 ulong get_kernel_pid()
 {
@@ -122,6 +128,7 @@ void init_process()
 
     // Create the kernel process
     kernel_pid = create_process(-1, "kernel", PROCESS_TYPE_KERNEL);
+    kernel_proc = acquire_process(kernel_pid);
     kprintf("\tKernel process ID: %x\n", kernel_pid);
 }
 
@@ -181,6 +188,9 @@ static void process_cleaner(ulong param)
     int all_vm_blocks_freed = 0;
 
     while (!all_threads_stopped || !all_vm_blocks_freed) {
+        // Wait for next cleanup event
+        event_wait(&p->cleanup_event);
+
         // Free up unused VM blocks
         vm_move_sanit_to_avail(p);
 
@@ -200,9 +210,6 @@ static void process_cleaner(ulong param)
             //    kprintf("All VM blocks stopped for process %p\n", p);
             //}
         }
-
-        // Next pass
-        syscall_thread_yield();
     }
 
     // Free VM block structs
@@ -295,12 +302,12 @@ ulong create_process(ulong parent_id, char *name, enum process_type type)
     // Thread list
     list_init(&p->threads);
 
-    // Wait
-    list_init(&p->wait_objects);
-
     // Msg handlers
     //list_init(&p->serial_msgs);
     p->popup_msg_handler = 0;
+
+    // Cleaner
+    event_init(&p->cleanup_event, 0);
 
     // Init lock
     spinlock_init(&p->lock);
@@ -329,6 +336,7 @@ int exit_process(struct process *proc, ulong status)
         proc->state = PROCESS_STATE_STOPPED;
     }
 
+    event_signal(&proc->cleanup_event);
     return 0;
 }
 
@@ -338,6 +346,7 @@ int recycle_process(struct process *proc)
         proc->state = PROCESS_STATE_ZOMBIE;
     }
 
+    event_signal(&proc->cleanup_event);
     return 0;
 }
 

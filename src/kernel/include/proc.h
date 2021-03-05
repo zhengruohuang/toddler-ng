@@ -10,11 +10,15 @@
 
 
 /*
- * Thread
+ * Forward declares
  */
 struct vm_block;
 struct process;
 
+
+/*
+ * Thread
+ */
 enum thread_state {
     THREAD_STATE_ENTER,     // Thread just created
     THREAD_STATE_NORMAL,    // Thread running
@@ -152,6 +156,19 @@ extern void init_idle();
 
 
 /*
+ * Wait event -- futex-based conditional variable
+ */
+struct wait_event {
+    futex_t futex;
+    int max_spin;
+};
+
+extern void event_init(struct wait_event *e, int max_spin);
+extern int event_wait(struct wait_event *e);
+extern int event_signal(struct wait_event *e);
+
+
+/*
  * Process
  */
 enum process_state {
@@ -254,14 +271,14 @@ struct process {
     ref_count_t thread_create_count;
     ref_count_t thread_exit_count;
 
-    // Wait objects
-    list_t wait_objects;
-
     // Scheduling
     int priority;
 
     // IPC
     ulong popup_msg_handler;
+
+    // Cleanup
+    struct wait_event cleanup_event;
 
     // Lock
     spinlock_t lock;
@@ -306,6 +323,8 @@ extern ulong vm_map_cross(struct process *p, ulong remote_pid, ulong remote_vbas
         for (int __term = 0; !__term; __term = 1)
 
 extern void init_process();
+
+extern struct process *get_kernel_proc();
 extern ulong get_kernel_pid();
 
 extern struct process *acquire_process(ulong id);
@@ -334,6 +353,7 @@ extern void init_startup();
 enum sched_class {
     SCHED_CLASS_IGNORE = 0,
     SCHED_CLASS_REAL_TIME,
+    SCHED_CLASS_INTERRUPT,
     SCHED_CLASS_TIMER,
     SCHED_CLASS_NORMAL,
     SCHED_CLASS_IDLE,
@@ -365,10 +385,12 @@ extern int is_wait_queue_ready();
 
 extern void sleep_thread(struct thread *t);
 
-extern ulong alloc_wait_object(struct process *p, ulong user_obj_id, ulong total, int global);
-extern int wait_on_object(struct process *p, struct thread *t, int wait_type, ulong wait_obj, ulong wait_value, ulong timeout_ms);
-extern ulong wake_on_object(struct process *p, struct thread *t, int wait_type, ulong wait_obj, ulong wait_value, ulong max_wakeup_count);
-extern ulong wake_on_object_exclusive(struct process *p, struct thread *t, int wait_type, ulong wait_obj, ulong wait_value, ulong max_wakeup_count);
+extern int wait_on_object(struct process *p, struct thread *t, int wait_type,
+                          ulong wait_obj, ulong wait_value, ulong timeout_ms);
+extern ulong wake_on_object(struct process *p, struct thread *t, int wait_type,
+                            ulong wait_obj, ulong wait_value, ulong max_wakeup_count);
+extern ulong wake_on_object_exclusive(struct process *p, struct thread *t, int wait_type,
+                                      ulong wait_obj, ulong wait_value, ulong max_wakeup_count);
 
 extern ulong purge_wait_queue(struct process *p);
 

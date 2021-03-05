@@ -11,9 +11,10 @@
 
 static void idle_worker(ulong param)
 {
-    kprintf("Idling thread #%lu started\n", param);
+    //kprintf("Idling thread #%lu started\n", param);
 
     while (1) {
+        //kprintf("Idle #%d\n", param);
         hal_idle();
     }
 }

@@ -398,6 +398,9 @@ ulong vm_purge(struct process *p)
         n = list_pop_front_exclusive(&p->vm.inuse_mapped);
     }
 
+    if (count) {
+        event_signal(&p->cleanup_event);
+    }
     return count;
 }
 
@@ -411,16 +414,23 @@ void vm_destory(struct process *p)
         kprintf("Remaining unfreed pages: %lu\n", p->vm.num_palloc_pages.value);
     }
 
+    ulong count = 0;
+
     list_node_t *n = list_pop_front_exclusive(&p->vm.avail_unmapped);
     while (n) {
         struct vm_block *b = list_entry(n, struct vm_block, node);
         sfree_audit(b, &p->vm.num_salloc_objs);
+        count++;
 
         n = list_pop_front_exclusive(&p->vm.avail_unmapped);
     }
 
     if (!ref_count_is_zero(&p->vm.num_salloc_objs)) {
         kprintf("Remaining unfreed salloc objs: %lu\n", p->vm.num_salloc_objs.value);
+    }
+
+    if (count) {
+        event_signal(&p->cleanup_event);
     }
 }
 
@@ -432,7 +442,8 @@ void vm_move_to_sanit_unmapped(struct process *p, struct vm_block *b)
 {
     list_remove_exclusive(&p->vm.sanit_mapped, &b->node);
     list_push_back_exclusive(&p->vm.sanit_unmapped, &b->node);
-    //list_insert_sorted_exclusive(&p->vm.sanit_unmapped, &b->node, list_compare);
+
+    event_signal(&p->cleanup_event);
 }
 
 

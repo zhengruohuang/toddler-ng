@@ -93,8 +93,6 @@ int request_tlb_shootdown(struct process *p, struct vm_block *b)
 /*
  * Service
  */
-//static volatile long debug_print_count = 1000;
-
 void service_tlb_shootdown_requests()
 {
     atomic_mb();

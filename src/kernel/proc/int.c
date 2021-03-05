@@ -118,7 +118,9 @@ int int_handler_invoke(ulong seq)
     }
 
     if (proc) {
-        create_and_run_thread(tid, t, proc, entry, 0, 0);
+        create_and_run_thread(tid, t, proc, entry, 0, 0) {
+            t->sched_class = SCHED_CLASS_INTERRUPT;
+        }
         ref_count_dec(&proc->ref_count);
     }
 

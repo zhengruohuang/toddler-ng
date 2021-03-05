@@ -8,7 +8,6 @@
 int futex_init(futex_t *f)
 {
     f->value = 0;
-    //f->valid = 1;
     atomic_mb();
 
     return 0;
@@ -18,8 +17,7 @@ int futex_destory(futex_t *f)
 {
     atomic_mb();
     f->value = 0;
-    //f->valid = 0;
-    //atomic_mb();
+    atomic_mb();
 
     return 0;
 }

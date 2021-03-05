@@ -79,7 +79,6 @@ extern int syscall_handler_thread_create_cross(struct process *p, struct thread 
 extern int syscall_handler_thread_yield(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 extern int syscall_handler_thread_exit(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 
-extern int syscall_handler_alloc_wait(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 extern int syscall_handler_wait(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 extern int syscall_handler_wake(struct process *p, struct thread *t, struct kernel_dispatch *kdi);
 

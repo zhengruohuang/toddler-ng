@@ -39,8 +39,8 @@ static void stats_kernel()
         "  num wait threads: %lu\n"
         "  num IPC threads:  %lu\n"
 
-        "  TLB shootdown reqs:       %lu\n"
-        "  global TLB shootdown seq: %lu\n"
+        "  queued TLB shootdown reqs: %lu\n"
+        "  global TLB shootdown seq:  %lu\n"
 
         "  physical addr start @ %llx\n"
         "  physical addr end   @ %llx\n"
