@@ -67,6 +67,7 @@ extern void register_dev_driver(struct internal_dev_driver *drv);
  * Generic driver interfaces
  */
 extern void generic_serial_dev_setup(struct driver_param *param);
+extern void generic_serial_dev_start(struct driver_param *param);
 
 extern void generic_timer_dev_setup(struct driver_param *param);
 
@@ -92,6 +93,7 @@ extern void generic_timer_dev_setup(struct driver_param *param);
         .probe_devtree_compatible = (dt_compt),                         \
         .create = (dev_create),                                         \
         .setup = generic_serial_dev_setup,                              \
+        .start = generic_serial_dev_start,                              \
         .serial = {                                                     \
             .setup = (serial_setup),                                    \
             .putchar = (serial_putchar),                                \
