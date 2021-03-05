@@ -136,6 +136,7 @@
             reg = <0x2f8 0x8>;
             reg-shift = <0>;
             clock-frequency = <1843200>;
+            disabled;
 
             interrupt-parent = <&i8259>;
             interrupts = <0x3>;

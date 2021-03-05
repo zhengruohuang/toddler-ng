@@ -369,3 +369,8 @@ int devtree_get_use_poll(struct devtree_node *node)
     return prop ? 1 : 0;
 }
 
+int devtree_get_enabled(struct devtree_node *node)
+{
+    struct devtree_prop *prop = devtree_find_prop(node, "disabled");
+    return prop ? 0 : 1;
+}

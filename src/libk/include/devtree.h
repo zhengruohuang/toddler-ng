@@ -50,6 +50,7 @@ extern int *devtree_get_int_encode(struct devtree_node *node, int *count);
 
 extern int devtree_get_use_ioport(struct devtree_node *node);
 extern int devtree_get_use_poll(struct devtree_node *node);
+extern int devtree_get_enabled(struct devtree_node *node);
 
 
 /*

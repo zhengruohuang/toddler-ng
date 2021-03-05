@@ -152,7 +152,8 @@ static void probe_dev(struct dev_record *dev, struct fw_dev_info *fw_info)
         // Devtree probe
         if (prob == FW_DEV_PROBE_FAILED &&
             drv->probe_devtree_compatible && fw_info->devtree_node &&
-            match_devtree_compatibles(fw_info->devtree_node, drv->probe_devtree_compatible)
+            match_devtree_compatibles(fw_info->devtree_node, drv->probe_devtree_compatible) &&
+            devtree_get_enabled(fw_info->devtree_node)
         ) {
             prob = FW_DEV_PROBE_OK;
         }
