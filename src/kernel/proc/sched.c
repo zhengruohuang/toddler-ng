@@ -49,15 +49,6 @@ void sched_put(struct thread *t)
 
 
 /*
- * Idling
- */
-static void sched_idle()
-{
-    for (volatile int i = 0; i < 1000; i++);
-}
-
-
-/*
  * Switching
  */
 void switch_to_thread(struct thread *t)

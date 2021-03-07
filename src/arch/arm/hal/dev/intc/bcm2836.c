@@ -14,7 +14,7 @@
  * Ref
  * https://www.kernel.org/doc/Documentation/devicetree/bindings/interrupt-controller/brcm%2Cbcm2836-l1-intc.txt
  */
-
+#define MAX_NUM_INT_SRCS 10
 
 struct bcm2836_mmio {
     // 0x00
@@ -257,15 +257,15 @@ struct bcm2836_mmio {
 } packed4_struct;
 
 struct bcm2836_record {
+    u32 valid_bitmap;
     volatile struct bcm2836_mmio *mmio;
-    struct driver_param *int_devs[10];
 };
 
 
 /*
  * Int manipulation
  */
-static void enable_irq(struct bcm2836_record *record, int mp_seq, int irq)
+static inline void _enable_irq(struct bcm2836_record *record, int irq, int mp_seq)
 {
     panic_if(irq < 0 || irq > 9, "Invalid IRQ!\n");
     panic_if(mp_seq < 0 || mp_seq > 3, "Invalid MP seq!\n");
@@ -282,7 +282,7 @@ static void enable_irq(struct bcm2836_record *record, int mp_seq, int irq)
     }
 }
 
-static void disable_irq(struct bcm2836_record *record, int mp_seq, int irq)
+static inline void _disable_irq(struct bcm2836_record *record, int irq, int mp_seq)
 {
     panic_if(irq < 0 || irq > 9, "Invalid IRQ!\n");
     panic_if(mp_seq < 0 || mp_seq > 3, "Invalid MP seq!\n");
@@ -300,59 +300,69 @@ static void disable_irq(struct bcm2836_record *record, int mp_seq, int irq)
 
 
 /*
- * Interrupt handler
+ * IRQ
  */
-static int invoke(struct bcm2836_record *record, int cpu,
-                  int irq, struct driver_param *int_dev,
-                  struct int_context *ictxt, struct kernel_dispatch *kdi)
+static void enable_irq(struct driver_param *param, struct int_context *ictxt, int irq_seq)
 {
-    if (irq == -1) {
-        return INT_HANDLE_SIMPLE;
-    }
-
-    disable_irq(record, cpu, irq);
-
-    int handle_type = INT_HANDLE_SIMPLE;
-    if (int_dev && int_dev->int_seq) {
-        ictxt->param = int_dev;
-        handle_type = invoke_int_handler(int_dev->int_seq, ictxt, kdi);
-
-        if (INT_HANDLE_KEEP_MASKED & ~handle_type) {
-            enable_irq(record, cpu, irq);
-        }
-    }
-
-    return handle_type & INT_HANDLE_CALL_KERNEL ?
-            INT_HANDLE_CALL_KERNEL : INT_HANDLE_SIMPLE;
+    struct bcm2836_record *record = param->record;
+    _enable_irq(record, irq_seq, ictxt->mp_seq);
 }
 
-static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
+static void disable_irq(struct driver_param *param, struct int_context *ictxt, int irq_seq)
 {
-    struct driver_param *param = ictxt->param;
     struct bcm2836_record *record = param->record;
-    int cpu = ictxt->mp_seq;
+    _disable_irq(record, irq_seq, ictxt->mp_seq);
+}
 
-    u32 irq_mask = record->mmio->core_irq_src[cpu].value;
-    int num_irqs = popcount32(irq_mask);
-    int handle_type = INT_HANDLE_SIMPLE;
+static void end_irq(struct driver_param *param, struct int_context *ictxt, int irq_seq)
+{
+    enable_irq(param, ictxt, irq_seq);
+}
 
-    while (num_irqs) {
-        int irq = ctz32(irq_mask);
-        struct driver_param *int_dev = record->int_devs[irq];
+static void setup_irq(struct driver_param *param, int irq_seq)
+{
+    struct bcm2836_record *record = param->record;
+    record->valid_bitmap |= 0x1ul << irq_seq;
 
-        handle_type |= invoke(record, cpu, irq, int_dev, ictxt, kdi);
-
-        irq_mask &= ~(0x1 << irq);
-        num_irqs = popcount32(irq_mask);
+    switch (irq_seq) {
+    case 1:
+        for (int c = 0; c < 4; c++) {
+            _enable_irq(record, irq_seq, c);
+        }
+        break;
+    case 8:
+        _enable_irq(record, irq_seq, 0);
+        break;
+    case 0:
+    case 2:
+    case 3:
+    case 4:
+    case 5:
+    case 6:
+    case 7:
+    case 9:
+        break;
+    default:
+        panic("Unknown int src: %d\n", irq_seq);
+        break;
     }
-
-    return handle_type;
 }
 
 
 /*
  * Driver interface
  */
+static int pending_irq(struct driver_param *param, struct int_context *ictxt)
+{
+    struct bcm2836_record *record = param->record;
+    int cpu = ictxt->mp_seq;
+
+    u32 irq_bitmap = record->mmio->core_irq_src[cpu].value;
+    u32 bitmap = irq_bitmap & record->valid_bitmap;
+
+    return bitmap ? ctz32(bitmap) : -1;
+}
+
 static void start_cpu(struct driver_param *param, int seq, ulong id, ulong entry)
 {
     panic_if(seq >= 4, "Unable to start CPU #%ld @ %lx\n", seq, id);
@@ -366,92 +376,38 @@ static void start_cpu(struct driver_param *param, int seq, ulong id, ulong entry
     record->mmio->core_mailbox_write_set[seq].mb3 = entry;
 }
 
-static void start(struct driver_param *param)
+static void *create(struct fw_dev_info *fw_info, struct driver_param *param)
 {
+    struct bcm2836_record *record = mempool_alloc(sizeof(struct bcm2836_record));
+    memzero(record, sizeof(struct bcm2836_record));
+
+    int num_int_cells = devtree_get_num_int_cells(fw_info->devtree_node);
+    panic_if(num_int_cells != 2, "#int-cells must be 2\n");
+
+    u64 reg = 0, size = 0;
+    int next = devtree_get_translated_reg(fw_info->devtree_node, 0, &reg, &size);
+    panic_if(next, "brcm,bcm2836-l1-intc only supports one reg field!");
+
+    paddr_t mmio_paddr = cast_u64_to_paddr(reg);
+    ulong mmio_size = cast_paddr_to_vaddr(size);
+    ulong mmio_vaddr = get_dev_access_window(mmio_paddr, mmio_size, DEV_PFN_UNCACHED);
+
+    record->mmio = (void *)mmio_vaddr;
+
+    kprintf("Found BCM2836 per-CPU intc @ %lx, window @ %lx\n",
+            mmio_paddr, mmio_vaddr);
+    return record;
 }
 
-static void setup_int(struct driver_param *param, struct driver_int_encode *encode, struct driver_param *dev)
-{
-    struct bcm2836_record *record = param->record;
-    int num_ints = encode->size / sizeof(int);
-    int *int_srcs = encode->data;
-
-    for (int g = 0; g < num_ints; g += 2) {
-        int irq = swap_big_endian32(int_srcs[g]);
-
-        switch (irq) {
-        case 1:
-            record->int_devs[1] = dev;
-            for (int c = 0; c < 4; c++) {
-                enable_irq(record, c, irq);
-            }
-            break;
-        case 8:
-            record->int_devs[8] = dev;
-            enable_irq(record, 0, irq);
-            break;
-        case 0:
-        case 2:
-        case 3:
-        case 4:
-        case 5:
-        case 6:
-        case 7:
-        case 9:
-            break;
-        default:
-            panic("Unknown int src: %d\n", irq);
-            break;
-        }
-    }
-}
-
-static void setup(struct driver_param *param)
-{
-    // Register special function
-    REG_SPECIAL_DRV_FUNC(start_cpu, param, start_cpu);
-}
-
-static int probe(struct fw_dev_info *fw_info, struct driver_param *param)
-{
-    static const char *devtree_names[] = {
-        "brcm,bcm2836-l1-intc",
-        NULL
-    };
-
-    if (fw_info->devtree_node &&
-        match_devtree_compatibles(fw_info->devtree_node, devtree_names)
-    ) {
-        struct bcm2836_record *record = mempool_alloc(sizeof(struct bcm2836_record));
-        memzero(record, sizeof(struct bcm2836_record));
-        param->record = record;
-        param->int_seq = alloc_int_seq(handler);
-
-        int num_int_cells = devtree_get_num_int_cells(fw_info->devtree_node);
-        panic_if(num_int_cells != 2, "#int-cells must be 2\n");
-
-        u64 reg = 0, size = 0;
-        int next = devtree_get_translated_reg(fw_info->devtree_node, 0, &reg, &size);
-        panic_if(next, "brcm,bcm2836-l1-intc only supports one reg field!");
-
-        paddr_t mmio_paddr = cast_u64_to_paddr(reg);
-        ulong mmio_size = cast_paddr_to_vaddr(size);
-        ulong mmio_vaddr = get_dev_access_window(mmio_paddr, mmio_size, DEV_PFN_UNCACHED);
-
-        record->mmio = (void *)mmio_vaddr;
-
-        kprintf("Found BCM2836 per-CPU intc @ %lx, window @ %lx\n",
-                mmio_paddr, mmio_vaddr);
-        return FW_DEV_PROBE_OK;
-    }
-
-    return FW_DEV_PROBE_FAILED;
-}
-
-DECLARE_DEV_DRIVER(bcm2836_percpu_intc) = {
-    .name = "BCM2836 Per-CPU Interrupt Controller",
-    .probe = probe,
-    .setup = setup,
-    .setup_int = setup_int,
-    .start = start,
+static const char *bcm2836_percpu_intc_devtree_names[] = {
+    "brcm,bcm2836-l1-intc",
+    NULL
 };
+
+DECLARE_INTC_DRIVER(bcm2836_percpu_intc, "BCM2836 Per-CPU Interrupt Controller",
+                    bcm2836_percpu_intc_devtree_names,
+                    create, /*setup*/NULL, /*start*/NULL,
+                    start_cpu, /*cpu_power_on*/NULL, /*raw_to_seq*/NULL,
+                    setup_irq, enable_irq, disable_irq, end_irq,
+                    pending_irq, MAX_NUM_INT_SRCS,
+                    INT_SEQ_ALLOC_START);

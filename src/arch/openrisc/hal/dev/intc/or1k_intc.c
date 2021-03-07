@@ -14,197 +14,128 @@
 #define MAX_NUM_INT_SRCS 33
 
 struct or1k_intc_record {
+    u32 valid_bitmap;
     int last_seq;
-    struct driver_param *int_devs[MAX_NUM_INT_SRCS];
 };
 
 
 /*
  * Int manipulation
  */
-static void eoi_irq(struct or1k_intc_record *record, int seq)
+static inline void _clear_irq(int seq)
 {
-    if (seq >= MAX_NUM_INT_SRCS) {
-        panic("Unknown IRQ seq: %d\n", seq);
-        return;
-    }
-
-    if (seq >= 32) {
-        // TODO
-    } else {
-        u32 bitmap = 0x1 << seq;
-        write_pic_status(bitmap);
-
-        read_pic_mask(bitmap);
-        bitmap |= 0x1 << seq;
-        write_pic_mask(bitmap);
-    }
+    u32 bitmap = 0x1 << seq;
+    write_pic_status(bitmap);
 }
 
-static void enable_irq(struct or1k_intc_record *record, int seq)
+static inline void _enable_irq(int seq)
 {
-    if (seq >= MAX_NUM_INT_SRCS) {
-        panic("Unknown IRQ seq: %d\n", seq);
-        return;
-    }
-
-    if (seq >= 32) {
-        // TODO
-    } else {
-        u32 bitmap;
-        read_pic_mask(bitmap);
-        bitmap |= 0x1 << seq;
-        write_pic_mask(bitmap);
-    }
+    u32 bitmap;
+    read_pic_mask(bitmap);
+    bitmap |= 0x1 << seq;
+    write_pic_mask(bitmap);
 }
 
-static void disable_irq(struct or1k_intc_record *record, int seq)
+static inline void _disable_irq(int seq)
 {
-    if (seq >= MAX_NUM_INT_SRCS) {
-        panic("Unknown IRQ seq: %d\n", seq);
-        return;
-    }
-
-    if (seq >= 32) {
-        // TODO
-    } else {
-        u32 bitmap = 0;
-        read_pic_mask(bitmap);
-        bitmap &= ~(0x1 << seq);
-        write_pic_mask(bitmap);
-
-        bitmap = 0x1 << seq;
-        write_pic_status(bitmap);
-    }
-}
-
-static void disable_all(struct or1k_intc_record *record)
-{
-    write_pic_mask(0);
+    u32 bitmap;
+    read_pic_mask(bitmap);
+    bitmap &= ~(0x1 << seq);
+    write_pic_mask(bitmap);
 }
 
 
 /*
- * Interrupt handler
+ * IRQ
  */
-static int handle(struct int_context *ictxt, struct kernel_dispatch *kdi,
-                  struct or1k_intc_record *record, int seq)
-{
-    disable_irq(record, seq);
 
-    if (seq < 32) {
+
+static void enable_irq(struct driver_param *param, struct int_context *ictxt, int seq)
+{
+    if (seq >= 32) {
+        // TODO
+    } else {
+        _enable_irq(seq);
+    }
+}
+
+static void disable_irq(struct driver_param *param, struct int_context *ictxt, int seq)
+{
+    if (seq >= 32) {
+        // TODO
+    } else {
+        _disable_irq(seq);
+        _clear_irq(seq);
+
         // FIXME: for some strange reason, there's a suprious interrupt right
         // after disabling the IRQ
         // Writing anything to UART seems to fix this issue
         kprintf("%c", 24);
     }
-
-    struct driver_param *int_dev = record->int_devs[seq];
-
-    int handle_type = INT_HANDLE_SIMPLE;
-    if (int_dev && int_dev->int_seq) {
-        ictxt->param = int_dev;
-        handle_type = invoke_int_handler(int_dev->int_seq, ictxt, kdi);
-
-        if (INT_HANDLE_KEEP_MASKED & ~handle_type) {
-            eoi_irq(record, seq);
-        }
-    } else if (int_dev) {
-        // TODO: need a better way
-        kdi->param0 = int_dev->user_seq;
-        handle_type = INT_HANDLE_CALL_KERNEL | INT_HANDLE_KEEP_MASKED;
-    }
-
-    return handle_type & INT_HANDLE_CALL_KERNEL ?
-            INT_HANDLE_CALL_KERNEL : INT_HANDLE_SIMPLE;
 }
 
-static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
+static void end_irq(struct driver_param *param, struct int_context *ictxt, int seq)
 {
-    struct driver_param *param = ictxt->param;
+    enable_irq(param, ictxt, seq);
+}
+
+static void setup_irq(struct driver_param *param, int seq)
+{
+    struct or1k_intc_record *record = param->record;
+    record->valid_bitmap |= 0x1ul << seq;
+
+    enable_irq(param, NULL, seq);
+}
+
+
+
+/*
+ * Interrupt handler
+ */
+static int pending_irq(struct driver_param *param, struct int_context *ictxt)
+{
+    if (ictxt->error_code == EXCEPT_NUM_TIMER) {
+        return 32;
+    }
+
+    panic_if(ictxt->error_code != EXCEPT_NUM_INTERRUPT,
+             "error_code must be EXCEPT_NUM_INTERRUPT!\n");
+
     struct or1k_intc_record *record = param->record;
 
-    if (ictxt->error_code == EXCEPT_NUM_TIMER) {
-        int seq = 32;
-        return handle(ictxt, kdi, record, seq);
-    } else {
-        panic_if(ictxt->error_code != EXCEPT_NUM_INTERRUPT,
-                 "error_code must be EXCEPT_NUM_INTERRUPT!\n");
+    u32 enabled_bitmap, pending_bitmap;
+    read_pic_mask(enabled_bitmap);
+    read_pic_status(pending_bitmap);
 
-        u32 enabled_bitmap, pending_bitmap;
-        read_pic_mask(enabled_bitmap);
-        read_pic_status(pending_bitmap);
+    u32 bitmap = enabled_bitmap & pending_bitmap & record->valid_bitmap;
+//     kprintf("Interrupt, enabled: %x, pending: %x, bitmap: %x\n",
+//             enabled_bitmap, pending_bitmap, bitmap);
 
-        u32 bitmap = enabled_bitmap & pending_bitmap;
-    //     kprintf("Interrupt, enabled: %x, pending: %x, bitmap: %x\n",
-    //             enabled_bitmap, pending_bitmap, bitmap);
+    int seq = record->last_seq + 1;
+    if (seq >= MAX_NUM_INT_SRCS) {
+        seq = 0;
+    }
 
-        int seq = record->last_seq + 1;
-        if (seq >= MAX_NUM_INT_SRCS) {
+    for (int i = 0; i < MAX_NUM_INT_SRCS; i++) {
+        if (bitmap & (0x1ul << seq)) {
+            return seq;
+        }
+
+        if (++seq >= MAX_NUM_INT_SRCS) {
             seq = 0;
         }
-
-        for (int i = 0; i < MAX_NUM_INT_SRCS; i++) {
-            if (bitmap & (0x1ul << seq) && record->int_devs[seq]) {
-                return handle(ictxt, kdi, record, seq);
-            }
-
-            if (++seq >= MAX_NUM_INT_SRCS) {
-                seq = 0;
-            }
-        }
     }
 
-    return INT_HANDLE_SIMPLE;
+    return -1;
 }
 
 
 /*
- * EOI
+ * Init
  */
-static void eoi(struct driver_param *param, struct driver_int_encode *encode, struct driver_param *dev)
+static void disable_all(struct or1k_intc_record *record)
 {
-    struct or1k_intc_record *record = param->record;
-    int num_ints = encode->size / sizeof(int);
-    int *int_srcs = encode->data;
-
-    for (int g = 0; g < num_ints; g++) {
-        int seq = swap_big_endian32(int_srcs[g]);
-        eoi_irq(record, seq);
-    }
-}
-
-
-/*
- * Driver interface
- */
-static void start(struct driver_param *param)
-{
-
-}
-
-static void setup_int(struct driver_param *param, struct driver_int_encode *encode, struct driver_param *dev)
-{
-    kprintf("set int, data: %p, size: %d\n", encode->data, encode->size);
-
-    if (!encode->size || !encode->data) {
-        return;
-    }
-
-    //kprintf("set int, data: %p, size: %d\n", encode->data, encode->size);
-
-    struct or1k_intc_record *record = param->record;
-    int num_ints = encode->size / sizeof(int);
-    int *int_srcs = encode->data;
-
-    for (int g = 0; g < num_ints; g++) {
-        int seq = swap_big_endian32(int_srcs[g]);
-
-        kprintf("to enable seq: %d\n", seq);
-
-        enable_irq(record, seq);
-        record->int_devs[seq] = dev;
-    }
+    write_pic_mask(0);
 }
 
 static void setup(struct driver_param *param)
@@ -213,38 +144,31 @@ static void setup(struct driver_param *param)
     disable_all(record);
 }
 
-static int probe(struct fw_dev_info *fw_info, struct driver_param *param)
+/*
+ * Driver interface
+ */
+static void *create(struct fw_dev_info *fw_info, struct driver_param *param)
 {
-    static const char *devtree_names[] = {
-        "opencores,or1k-pic",
-        "or1k-pic",
-        NULL
-    };
+    struct or1k_intc_record *record = mempool_alloc(sizeof(struct or1k_intc_record));
+    memzero(record, sizeof(struct or1k_intc_record));
 
-    if (fw_info->devtree_node &&
-        match_devtree_compatibles(fw_info->devtree_node, devtree_names)
-    ) {
-        struct or1k_intc_record *record = mempool_alloc(sizeof(struct or1k_intc_record));
-        memzero(record, sizeof(struct or1k_intc_record));
-        param->record = record;
-        param->int_seq = alloc_int_seq(handler);
+    int num_int_cells = devtree_get_num_int_cells(fw_info->devtree_node);
+    panic_if(num_int_cells != 1, "#int-cells must be 1\n");
 
-        int num_int_cells = devtree_get_num_int_cells(fw_info->devtree_node);
-        panic_if(num_int_cells != 1, "#int-cells must be 1\n");
-
-        kprintf("Found OpenCores OR1K CPU top-level intc\n");
-        return FW_DEV_PROBE_OK;
-    }
-
-    return FW_DEV_PROBE_FAILED;
+    kprintf("Found OpenCores OR1K CPU top-level intc\n");
+    return record;
 }
 
-
-DECLARE_DEV_DRIVER(or1k_intc) = {
-    .name = "OpenCores OR1K Interrupt Controller",
-    .probe = probe,
-    .setup = setup,
-    .setup_int = setup_int,
-    .start = start,
-    .eoi = eoi,
+static const char *or1k_intc_devtree_names[] = {
+    "opencores,or1k-pic",
+    "or1k-pic",
+    NULL
 };
+
+DECLARE_INTC_DRIVER(or1k_intc, "OpenCores OR1K Interrupt Controller",
+                    or1k_intc_devtree_names,
+                    create, setup, /*start*/NULL,
+                    /*start_cpu*/NULL, /*cpu_power_on*/NULL, /*raw_to_seq*/NULL,
+                    setup_irq, enable_irq, disable_irq, end_irq,
+                    pending_irq, MAX_NUM_INT_SRCS,
+                    INT_SEQ_ALLOC_START);

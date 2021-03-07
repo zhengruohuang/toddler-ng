@@ -84,7 +84,7 @@ static inline void _enable_timer_int(struct armv7_generic_timer_record *record)
 /*
  * Interrupt
  */
-static int armv7_generic_timer_int_handler(struct driver_param *param, int mp_seq, ulong mp_id)
+static int armv7_generic_timer_int_handler(struct driver_param *param, struct int_context *ictxt)
 {
     struct armv7_generic_timer_record *record = param->record;
 

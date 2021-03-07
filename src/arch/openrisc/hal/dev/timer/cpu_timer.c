@@ -47,7 +47,7 @@ static void init_period(struct or1k_cpu_timer_record *record)
 /*
  * Interrupt
  */
-static int or1k_cpu_timer_int_handler(struct driver_param *param, int mp_seq, ulong mp_id)
+static int or1k_cpu_timer_int_handler(struct driver_param *param, struct int_context *ictxt)
 {
     reset_tick();
     return INT_HANDLE_CALL_KERNEL;

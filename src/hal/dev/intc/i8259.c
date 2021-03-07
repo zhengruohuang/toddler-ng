@@ -45,7 +45,6 @@ struct i8259_record {
     int ioport;                     // Use io ports on x86
     ulong io[I8259_MAX_CHIPS][2];   // io[chip_sel][data_sel]
     u8 mask[I8259_MAX_CHIPS];
-    struct driver_param *int_devs[I8259_MAX_CHIPS * 8];
 };
 
 
@@ -111,14 +110,14 @@ static inline int get_cascade_chip(struct i8259_record *record, u8 mask)
 
 
 /*
- * Int manipulation
+ * IRQ
  */
-static inline int get_seq(int chip, int chip_irq)
+static inline int _get_irq_seq(int chip, int chip_irq)
 {
     return chip * 8 + chip_irq;
 }
 
-static inline int get_chip_and_irq(int seq, int *chip_irq)
+static inline int _get_chip_and_irq(int seq, int *chip_irq)
 {
     if (chip_irq) {
         *chip_irq = seq & 0x7;
@@ -127,28 +126,21 @@ static inline int get_chip_and_irq(int seq, int *chip_irq)
     return seq >> 3;
 }
 
-static inline void enable_irq(struct i8259_record *record, int chip, int chip_irq)
+static inline void _enable_irq(struct i8259_record *record, int chip, int chip_irq)
 {
     u8 mask = i8259_io_read(record, chip, 1);
-    mask &= ~(0x1 << chip_irq);
-    i8259_io_write(record, chip, 1, mask);
+    u8 mask2 = mask & ~(0x1 << chip_irq);
+    i8259_io_write(record, chip, 1, mask2);
 
     // Unmask primary chip if needed
     if (chip && mask == 0xff) {
         u8 mask = i8259_io_read(record, 0, 1);
-        mask &= ~(chip == 7 ? 0x1 : (0x4 << (chip - 1)));
+        mask &= ~get_cascade_pos_mask(record, chip);
         i8259_io_write(record, 0, 1, mask);
     }
 }
 
-static inline void enable_int(struct i8259_record *record, int seq)
-{
-    int chip_irq = 0;
-    int chip = get_chip_and_irq(seq, &chip_irq);
-    enable_irq(record, chip, chip_irq);
-}
-
-static inline void disable_irq(struct i8259_record *record, int chip, int chip_irq)
+static inline void _disable_irq(struct i8259_record *record, int chip, int chip_irq)
 {
     u8 mask = i8259_io_read(record, chip, 1);
     mask |= 0x1 << chip_irq;
@@ -157,19 +149,12 @@ static inline void disable_irq(struct i8259_record *record, int chip, int chip_i
     // Mask primary chip if needed
     if (chip && mask == 0xff) {
         u8 mask = i8259_io_read(record, 0, 1);
-        mask |= chip == 7 ? 0x1 : (0x4 << (chip - 1));
+        mask |= get_cascade_pos_mask(record, chip);
         i8259_io_write(record, 0, 1, mask);
     }
 }
 
-static inline void disable_int(struct i8259_record *record, int seq)
-{
-    int chip_irq = 0;
-    int chip = get_chip_and_irq(seq, &chip_irq);
-    disable_irq(record, chip, chip_irq);
-}
-
-static inline void end_of_irq(struct i8259_record *record, int chip, int chip_irq)
+static inline void _end_irq(struct i8259_record *record, int chip, int chip_irq)
 {
     i8259_io_write(record, chip, 0, OCW2_SET | OCW2_EOI);
     if (chip) {
@@ -177,14 +162,39 @@ static inline void end_of_irq(struct i8259_record *record, int chip, int chip_ir
     }
 }
 
-static inline void disable_all(struct i8259_record *record)
+static void enable_irq(struct driver_param *param, struct int_context *ictxt, int irq_seq)
 {
-    for (int i = 0; i < record->num_chips; i++) {
-        i8259_io_write(record, 0, 1, 0xff);
-        record->mask[i] = 0xff;
-    }
+    struct i8259_record *record = param->record;
+
+    int chip_irq = 0;
+    int chip = _get_chip_and_irq(irq_seq, &chip_irq);
+    _enable_irq(record, chip, chip_irq);
 }
 
+static void disable_irq(struct driver_param *param, struct int_context *ictxt, int irq_seq)
+{
+    struct i8259_record *record = param->record;
+
+    int chip_irq = 0;
+    int chip = _get_chip_and_irq(irq_seq, &chip_irq);
+    _disable_irq(record, chip, chip_irq);
+    _end_irq(record, chip, chip_irq);
+}
+
+static void end_irq(struct driver_param *param, struct int_context *ictxt, int irq_seq)
+{
+    enable_irq(param, ictxt, irq_seq);
+}
+
+static void setup_irq(struct driver_param *param, int irq_seq)
+{
+    enable_irq(param, NULL, irq_seq);
+}
+
+
+/*
+ * Pending IRQ
+ */
 static inline u8 read_isr(struct i8259_record *record, int chip)
 {
     if (record->poll) {
@@ -206,6 +216,34 @@ static inline u8 read_isr(struct i8259_record *record, int chip)
     return isr;
 }
 
+static int pending_irq(struct driver_param *param, struct int_context *ictxt)
+{
+    struct i8259_record *record = param->record;
+
+    int chip = 0;
+    u8 cascade_mask = get_cascade_mask(record);
+
+    // Check primary chip
+    u8 isr = read_isr(record, 0);
+    u8 secondary_mask = isr & cascade_mask;
+
+    // Int from primary
+    if (secondary_mask) {
+        chip = get_cascade_chip(record, secondary_mask);
+        isr = read_isr(record, chip);
+    }
+
+    int chip_irq = ctz32((u32)isr);
+    int seq = _get_irq_seq(chip, chip_irq);
+    //kprintf("i8259, chip: %d, chip irq: %d, seq: %d\n", chip, chip_irq, seq);
+
+    return seq;
+}
+
+
+/*
+ * Init
+ */
 static inline void init_i8259(struct i8259_record *record)
 {
     // ICW1 - Init
@@ -245,112 +283,12 @@ static inline void init_i8259(struct i8259_record *record)
 //     i8259_io_write(record, 1, 1, 0x1);      // Slave  8259, ICW4
 }
 
-
-/*
- * Interrupt handler
- */
-static inline int invoke(struct i8259_record *record, int chip, int chip_irq,
-                         struct driver_param *int_dev,
-                         struct int_context *ictxt, struct kernel_dispatch *kdi)
+static inline void disable_irq_all(struct i8259_record *record)
 {
-    disable_irq(record, chip, chip_irq);
-
-    //kprintf("int_dev @ %p, seq: %d\n", int_dev, int_dev->int_seq);
-
-    int handle_type = INT_HANDLE_SIMPLE;
-    if (int_dev && int_dev->int_seq) {
-        ictxt->param = int_dev;
-        handle_type = invoke_int_handler(int_dev->int_seq, ictxt, kdi);
-    } else if (int_dev) {
-        // TODO: need a better way
-        kdi->param0 = int_dev->user_seq;
-        handle_type = INT_HANDLE_CALL_KERNEL | INT_HANDLE_KEEP_MASKED;
-    }
-
-    end_of_irq(record, chip, chip_irq);
-    if (INT_HANDLE_KEEP_MASKED & ~handle_type) {
-        enable_irq(record, chip, chip_irq);
-    }
-
-    return handle_type & INT_HANDLE_CALL_KERNEL ?
-            INT_HANDLE_CALL_KERNEL : INT_HANDLE_SIMPLE;
-}
-
-static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
-{
-    struct driver_param *param = ictxt->param;
-    struct i8259_record *record = param->record;
-
-    int chip = 0;
-    u8 cascade_mask = get_cascade_mask(record);
-
-    // Check primary chip
-    u8 isr = read_isr(record, 0);
-    u8 secondary_mask = isr & cascade_mask;
-
-    // Int from primary
-    if (secondary_mask) {
-        chip = get_cascade_chip(record, secondary_mask);
-        isr = read_isr(record, chip);
-    }
-
-    int chip_irq = ctz32((u32)isr);
-    int seq = get_seq(chip, chip_irq);
-    //kprintf("i8259, chip: %d, chip irq: %d, seq: %d\n", chip, chip_irq, seq);
-
-    struct driver_param *int_dev = record->int_devs[seq];
-    int handle_type = invoke(record, chip, chip_irq, int_dev, ictxt, kdi);
-
-    return handle_type;
-}
-
-
-/*
- * EOI
- */
-static void eoi(struct driver_param *param, struct driver_int_encode *encode, struct driver_param *dev)
-{
-    struct i8259_record *record = param->record;
-    int num_ints = encode->size / sizeof(int);
-    int *int_srcs = encode->data;
-
-    for (int g = 0; g < num_ints; g++) {
-        int seq = swap_big_endian32(int_srcs[g]);
-        //kprintf("EOI: %d\n", seq);
-        enable_int(record, seq);
-    }
-}
-
-
-/*
- * Driver interface
- */
-static void start(struct driver_param *param)
-{
-
-}
-
-static void setup_int(struct driver_param *param, struct driver_int_encode *encode, struct driver_param *dev)
-{
-    kprintf("set int, data: %p, size: %d\n", encode->data, encode->size);
-
-    if (!encode->size || !encode->data) {
-        return;
-    }
-
-    //kprintf("set int, data: %p, size: %d\n", encode->data, encode->size);
-
-    struct i8259_record *record = param->record;
-    int num_ints = encode->size / sizeof(int);
-    int *int_srcs = encode->data;
-
-    for (int g = 0; g < num_ints; g++) {
-        int irq = swap_big_endian32(int_srcs[g]);
-
-        kprintf("to enable irq: %d\n", irq);
-
-        enable_int(record, irq);
-        record->int_devs[irq] = dev;
+    for (int i = 0; i < record->num_chips; i++) {
+        i8259_io_write(record, i, 1, 0xff);
+        i8259_io_write(record, i, 0, OCW2_SET | OCW2_EOI);
+        record->mask[i] = 0xff;
     }
 }
 
@@ -359,70 +297,64 @@ static void setup(struct driver_param *param)
     struct i8259_record *record = param->record;
 
     init_i8259(record);
-    disable_all(record);
+    disable_irq_all(record);
 }
 
-static int probe(struct fw_dev_info *fw_info, struct driver_param *param)
+
+/*
+ * Driver interface
+ */
+static void *create(struct fw_dev_info *fw_info, struct driver_param *param)
 {
-    static const char *devtree_names[] = {
-        "intel,i8259",
-        "intel,i8259a",
-        NULL
-    };
+    struct i8259_record *record = mempool_alloc(sizeof(struct i8259_record));
+    memzero(record, sizeof(struct i8259_record));
 
-    if (fw_info->devtree_node &&
-        match_devtree_compatibles(fw_info->devtree_node, devtree_names)
-    ) {
-        struct i8259_record *record = mempool_alloc(sizeof(struct i8259_record));
-        memzero(record, sizeof(struct i8259_record));
-        param->record = record;
-        param->int_seq = alloc_int_seq(handler);
+    int num_int_cells = devtree_get_num_int_cells(fw_info->devtree_node);
+    panic_if(num_int_cells != 1, "#int-cells must be 1\n");
 
-        int num_int_cells = devtree_get_num_int_cells(fw_info->devtree_node);
-        panic_if(num_int_cells != 1, "#int-cells must be 1\n");
+    int reg_shift = devtree_get_reg_shift(fw_info->devtree_node);
+    int ioport = devtree_get_use_ioport(fw_info->devtree_node);
+    record->ioport = ioport;
+    record->poll = devtree_get_use_poll(fw_info->devtree_node);
 
-        int reg_shift = devtree_get_reg_shift(fw_info->devtree_node);
-        int ioport = devtree_get_use_ioport(fw_info->devtree_node);
-        record->ioport = ioport;
-        record->poll = devtree_get_use_poll(fw_info->devtree_node);
+    ulong iobase_lo = -0x1ul;
+    ulong iobase_hi = 0;
+    int next = 0;
+    do {
+        u64 reg = 0, size = 0;
+        next = devtree_get_translated_reg(fw_info->devtree_node, next, &reg, &size);
 
-        ulong iobase_lo = -0x1ul;
-        ulong iobase_hi = 0;
-        int next = 0;
-        do {
-            u64 reg = 0, size = 0;
-            next = devtree_get_translated_reg(fw_info->devtree_node, next, &reg, &size);
+        ulong iobase = 0;
+        if (ioport) {
+            iobase = cast_u64_to_vaddr(reg);
+        } else {
+            paddr_t mmio_paddr = cast_u64_to_paddr(reg);
+            ulong mmio_size = cast_u64_to_vaddr(size);
+            iobase = get_dev_access_window(mmio_paddr, mmio_size, DEV_PFN_UNCACHED);
+        }
 
-            ulong iobase = 0;
-            if (ioport) {
-                iobase = cast_u64_to_vaddr(reg);
-            } else {
-                paddr_t mmio_paddr = cast_u64_to_paddr(reg);
-                ulong mmio_size = cast_u64_to_vaddr(size);
-                iobase = get_dev_access_window(mmio_paddr, mmio_size, DEV_PFN_UNCACHED);
-            }
+        record->io[record->num_chips][0] = iobase;
+        record->io[record->num_chips][1] = iobase + (0x1ul << reg_shift);
+        record->num_chips++;
 
-            record->io[record->num_chips][0] = iobase;
-            record->io[record->num_chips][1] = iobase + (0x1ul << reg_shift);
-            record->num_chips++;
+        if (iobase < iobase_lo) iobase_lo = iobase;
+        if (iobase > iobase_hi) iobase_hi = iobase;
+    } while (next);
 
-            if (iobase < iobase_lo) iobase_lo = iobase;
-            if (iobase > iobase_hi) iobase_hi = iobase;
-        } while (next);
-
-        kprintf("Intel 8259 intc @ %lx - %lx\n", iobase_lo, iobase_hi);
-        return FW_DEV_PROBE_OK;
-    }
-
-    return FW_DEV_PROBE_FAILED;
+    kprintf("Intel 8259 intc @ %lx - %lx\n", iobase_lo, iobase_hi);
+    return record;
 }
 
-
-DECLARE_DEV_DRIVER(i8259_intc) = {
-    .name = "Intel 8259 Interrupt Controller",
-    .probe = probe,
-    .setup = setup,
-    .setup_int = setup_int,
-    .start = start,
-    .eoi = eoi,
+static const char *i8259_intc_devtree_names[] = {
+    "intel,i8259",
+    "intel,i8259a",
+    NULL
 };
+
+DECLARE_INTC_DRIVER(i8259_intc, "Intel 8259 Interrupt Controller",
+                    i8259_intc_devtree_names,
+                    create, setup, /*start*/NULL,
+                    /*start_cpu*/NULL, /*cpu_power_on*/NULL, /*raw_to_seq*/NULL,
+                    setup_irq, enable_irq, disable_irq, end_irq,
+                    pending_irq, I8259_MAX_CHIPS * 8,
+                    INT_SEQ_ALLOC_START);

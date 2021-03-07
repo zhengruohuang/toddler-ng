@@ -13,8 +13,6 @@
  * Ref
  * https://www.kernel.org/doc/Documentation/devicetree/bindings/interrupt-controller/brcm%2Cbcm2835-armctrl-ic.txt
  */
-
-
 #define BCM2835_BASIC_ARM_TIMER_IRQ         (0x1 << 0)
 #define BCM2835_BASIC_ARM_MAILBOX_IRQ       (0x1 << 1)
 #define BCM2835_BASIC_ARM_DOORBELL_0_IRQ    (0x1 << 2)
@@ -23,6 +21,8 @@
 #define BCM2835_BASIC_GPU_1_HALTED_IRQ      (0x1 << 5)
 #define BCM2835_BASIC_ACCESS_ERROR_1_IRQ    (0x1 << 6)
 #define BCM2835_BASIC_ACCESS_ERROR_0_IRQ    (0x1 << 7)
+
+#define MAX_NUM_INT_SRCS 96
 
 struct bcm2835_irqs_basic_pending {
     union {
@@ -63,332 +63,201 @@ struct bcm2835_mmio {
         };
     } fiq_ctrl;
 
-    u32 enable1;
-    u32 enable2;
-    u32 enable_basic;
+    u32 enable[3];
+//     u32 enable1;
+//     u32 enable2;
+//     u32 enable_basic;
 
-    u32 disable1;
-    u32 disable2;
-    u32 disable_basic;
+    u32 disable[3];
+//     u32 disable1;
+//     u32 disable2;
+//     u32 disable_basic;
 } packed4_struct;
 
 struct bcm2835_record {
+    // [0] = basic (bank0), [1] = bank1, [2] = bank2
+    u32 valid_bitmap[3];
     volatile struct bcm2835_mmio *mmio;
-    struct driver_param *int_devs[72];
 };
-
-
-/*
- * Debug
- */
-#define BCM2835_BASE            0x3f000000ul
-#define BCM2835_PL011_BASE      (0x201000ul)
-
-struct bcm2835_pl011 {
-    u32 DR;            // Data Register
-    u32 RSRECR;        // Receive status register/error clear register
-    u32 PAD[4];        // Padding
-    u32 FR;            // Flag register
-    u32 RES1;          // Reserved
-    u32 ILPR;          // Not in use
-    u32 IBRD;          // Integer Baud rate divisor
-    u32 FBRD;          // Fractional Baud rate divisor
-    u32 LCRH;          // Line Control register
-    u32 CR;            // Control register
-    u32 IFLS;          // Interupt FIFO Level Select Register
-    u32 IMSC;          // Interupt Mask Set Clear Register
-    u32 RIS;           // Raw Interupt Status Register
-    u32 MIS;           // Masked Interupt Status Register
-    u32 ICR;           // Interupt Clear Register
-    u32 DMACR;         // DMA Control Register
-} packed4_struct;
-
-void enable_pl011()
-{
-    ulong paddr = BCM2835_BASE + BCM2835_PL011_BASE;
-    hal_map_range(paddr, paddr, PAGE_SIZE, 0);
-
-    volatile struct bcm2835_pl011 *pl011 = (void *)paddr;
-
-    // Clear the receiving FIFO
-    while (!(pl011->FR & 0x10)) {
-        (void)pl011->DR;
-    }
-
-    // Register the int handler
-    //int_ctrl_register(57, bcm2835_pl011_int_handler);
-
-    // Enable receiving interrupt and disable irrevelent ones
-    pl011->IMSC = 0x10;
-
-    // Clear all interrupt status
-    pl011->ICR = 0x7FF;
-
-    kprintf("PL011 interrupt enabled\n");
-}
 
 
 /*
  * Int manipulation
  */
-static int irq_to_dev(int bank, int irq)
+static inline void _enable_irq(struct bcm2835_record *record, int bank, int irq)
 {
-    switch (bank) {
-    case 0:
-        panic_if(irq > 7, "Unknown IRQ: %d\n", irq);
-        return irq;
-    case 1:
-        panic_if(irq < 0 || irq > 31, "Unknown IRQ: %d\n", irq);
-        return irq + 8;
-    case 2:
-        panic_if(irq < 0 || irq > 31, "Unknown IRQ: %d\n", irq);
-        return irq + 8 + 32;
-    default:
-        panic("Unknown IRQ: %d\n", irq);
-        return -1;
-    }
-
-    return -1;
+    int reg_idx = bank == 0 ? 2 : bank - 1;
+    record->mmio->enable[reg_idx] = 0x1 << irq;
 }
 
-static void enable_irq(struct bcm2835_record *record, int bank, int irq)
+static void _disable_irq(struct bcm2835_record *record, int bank, int irq)
 {
-    switch (bank) {
-    case 0:
-        panic_if(irq > 7, "Unknown IRQ: %d\n", irq);
-        record->mmio->enable_basic = 0x1 << irq;
-        break;
-    case 1:
-        panic_if(irq < 0 || irq > 31, "Unknown IRQ: %d\n", irq);
-        record->mmio->enable1 = 0x1 << irq;
-        break;
-    case 2:
-        panic_if(irq < 0 || irq > 31, "Unknown IRQ: %d\n", irq);
-        record->mmio->enable2 = 0x1 << irq;
-        break;
-    default:
-        panic("Unknown IRQ: %d\n", irq);
-    }
-}
-
-static void disable_irq(struct bcm2835_record *record, int bank, int irq)
-{
-    switch (bank) {
-    case 0:
-        panic_if(irq > 7, "Unknown IRQ: %d\n", irq);
-        record->mmio->disable_basic = 0x1 << irq;
-        break;
-    case 1:
-        panic_if(irq < 0 || irq > 31, "Unknown IRQ: %d\n", irq);
-        record->mmio->disable1 = 0x1 << irq;
-        break;
-    case 2:
-        panic_if(irq < 0 || irq > 31, "Unknown IRQ: %d\n", irq);
-        record->mmio->disable2 = 0x1 << irq;
-        break;
-    default:
-        panic("Unknown IRQ: %d\n", irq);
-    }
+    int reg_idx = bank == 0 ? 2 : bank - 1;
+    record->mmio->disable[reg_idx] = 0x1 << irq;
 }
 
 static void disable_all(struct bcm2835_record *record)
 {
-    record->mmio->disable_basic = 0xffffffff;
-    record->mmio->disable1 = 0xffffffff;
-    record->mmio->disable2 = 0xffffffff;
+    record->mmio->disable[0] = 0xffffffff;
+    record->mmio->disable[1] = 0xffffffff;
+    record->mmio->disable[2] = 0xffffffff;
 }
 
 
 /*
- * Interrupt handler
+ * IRQ
  */
-static int invoke(struct bcm2835_record *record, int bank,
-                  int irq, struct driver_param *int_dev,
-                  struct int_context *ictxt, struct kernel_dispatch *kdi)
+static inline int _irq_seq_to_raw(int seq, int *bank_irq)
 {
-    if (irq == -1) {
-        return INT_HANDLE_SIMPLE;
+    if (bank_irq) {
+        *bank_irq = seq & 0x1f;
     }
-
-    disable_irq(record, bank, irq);
-
-    //kprintf("int_dev @ %p, seq: %d\n", int_dev, int_dev->int_seq);
-
-    int handle_type = INT_HANDLE_SIMPLE;
-    if (int_dev && int_dev->int_seq) {
-        ictxt->param = int_dev;
-        handle_type = invoke_int_handler(int_dev->int_seq, ictxt, kdi);
-
-        if (INT_HANDLE_KEEP_MASKED & ~handle_type) {
-            enable_irq(record, bank, irq);
-        }
-    } else if (int_dev) {
-        // TODO: need a better way
-        kdi->param0 = int_dev->user_seq;
-        handle_type = INT_HANDLE_CALL_KERNEL | INT_HANDLE_KEEP_MASKED;
-    }
-
-    return handle_type & INT_HANDLE_CALL_KERNEL ?
-            INT_HANDLE_CALL_KERNEL : INT_HANDLE_SIMPLE;
+    return seq >> 5;
 }
 
-static int handle(struct int_context *ictxt, struct kernel_dispatch *kdi,
-                  struct bcm2835_record *record, int bank, u32 irq_mask)
+static inline int _irq_raw_to_seq(int bank, int bank_irq)
 {
-    //kprintf("irq mask: %x\n", irq_mask);
-
-    int num_irqs = popcount32(irq_mask);
-    int handle_type = INT_HANDLE_SIMPLE;
-
-    while (num_irqs) {
-        int irq = ctz32(irq_mask);
-        int seq = irq_to_dev(bank, irq);
-        struct driver_param *int_dev = record->int_devs[seq];
-
-        handle_type |= invoke(record, bank, irq, int_dev, ictxt, kdi);
-
-        //kprintf("irq: %d, handle_type: %d\n", irq, handle_type);
-
-        irq_mask &= ~(0x1 << irq);
-        num_irqs = popcount32(irq_mask);
+    switch (bank) {
+    case 0:
+        panic_if(bank_irq > 7, "Unknown bank %d IRQ: %d\n", bank, bank_irq);
+        break;
+    case 1:
+    case 2:
+        panic_if(bank_irq < 0 || bank_irq > 31,
+                 "Unknown bank %d IRQ: %d\n", bank, bank_irq);
+        break;
+    default:
+        panic("Unknown bank %d IRQ: %d\n", bank, bank_irq);
+        break;
     }
 
-    return handle_type;
+    int seq = (bank << 5) | bank_irq;
+    return seq;
 }
 
-static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
+static int irq_raw_to_seq(struct driver_param *param, void *encode)
 {
-    struct driver_param *param = ictxt->param;
+    int *pair = encode;
+    int bank = swap_big_endian32(pair[0]);
+    int bank_irq = swap_big_endian32(pair[1]);
+
+    int seq = _irq_raw_to_seq(bank, bank_irq);
+    return seq;
+}
+
+static void enable_irq(struct driver_param *param, struct int_context *ictxt, int irq_seq)
+{
     struct bcm2835_record *record = param->record;
 
-    struct bcm2835_irqs_basic_pending basic_pending;
-    basic_pending.value = record->mmio->pending_basic.value;
-
-    int handle_type = INT_HANDLE_SIMPLE;
-
-    //kprintf("bcm2835, value: %x, ap: %x, pend1: %x, pend2: %x\n",
-    //        basic_pending.value, basic_pending.arm_periphs, record->mmio->pending1, record->mmio->pending2);
-
-    if (basic_pending.arm_periphs) {
-        handle_type |= handle(ictxt, kdi, record, 0, basic_pending.arm_periphs);
-    }
-
-    if (basic_pending.more1) {
-        u32 mask = record->mmio->pending1;
-        handle_type |= handle(ictxt, kdi, record, 1, mask);
-    }
-
-    if (basic_pending.more2) {
-        u32 mask = record->mmio->pending2;
-        handle_type |= handle(ictxt, kdi, record, 2, mask);
-    }
-
-    return handle_type;
+    int bank_irq = 0;
+    int bank = _irq_seq_to_raw(irq_seq, &bank_irq);
+    _enable_irq(record, bank, bank_irq);
 }
 
-
-/*
- * EOI
- */
-static void eoi(struct driver_param *param, struct driver_int_encode *encode, struct driver_param *dev)
+static void disable_irq(struct driver_param *param, struct int_context *ictxt, int irq_seq)
 {
     struct bcm2835_record *record = param->record;
-    int num_ints = encode->size / sizeof(int);
-    int *int_srcs = encode->data;
 
-    for (int g = 0; g < num_ints; g += 2) {
-        int bank = swap_big_endian32(int_srcs[g]);
-        int irq = swap_big_endian32(int_srcs[g + 1]);
-        enable_irq(record, bank, irq);
-    }
+    int bank_irq = 0;
+    int bank = _irq_seq_to_raw(irq_seq, &bank_irq);
+    _disable_irq(record, bank, bank_irq);
+}
+
+static void end_irq(struct driver_param *param, struct int_context *ictxt, int irq_seq)
+{
+    enable_irq(param, ictxt, irq_seq);
+}
+
+static void setup_irq(struct driver_param *param, int irq_seq)
+{
+    struct bcm2835_record *record = param->record;
+
+    int bank_irq = 0;
+    int bank = _irq_seq_to_raw(irq_seq, &bank_irq);
+
+    record->valid_bitmap[bank] |= 0x1 << bank_irq;
+    _enable_irq(record, bank, bank_irq);
 }
 
 
 /*
  * Driver interface
  */
-static void start(struct driver_param *param)
+static int pending_irq(struct driver_param *param, struct int_context *ictxt)
 {
-
-}
-
-static void setup_int(struct driver_param *param, struct driver_int_encode *encode, struct driver_param *dev)
-{
-    kprintf("set int, data: %p, size: %d\n", encode->data, encode->size);
-
-    if (!encode->size || !encode->data) {
-        return;
-    }
-
-    //kprintf("set int, data: %p, size: %d\n", encode->data, encode->size);
-
     struct bcm2835_record *record = param->record;
-    int num_ints = encode->size / sizeof(int);
-    int *int_srcs = encode->data;
 
-    for (int g = 0; g < num_ints; g += 2) {
-        int bank = swap_big_endian32(int_srcs[g]);
-        int irq = swap_big_endian32(int_srcs[g + 1]);
-        int seq = irq_to_dev(bank, irq);
+    struct bcm2835_irqs_basic_pending basic_pending;
+    basic_pending.value = record->mmio->pending_basic.value;
 
-        kprintf("to enable irq: %d, bank: %d, seq: %d\n", irq, bank, seq);
+//     kprintf("bcm2835, value: %x, ap: %x, pend1: %x, pend2: %x\n",
+//            basic_pending.value, basic_pending.arm_periphs, record->mmio->pending1, record->mmio->pending2);
 
-        enable_irq(record, bank, irq);
-        record->int_devs[seq] = dev;
+    int bank = -1;
+    u32 bitmap = 0;
+
+    if (basic_pending.arm_periphs) {
+        bank = 0;
+        bitmap = basic_pending.arm_periphs & record->valid_bitmap[0];
     }
+
+    if (!bitmap && basic_pending.more1) {
+        bank = 1;
+        bitmap = record->mmio->pending1 & record->valid_bitmap[1];
+    }
+
+    if (!bitmap && basic_pending.more2) {
+        bank = 2;
+        bitmap = record->mmio->pending2 & record->valid_bitmap[2];
+    }
+
+    if (!bitmap) {
+        return -1;
+    }
+
+    int bank_irq = ctz32(bitmap);
+    return _irq_raw_to_seq(bank, bank_irq);
 }
 
 static void setup(struct driver_param *param)
 {
     struct bcm2835_record *record = param->record;
     disable_all(record);
-
-    //enable_pl011();
 }
 
-static int probe(struct fw_dev_info *fw_info, struct driver_param *param)
+static void *create(struct fw_dev_info *fw_info, struct driver_param *param)
 {
-    static const char *devtree_names[] = {
-        "brcm,bcm2835-armctrl-ic",
-        "brcm,bcm2836-armctrl-ic",
-        NULL
-    };
+    struct bcm2835_record *record = mempool_alloc(sizeof(struct bcm2835_record));
+    memzero(record, sizeof(struct bcm2835_record));
 
-    if (fw_info->devtree_node &&
-        match_devtree_compatibles(fw_info->devtree_node, devtree_names)
-    ) {
-        struct bcm2835_record *record = mempool_alloc(sizeof(struct bcm2835_record));
-        memzero(record, sizeof(struct bcm2835_record));
-        param->record = record;
-        param->int_seq = alloc_int_seq(handler);
+    int num_int_cells = devtree_get_num_int_cells(fw_info->devtree_node);
+    panic_if(num_int_cells != 2, "#int-cells must be 2\n");
 
-        int num_int_cells = devtree_get_num_int_cells(fw_info->devtree_node);
-        panic_if(num_int_cells != 2, "#int-cells must be 2\n");
+    u64 reg = 0, size = 0;
+    int next = devtree_get_translated_reg(fw_info->devtree_node, 0, &reg, &size);
+    panic_if(next, "bcm2835-armctrl-ic only supports one reg field!");
 
-        u64 reg = 0, size = 0;
-        int next = devtree_get_translated_reg(fw_info->devtree_node, 0, &reg, &size);
-        panic_if(next, "bcm2835-armctrl-ic only supports one reg field!");
+    paddr_t mmio_paddr = cast_u64_to_paddr(reg);
+    ulong mmio_size = cast_paddr_to_vaddr(size);
+    ulong mmio_vaddr = get_dev_access_window(mmio_paddr, mmio_size, DEV_PFN_UNCACHED);
 
-        paddr_t mmio_paddr = cast_u64_to_paddr(reg);
-        ulong mmio_size = cast_paddr_to_vaddr(size);
-        ulong mmio_vaddr = get_dev_access_window(mmio_paddr, mmio_size, DEV_PFN_UNCACHED);
+    record->mmio = (void *)mmio_vaddr;
 
-        record->mmio = (void *)mmio_vaddr;
-
-        kprintf("Found BCM2835 top-level intc @ %lx, window @ %lx, size: %ld\n",
-                mmio_paddr, mmio_vaddr, mmio_size);
-        return FW_DEV_PROBE_OK;
-    }
-
-    return FW_DEV_PROBE_FAILED;
+    kprintf("Found BCM2835 top-level intc @ %lx, window @ %lx, size: %ld\n",
+            mmio_paddr, mmio_vaddr, mmio_size);
+    return record;
 }
 
-
-DECLARE_DEV_DRIVER(bcm2835_armctrl_intc) = {
-    .name = "BCM2835 Top-Level Interrupt Controller",
-    .probe = probe,
-    .setup = setup,
-    .setup_int = setup_int,
-    .start = start,
-    .eoi = eoi,
+static const char *bcm2835_armctrl_intc_devtree_names[] = {
+    "brcm,bcm2835-armctrl-ic",
+    "brcm,bcm2836-armctrl-ic",
+    NULL
 };
+
+DECLARE_INTC_DRIVER(bcm2835_armctrl_intc, "BCM2835 Top-Level Interrupt Controller",
+                    bcm2835_armctrl_intc_devtree_names,
+                    create, setup, /*start*/NULL,
+                    /*start_cpu*/NULL, /*cpu_power_on*/NULL,
+                    irq_raw_to_seq, setup_irq, enable_irq, disable_irq, end_irq,
+                    pending_irq, MAX_NUM_INT_SRCS,
+                    INT_SEQ_ALLOC_START);

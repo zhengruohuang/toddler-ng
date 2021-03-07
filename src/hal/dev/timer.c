@@ -17,7 +17,7 @@ static int generic_timer_int_handler(struct int_context *ictxt, struct kernel_di
     // Handle
     int handle_type = INT_HANDLE_CALL_KERNEL;
     if (driver->timer.int_handler) {
-        driver->timer.int_handler(param, ictxt->mp_seq, ictxt->mp_id);
+        driver->timer.int_handler(param, ictxt);
     }
 
     return handle_type;

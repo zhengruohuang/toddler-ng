@@ -35,7 +35,7 @@ static void update_compare(struct mips_cpu_timer_record *record)
 /*
  * Interrupt
  */
-static int mips_cpu_timer_int_handler(struct driver_param *param, int mp_seq, ulong mp_id)
+static int mips_cpu_timer_int_handler(struct driver_param *param, struct int_context *ictxt)
 {
     struct mips_cpu_timer_record *record = param->record;
     update_compare(record);

@@ -9,44 +9,47 @@
 #include "hal/include/dev.h"
 
 
-#define MAX_NUM_INT_SRCS    8
+#define MAX_NUM_INT_SRCS 8
 
 struct mips_cpu_intc_record {
+    ulong valid_bitmap;
     int last_seq;
-    struct driver_param *int_devs[MAX_NUM_INT_SRCS];
 };
 
 
 /*
  * Int manipulation
  */
-static void enable_irq(struct mips_cpu_intc_record *record, int seq)
+static void enable_irq(struct driver_param *param, struct int_context *ictxt, int irq_seq)
 {
-    if (seq >= MAX_NUM_INT_SRCS) {
-        panic("Unknown IRQ seq: %d\n", seq);
-        return;
-    }
-
     struct cp0_status sr;
     read_cp0_status(sr.value);
-    sr.im |= 0x1ul << seq;
+    sr.im |= 0x1ul << irq_seq;
     write_cp0_status(sr.value);
 }
 
-static void disable_irq(struct mips_cpu_intc_record *record, int seq)
+static void disable_irq(struct driver_param *param, struct int_context *ictxt, int irq_seq)
 {
-    if (seq >= MAX_NUM_INT_SRCS) {
-        panic("Unknown IRQ seq: %d\n", seq);
-        return;
-    }
-
     struct cp0_status sr;
     read_cp0_status(sr.value);
-    sr.im &= ~(0x1ul << seq);
+    sr.im &= ~(0x1ul << irq_seq);
     write_cp0_status(sr.value);
 }
 
-static void disable_all(struct mips_cpu_intc_record *record)
+static void end_irq(struct driver_param *param, struct int_context *ictxt, int irq_seq)
+{
+    enable_irq(param, ictxt, irq_seq);
+}
+
+static void setup_irq(struct driver_param *param, int irq_seq)
+{
+    struct mips_cpu_intc_record *record = param->record;
+    record->valid_bitmap |= 0x1ul << irq_seq;
+
+    enable_irq(param, NULL, irq_seq);
+}
+
+static void disable_irq_all(struct driver_param *param)
 {
     struct cp0_status sr;
     read_cp0_status(sr.value);
@@ -56,35 +59,10 @@ static void disable_all(struct mips_cpu_intc_record *record)
 
 
 /*
- * Interrupt handler
+ * Driver interface
  */
-static int handle(struct int_context *ictxt, struct kernel_dispatch *kdi,
-                  struct mips_cpu_intc_record *record, int seq)
+static int pending_irq(struct driver_param *param, struct int_context *ictxt)
 {
-    disable_irq(record, seq);
-    struct driver_param *int_dev = record->int_devs[seq];
-
-    int handle_type = INT_HANDLE_SIMPLE;
-    if (int_dev && int_dev->int_seq) {
-        ictxt->param = int_dev;
-        handle_type = invoke_int_handler(int_dev->int_seq, ictxt, kdi);
-
-        if (INT_HANDLE_KEEP_MASKED & ~handle_type) {
-            enable_irq(record, seq);
-        }
-    } else if (int_dev) {
-        // TODO: need a better way
-        kdi->param0 = int_dev->user_seq;
-        handle_type = INT_HANDLE_CALL_KERNEL | INT_HANDLE_KEEP_MASKED;
-    }
-
-    return handle_type & INT_HANDLE_CALL_KERNEL ?
-            INT_HANDLE_CALL_KERNEL : INT_HANDLE_SIMPLE;
-}
-
-static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
-{
-    struct driver_param *param = ictxt->param;
     struct mips_cpu_intc_record *record = param->record;
 
     struct cp0_cause cause;
@@ -95,9 +73,10 @@ static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
         seq = 0;
     }
 
+    ulong bitmap = cause.ip & record->valid_bitmap;
     for (int i = 0; i < MAX_NUM_INT_SRCS; i++) {
-        if (cause.ip & (0x1ul << seq) && record->int_devs[seq]) {
-            return handle(ictxt, kdi, record, seq);
+        if (bitmap & (0x1ul << seq)) {
+            return seq;
         }
 
         if (++seq >= MAX_NUM_INT_SRCS) {
@@ -105,96 +84,36 @@ static int handler(struct int_context *ictxt, struct kernel_dispatch *kdi)
         }
     }
 
-    return INT_HANDLE_SIMPLE;
-}
-
-
-/*
- * EOI
- */
-static void eoi(struct driver_param *param, struct driver_int_encode *encode, struct driver_param *dev)
-{
-    struct mips_cpu_intc_record *record = param->record;
-    int num_ints = encode->size / sizeof(int);
-    int *int_srcs = encode->data;
-
-    for (int g = 0; g < num_ints; g++) {
-        int seq = swap_big_endian32(int_srcs[g]);
-        enable_irq(record, seq);
-    }
-}
-
-
-/*
- * Driver interface
- */
-static void start(struct driver_param *param)
-{
-
-}
-
-static void setup_int(struct driver_param *param, struct driver_int_encode *encode, struct driver_param *dev)
-{
-    kprintf("set int, data: %p, size: %d\n", encode->data, encode->size);
-
-    if (!encode->size || !encode->data) {
-        return;
-    }
-
-    //kprintf("set int, data: %p, size: %d\n", encode->data, encode->size);
-
-    struct mips_cpu_intc_record *record = param->record;
-    int num_ints = encode->size / sizeof(int);
-    int *int_srcs = encode->data;
-
-    for (int g = 0; g < num_ints; g++) {
-        int seq = swap_big_endian32(int_srcs[g]);
-
-        kprintf("to enable seq: %d\n", seq);
-
-        enable_irq(record, seq);
-        record->int_devs[seq] = dev;
-    }
+    return -1;
 }
 
 static void setup(struct driver_param *param)
 {
-    struct mips_cpu_intc_record *record = param->record;
-    disable_all(record);
+    disable_irq_all(param);
 }
 
-static int probe(struct fw_dev_info *fw_info, struct driver_param *param)
+static void *create(struct fw_dev_info *fw_info, struct driver_param *param)
 {
-    static const char *devtree_names[] = {
-        "mti,cpu-interrupt-controller",
-        "mips,cpu-cp0-cause",
-        NULL
-    };
+    struct mips_cpu_intc_record *record = mempool_alloc(sizeof(struct mips_cpu_intc_record));
+    memzero(record, sizeof(struct mips_cpu_intc_record));
 
-    if (fw_info->devtree_node &&
-        match_devtree_compatibles(fw_info->devtree_node, devtree_names)
-    ) {
-        struct mips_cpu_intc_record *record = mempool_alloc(sizeof(struct mips_cpu_intc_record));
-        memzero(record, sizeof(struct mips_cpu_intc_record));
-        param->record = record;
-        param->int_seq = alloc_int_seq(handler);
+    int num_int_cells = devtree_get_num_int_cells(fw_info->devtree_node);
+    panic_if(num_int_cells != 1, "#int-cells must be 1\n");
 
-        int num_int_cells = devtree_get_num_int_cells(fw_info->devtree_node);
-        panic_if(num_int_cells != 1, "#int-cells must be 1\n");
-
-        kprintf("Found MIPS CP0 top-level intc\n");
-        return FW_DEV_PROBE_OK;
-    }
-
-    return FW_DEV_PROBE_FAILED;
+    kprintf("Found MIPS CP0 top-level intc\n");
+    return record;
 }
 
-
-DECLARE_DEV_DRIVER(mips_cpu_intc) = {
-    .name = "MIPS CP0 Interrupt Controller",
-    .probe = probe,
-    .setup = setup,
-    .setup_int = setup_int,
-    .start = start,
-    .eoi = eoi,
+static const char *mips_cpu_intc_devtree_names[] = {
+    "mti,cpu-interrupt-controller",
+    "mips,cpu-cp0-cause",
+    NULL
 };
+
+DECLARE_INTC_DRIVER(mips_cpu_intc, "MIPS CP0 Interrupt Controller",
+                    mips_cpu_intc_devtree_names,
+                    create, setup, /*start*/NULL,
+                    /*start_cpu*/NULL, /*cpu_power_on*/NULL, /*raw_to_seq*/NULL,
+                    setup_irq, enable_irq, disable_irq, end_irq,
+                    pending_irq, MAX_NUM_INT_SRCS,
+                    INT_SEQ_ALLOC_START);
