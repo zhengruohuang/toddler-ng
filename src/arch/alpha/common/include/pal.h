@@ -19,7 +19,7 @@
 #define PAL_rduniq      158
 #define PAL_wruniq      159
 #define PAL_gentrap     170
-#define PAL_nphalt	     190
+#define PAL_nphalt      190
 
 /*
  * VMS
