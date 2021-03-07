@@ -95,7 +95,7 @@ struct hal_exports {
     putchar_t putchar;
     void (*time)(ulong *high, ulong *low);
     void (*idle)();
-    void (*halt)(int count, ...);
+    void (*halt)();
 
     // Indicates if direct physical address access is possible
     int has_direct_access;

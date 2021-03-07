@@ -28,6 +28,35 @@
 
 
 /*
+ * Unit Present Reg
+ */
+struct unit_present_reg {
+    union {
+        u32 value;
+
+        struct {
+            u32 custom          : 8;
+            u32 reserved        : 13;
+            u32 tick_timer      : 1;
+            u32 intc            : 1;
+            u32 power_mgmt      : 1;
+            u32 perf_count      : 1;
+            u32 debug_unit      : 1;
+            u32 mac             : 1;
+            u32 immu            : 1;
+            u32 dmmu            : 1;
+            u32 icache          : 1;
+            u32 dcache          : 1;
+            u32 valid           : 1;
+        };
+    };
+} packed4_struct;
+
+#define read_upr(value)         __mfspr(value, 0, 1)
+#define write_upr(value)        __mtspr(value, 0, 1)
+
+
+/*
  * CPU Config Reg
  */
 struct cpu_config_reg {
@@ -364,6 +393,28 @@ struct tick_mode_reg {
 
 #define read_tick_count(value)  __mfspr(value, 10, 1)
 #define write_tick_count(value) __mtspr(value, 10, 1)
+
+
+/*
+ * Power mgmt
+ */
+struct power_mgmt_reg {
+    union {
+        u32 value;
+
+        struct {
+            u32 reserved        : 24;
+            u32 suspend         : 1;
+            u32 dyn_clk_gate    : 1;
+            u32 sleep           : 1;
+            u32 doze            : 1;
+            u32 log_clk_reduce  : 4;
+        };
+    };
+} packed4_struct;
+
+#define read_pmr(value)         __mfspr(value, 8, 0)
+#define write_pmr(value)        __mtspr(value, 8, 0)
 
 
 #endif

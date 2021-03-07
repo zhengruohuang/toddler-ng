@@ -63,7 +63,7 @@ extern void secondary_cpu_init_done();
 /*
  * Halt
  */
-extern void halt_all_cpus(int count, ...);
+extern void halt_all_cpus();
 extern void handle_halt();
 
 

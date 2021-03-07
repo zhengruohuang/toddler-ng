@@ -71,12 +71,14 @@ static void init_arch_mp()
 
 static void init_int()
 {
+    init_pmu();
     init_int_entry();
     init_mmu();
 }
 
 static void init_int_mp()
 {
+    init_pmu_mp();
     init_int_entry_mp();
     init_mmu_mp();
 }
@@ -151,14 +153,14 @@ static void set_syscall_return(struct reg_context *regs, int success, ulong retu
 
 static void idle_cur_cpu()
 {
-    __asm__ __volatile__ ( "" : : : "memory" );
+    pmu_idle();
 }
 
-static void halt_cur_cpu(int count, va_list args)
+static void halt_cur_cpu()
 {
     while (1) {
         disable_local_int();
-        idle_cur_cpu();
+        pmu_halt();
     }
 }
 

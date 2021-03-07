@@ -91,6 +91,10 @@ static void *create(struct fw_dev_info *fw_info, struct driver_param *param)
 
     record->freq = devtree_get_clock_frequency(fw_info->devtree_node);
 
+    struct unit_present_reg upr;
+    read_upr(upr.value);
+    panic_if(!upr.valid || !upr.tick_timer, "OR1K tick timer not present!\n");
+
     kprintf("Found OR1K CPU timer!\n");
     return record;
 }

@@ -163,7 +163,7 @@ static void idle_cur_cpu()
     __asm__ __volatile__ ( "wfi;" : : : "memory" );
 }
 
-static void halt_cur_cpu(int count, va_list args)
+static void halt_cur_cpu()
 {
     while (1) {
         disable_local_int();

@@ -169,7 +169,7 @@ static void final_arch()
 /*
  * Init
  */
-static void check_capability()
+static void check_features()
 {
     struct cpu_config_reg cpucfgr;
     read_cpucfgr(cpucfgr.value);
@@ -183,12 +183,16 @@ static void check_capability()
     // for exception handling
     panic_if(!cpucfgr.has_except_base_reg,
              "OR1K port requres except base reg EVBAR!\n");
+
+    struct unit_present_reg upr;
+    read_upr(upr.value);
+    panic_if(!upr.valid || !upr.immu || !upr.dmmu, "OR1K port requres MMUs!\n");
 }
 
 static void init_arch()
 {
     disable_mmu_and_caches();
-    check_capability();
+    check_features();
 }
 
 static void init_libk()

@@ -155,6 +155,10 @@ static void *create(struct fw_dev_info *fw_info, struct driver_param *param)
     int num_int_cells = devtree_get_num_int_cells(fw_info->devtree_node);
     panic_if(num_int_cells != 1, "#int-cells must be 1\n");
 
+    struct unit_present_reg upr;
+    read_upr(upr.value);
+    panic_if(!upr.valid || !upr.intc, "OR1K interrupt controller not present!\n");
+
     kprintf("Found OpenCores OR1K CPU top-level intc\n");
     return record;
 }

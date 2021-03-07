@@ -48,4 +48,14 @@ extern void init_mmu_mp();
 extern void init_mmu();
 
 
+/*
+ * PMU
+ */
+extern void pmu_idle();
+extern void pmu_halt();
+
+extern void init_pmu();
+extern void init_pmu_mp();
+
+
 #endif
