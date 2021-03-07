@@ -1,4 +1,5 @@
 #include "common/include/inttypes.h"
+#include "common/include/pal.h"
 // #include "common/include/msr.h"
 // #include "common/include/io.h"
 #include "hal/include/hal.h"
@@ -171,7 +172,7 @@ static void set_syscall_return(struct reg_context *regs, int success, ulong retu
 
 static void idle_cur_cpu()
 {
-    //__asm__ __volatile__ ( "wtint;" : : : "memory" );
+    call_pal_wtint();
 }
 
 static void halt_cur_cpu(int count, va_list args)

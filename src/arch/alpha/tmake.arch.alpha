@@ -33,11 +33,12 @@ def start_emu():
 
 
 # Setup arch toolchain
+alpha_ccflags = '-mno-fp-regs -ffixed-8 -O2 -nostdlib -fno-builtin -fno-stack-protector -fno-PIC -std=c99 -Wall'
 arch_default_toolchain = copy.deepcopy(default_toolchain)
 arch_default_toolchain.set_opt('prefix', 'alpha-linux-gnu-')
 arch_default_toolchain.set_opt('ld', 'ld')
-arch_default_toolchain.set_opt('asflags', '-mno-fp-regs -ffixed-8 -O2 -nostdlib -fno-builtin -fno-stack-protector -fno-PIC -std=c99 -Wall') # -fno-pic
-arch_default_toolchain.set_opt('ccflags', '-mno-fp-regs -ffixed-8 -O2 -nostdlib -fno-builtin -fno-stack-protector -fno-PIC -std=c99 -Wall')
+arch_default_toolchain.set_opt('asflags', alpha_ccflags)
+arch_default_toolchain.set_opt('ccflags', alpha_ccflags)
 arch_default_toolchain.set_opt('ldflags', '-static')
 build_toolchains['default'] = arch_default_toolchain
 
