@@ -139,6 +139,7 @@ static ulong get_cur_mp_id()
 //     struct mp_affinity_reg mpidr;
 //     read_cpu_id(mpidr.value);
 //     return mpidr.lo24;
+    return 0;
 }
 
 static void register_drivers()
@@ -168,9 +169,17 @@ static void set_syscall_return(struct reg_context *regs, int success, ulong retu
 //     regs->r2 = return1;
 }
 
+static void idle_cur_cpu()
+{
+    //__asm__ __volatile__ ( "wtint;" : : : "memory" );
+}
+
 static void halt_cur_cpu(int count, va_list args)
 {
-    while (1);
+    while (1) {
+        disable_local_int();
+        idle_cur_cpu();
+    }
 }
 
 
@@ -262,8 +271,8 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.putchar = clipper_putchar;
     funcs.halt = halt_cur_cpu;
 
-    funcs.has_direct_access = 0;
-    funcs.hal_direct_access = NULL;
+    //funcs.has_direct_access = 0;
+    //funcs.hal_direct_access = NULL;
     //funcs.map_range = map_range;
     //funcs.unmap_range = unumap_range;
     //funcs.translate = translate;
@@ -285,7 +294,7 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.init_context = init_thread_context;
     funcs.set_context_param = set_thread_context_param;
     //funcs.switch_to = switch_to;
-    funcs.kernel_dispatch_prep = NULL;
+    //funcs.kernel_dispatch_prep = NULL;
 
     funcs.invalidate_tlb = invalidate_tlb;
 
