@@ -208,6 +208,15 @@ static int map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
 
 
 /*
+ * Drivers
+ */
+static void register_drivers()
+{
+    REGISTER_FIRMWARE_DRIVER(atags);
+}
+
+
+/*
  * Jump to HAL
  */
 static void enable_mmu(void *root_page)
@@ -385,6 +394,7 @@ void loader_entry(ulong zero, ulong mach_id, void *mach_cfg)
     funcs.final_memmap = final_memmap;
     funcs.final_arch = final_arch;
     funcs.jump_to_hal = jump_to_hal;
+    funcs.register_drivers = register_drivers;
 
     // Go to loader!
     loader(&fw_args, &funcs);

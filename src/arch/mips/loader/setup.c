@@ -147,6 +147,15 @@ static int map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
 
 
 /*
+ * Drivers
+ */
+static void register_drivers()
+{
+    REGISTER_FIRMWARE_DRIVER(karg);
+}
+
+
+/*
  * Jump to HAL
  */
 typedef void (*hal_start)(struct loader_args *largs, int mp);
@@ -277,6 +286,7 @@ void loader_entry(int kargc, u32 *kargv, u32 *env, ulong mem_size)
     funcs.final_memmap = final_memmap;
     funcs.final_arch = final_arch;
     funcs.jump_to_hal = jump_to_hal;
+    funcs.register_drivers = register_drivers;
 
     // Go to loader!
     loader(&fw_args, &funcs);

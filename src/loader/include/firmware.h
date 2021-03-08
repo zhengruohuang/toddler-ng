@@ -22,6 +22,8 @@ struct firmware_driver {
     void *(*alloc_and_map_acc_win)(paddr_t paddr, ulong size, ulong align);
 };
 
+extern void register_firmware_driver(struct firmware_driver *drv);
+
 #define DECLARE_FIRMWARE_DRIVER(name)                       \
     struct firmware_driver __##name##_fw_driver
 

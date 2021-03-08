@@ -37,6 +37,9 @@ struct loader_arch_funcs {
     void (*final_arch)();
     void (*jump_to_hal)();
 
+    // Dev
+    void (*register_drivers)();
+
     // Paging
     // Map range returns pages mapped
     void *(*setup_page)();

@@ -205,7 +205,7 @@ struct srm_hwrbp {
     u64 revision;           // HWRPB revision
     u64 size;               // HWRPB size
     u64 cpuid;              // Primary CPU ID
-    u64 pagesize;           // Toddler supports only 8192
+    u64 page_size;          // 8192 is the only supported page size
     u32 num_pa_bits;        // Number of physical address bits
     u32 num_ext_va_bits;    // Number of extension virtual address bits
     u64 max_asn;            // Max valid ASN
@@ -217,7 +217,7 @@ struct srm_hwrbp {
     u64 cycle_freq;         // Cycle counter frequency
     u64 vptb;               // Virtual page table base
     u64 res1;               // Reserved for architecture
-    u64 tbhb_offset;        // Offset to ranslation buffer hint block
+    u64 tbhb_offset;        // Offset to translation buffer hint block
     u64 nr_processors;      // Num of processor slots
     u64 processor_size;     // Per-CPU slot size
     u64 processor_offset;   // Offset to per-CPU slots
@@ -228,11 +228,11 @@ struct srm_hwrbp {
     u64 mddt_offset;        // Offset to memory data descriptor table (MDDT)
     u64 cdb_offset;         // Offset to configuration data block (CDB)
     u64 frut_offset;        // Offset to FRU table (FRUT)
-    void (*save_term)(u64); // Terminal save state routine
+    u64 save_term_vaddr;    // Terminal save state routine
     u64 save_term_data;     // Terminal save state procedure value
-    void (*restore_term)(u64);  // Terminal restore state routine
+    u64 restore_term_vaddr; // Terminal restore state routine
     u64 restore_term_data;  // Terminal restore state procedure value
-    void (*cpu_restart)(u64);   // CPU restart routine
+    u64 cpu_restart_vaddr;  // CPU restart routine
     u64 cpu_restart_data;   // CPU restart routine procedure value
     u64 res2;               // Reserved for system software
     u64 res3;               // Reserved for hardware
@@ -259,17 +259,19 @@ static long dispatch3(ulong proc, ulong a1, ulong a2, ulong a3)
     return disp(proc, a1, a2, a3);
 }
 
-static char env_buf[256] aligned_var(8);
-
 static int get_env(int index, char *val, int size)
 {
+    static char env_buf[257] aligned_var(8);
+
     int len = dispatch3(CCB_GET_ENV, index, (ulong)env_buf, 256);
     if (len >= 0) {
-        if (size < len + 1) {
-            len = size - 1;
-        }
-        memcpy(val, env_buf, len);
-        val[len] = '\0';
+        env_buf[len] = '\0';
+        kprintf("SRM env: %s\n", env_buf);
+        //if (size < len + 1) {
+        //    len = size - 1;
+        //}
+        //memcpy(val, env_buf, len);
+        //val[len] = '\0';
     }
 
     return len;
@@ -286,9 +288,9 @@ static void add_bootarg(char *cmdline)
 
 static inline char num_to_hex_digit(u32 num, int idx)
 {
-    u32 mask = 0xf << (idx * 8);
+    u32 mask = 0xf << (idx * 4);
     num &= mask;
-    num >>= idx * 8;
+    num >>= idx * 4;
     return num >= 10 ? 'a' + num - 10 : '0' + num;
 }
 
@@ -381,12 +383,29 @@ static void add_initrd(void *initrd_start, ulong initrd_size)
     }
 }
 
+static void display_srm_info()
+{
+    kprintf("HWRPB vaddr @ %p, paddr @ %llx, size: %llu\n",
+            hwrpb, hwrpb->paddr, hwrpb->size);
+
+    struct srm_per_cpu *spc = (void *)((ulong)hwrpb + hwrpb->processor_offset);
+    kprintf("SRM num processors: %llu, per CPU offset: %llu, vaddr @ %p, size: %llu, "
+            "PAL paddr @ %llx, size: %llu, PAL scratch paddr @ %llx, size: %llu\n",
+            hwrpb->nr_processors, hwrpb->processor_offset, spc, hwrpb->processor_size,
+            spc->pal_mem_pa, spc->pal_mem_size, spc->pal_scratch_pa, spc->pal_scratch_size);
+    kprintf("%s, %llu, %llu, %llu\n", spc->hwpcb, spc->type, spc->revision, spc->variation);
+
+    //while (1);
+}
+
 static void init_srm(void *params)
 {
     struct firmware_params_srm *srm = params;
     hwrpb = srm->hwrpb_base;
+    display_srm_info();
 
     add_bootarg(srm->cmdline);
+    get_env(0, NULL, 0);
     add_initrd(srm->initrd_start, srm->initrd_size);
     add_memmap();
 }

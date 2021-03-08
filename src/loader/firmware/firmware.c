@@ -22,12 +22,17 @@ void register_firmware_driver(struct firmware_driver *drv)
 static void register_internal_drivers()
 {
     REGISTER_FIRMWARE_DRIVER(none);
-    REGISTER_FIRMWARE_DRIVER(atags);
     REGISTER_FIRMWARE_DRIVER(ofw);
     REGISTER_FIRMWARE_DRIVER(obp);
-    REGISTER_FIRMWARE_DRIVER(karg);
     REGISTER_FIRMWARE_DRIVER(multiboot);
-    REGISTER_FIRMWARE_DRIVER(srm);
+}
+
+static void register_arch_drivers()
+{
+    struct loader_arch_funcs *funcs = get_loader_arch_funcs();
+    if (funcs->register_drivers) {
+        funcs->register_drivers();
+    }
 }
 
 static void match_firmware(struct firmware_args *fw_args)
@@ -47,6 +52,7 @@ static void match_firmware(struct firmware_args *fw_args)
 void init_firmware()
 {
     register_internal_drivers();
+    register_arch_drivers();
     init_devtree();
 
     struct firmware_args *fw_args = get_fw_args();
