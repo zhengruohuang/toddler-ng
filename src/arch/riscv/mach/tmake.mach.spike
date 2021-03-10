@@ -15,7 +15,7 @@ build_opts['embed_fdt'] = True
 build_opts['embed_coreimg'] = True if target_arch == 'riscv32' else False
 
 build_opts['qemu'] = {
-    'machine'   : 'virt',
+    'machine'   : 'spike',
     'memory'    : 512,
     'graphic'   : False,
     'bootargs'  : 'test',

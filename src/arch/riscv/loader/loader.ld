@@ -1,8 +1,10 @@
+#include "common/include/abi.h"
+
 ENTRY(_start)
 
 SECTIONS
 {
-    . = 0x80000000;
+    . = LOADER_BASE;
     __start = .;
 
     .text :

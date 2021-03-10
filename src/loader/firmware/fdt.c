@@ -224,7 +224,7 @@ int copy_fdt(void *buf, void *src, size_t size)
 void init_supplied_fdt(void *supplied_fdt)
 {
     struct fdt_header *hdr = supplied_fdt;
-    panic_if(!is_fdt_header(hdr), "Supplied FDT is invalid!\n");
+    panic_if(!is_fdt_header(hdr), "Supplied FDT @ %p is invalid!\n", supplied_fdt);
 
     fdt = hdr;
     init_fdt();

@@ -20,6 +20,6 @@ build_opts['qemu'] = {
     'graphic'   : False,
     'bootargs'  : 'test',
     'bootimg'   : img_dir + 'boot.elf',
-    'mp'        : '1',
+    'mp'        : '4',
     'bios'      : ext_dir + 'alpha/palcode-clipper'
 }

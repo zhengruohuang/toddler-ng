@@ -45,8 +45,12 @@ extern u64 devtree_get_clock_frequency(struct devtree_node *node);
 
 extern int devtree_is_intc(struct devtree_node *node);
 extern int devtree_get_num_int_cells(struct devtree_node *node);
-extern int devtree_get_int_parent(struct devtree_node *node, int idx);
-extern int *devtree_get_int_encode(struct devtree_node *node, int *count);
+extern int devtree_get_int_parent(struct devtree_node *node);
+extern int *devtree_get_int_encode(struct devtree_node *node, int *len);
+extern int devtree_get_int_ext(struct devtree_node *node, int idx, int *parent_phandle,
+                               void **encode, int *encode_len);
+extern int devtree_get_int(struct devtree_node *node, int idx, int *parent_phandle,
+                           void **encode, int *encode_len);
 
 extern int devtree_get_use_ioport(struct devtree_node *node);
 extern int devtree_get_use_poll(struct devtree_node *node);

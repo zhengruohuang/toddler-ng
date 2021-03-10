@@ -325,32 +325,62 @@ int devtree_get_num_int_cells(struct devtree_node *node)
     return -1;
 }
 
-int devtree_get_int_parent(struct devtree_node *node, int idx)
+int devtree_get_int_parent(struct devtree_node *node)
 {
-    for ( ; node; node = devtree_get_parent_node(node)) {
-        struct devtree_prop *prop = devtree_find_prop(node, "interrupt-parent");
+    for (struct devtree_node *cur_node = node; cur_node;
+         cur_node = devtree_get_parent_node(cur_node)
+    ) {
+        if (devtree_is_intc(cur_node) && cur_node != node) {
+            return devtree_get_phandle(cur_node);
+        }
+
+        struct devtree_prop *prop = devtree_find_prop(cur_node, "interrupt-parent");
         if (prop) {
             u32 data = devtree_get_prop_data_u32(prop);
             return (int)data;
         }
     }
 
-    return -1;
+    return devtree_get_phandle(node);
 }
 
-int *devtree_get_int_encode(struct devtree_node *node, int *count)
+int *devtree_get_int_encode(struct devtree_node *node, int *len)
 {
     struct devtree_prop *prop = devtree_find_prop(node, "interrupts");
     if (!prop) {
         return NULL;
     }
 
-    if (count) {
-        *count = prop->len;
+    if (len) {
+        *len = prop->len;
     }
 
     void *data = devtree_get_prop_data(prop);
     return data;
+}
+
+int devtree_get_int_ext(struct devtree_node *node, int idx, int *parent_phandle,
+                        void **encode, int *encode_len)
+{
+    struct devtree_prop *prop = devtree_find_prop(node, "interrupts-extended");
+    if (!prop) {
+        return -1;
+    }
+
+    // TODO
+
+    return 0;
+}
+
+int devtree_get_int(struct devtree_node *node, int idx, int *parent_phandle,
+                    void **encode, int *encode_len)
+{
+    int next_pos = devtree_get_int_ext(node, idx, parent_phandle, encode, encode_len);
+    if (next_pos >= 0) {
+        return next_pos;
+    }
+
+    return 0;
 }
 
 

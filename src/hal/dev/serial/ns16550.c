@@ -103,7 +103,7 @@ static void *create(struct fw_dev_info *fw_info, struct driver_param *param)
     record->reg_shift = reg_shift;
     record->ioport = ioport;
 
-    kprintf("Found NS16550 @ %lx, window @ %lx\n", mmio_paddr, mmio_vaddr);
+    kprintf("Found NS16550 @ %llx, window @ %lx\n", (u64)mmio_paddr, mmio_vaddr);
     return record;
 }
 

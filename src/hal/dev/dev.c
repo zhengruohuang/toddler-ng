@@ -195,7 +195,7 @@ static struct dev_record *enum_devtree_node(struct devtree_node *node)
 
     dev->int_node->dev = dev;
     dev->int_node->fw_id = devtree_get_phandle(node);
-    dev->int_node->fw_int_parent_id = devtree_get_int_parent(node, 0);
+    dev->int_node->fw_int_parent_id = devtree_get_int_parent(node);
     dev->int_node->is_int_ctrl = devtree_is_intc(node);
     dev->int_node->fw_int_encode.data = devtree_get_int_encode(node,
                                    &dev->int_node->fw_int_encode.size);

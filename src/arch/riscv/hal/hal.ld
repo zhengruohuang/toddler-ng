@@ -1,10 +1,9 @@
-#include "common/include/arch.h"
+#include "common/include/abi.h"
 
-ENTRY(hal)
+ENTRY(_start)
 
 SECTIONS
 {
-    /*. = 0xfff88000;*/
     . = HAL_BASE;
     __start = .;
 
