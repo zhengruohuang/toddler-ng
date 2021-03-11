@@ -9,8 +9,36 @@
 /*
  * Find node/prop
  */
+struct devtree_node *devtree_find_node_by_phandle(struct devtree_node *node,
+                                                  int phandle)
+{
+    if (phandle <= 0) {
+        return NULL;
+    }
+
+    if (!node) {
+        node = devtree_get_root();
+    }
+
+    if (phandle != -1 && devtree_get_phandle(node) == phandle) {
+        return node;
+    }
+
+    struct devtree_node *child = devtree_get_child_node(node);
+    while (child) {
+        struct devtree_node *n = devtree_find_node_by_phandle(child, phandle);
+        if (n) {
+            return n;
+        }
+
+        child = devtree_get_next_node(child);
+    }
+
+    return NULL;
+}
+
 struct devtree_node *devtree_find_child_node(struct devtree_node *node,
-    const char *name)
+                                             const char *name)
 {
     if (!node) {
         return devtree_get_root();
@@ -18,7 +46,7 @@ struct devtree_node *devtree_find_child_node(struct devtree_node *node,
 
     // First pass: exact match
     for (struct devtree_node *child = devtree_get_child_node(node);
-        child; child = devtree_get_next_node(child)
+         child; child = devtree_get_next_node(child)
     ) {
         const char *child_name = devtree_get_node_name(child);
         if (!strcmp(child_name, name)) {
@@ -32,7 +60,7 @@ struct devtree_node *devtree_find_child_node(struct devtree_node *node,
         int name_len = strlen(name);
 
         for (struct devtree_node *child = devtree_get_child_node(node);
-            child; child = devtree_get_next_node(child)
+             child; child = devtree_get_next_node(child)
         ) {
             const char *child_name = devtree_get_node_name(child);
             const char *child_name_at = strchr(child_name, '@');
@@ -52,7 +80,7 @@ struct devtree_node *devtree_find_child_node(struct devtree_node *node,
 
 
 struct devtree_prop *devtree_find_prop(struct devtree_node *node,
-    const char *name)
+                                       const char *name)
 {
     if (!node) {
         return NULL;

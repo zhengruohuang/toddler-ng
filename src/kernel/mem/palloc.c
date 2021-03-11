@@ -184,13 +184,16 @@ void buddy_print()
             int count = 0;
 
             int has_next = region->buddies[order].has_next;
-            struct palloc_node *cur = get_node_by_pfn(region->buddies[order].next);
+            struct palloc_node *cur = has_next ?
+                        get_node_by_pfn(region->buddies[order].next) : NULL;
 
             while (has_next) {
                 count++;
 
                 has_next = cur->has_next;
-                cur = get_node_by_pfn(cur->next);
+                if (has_next) {
+                    cur = get_node_by_pfn(cur->next);
+                }
             }
 
             kprintf("\t\tOrder: %d, Count: %d\n", order, count);

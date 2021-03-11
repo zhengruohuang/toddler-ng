@@ -8,6 +8,7 @@
 
 
 enum dev_driver_type {
+    DEV_DRIVER_NONE,
     DEV_DRIVER_HAL,
     DEV_DRIVER_EXTERNAL,
 };
@@ -15,6 +16,10 @@ enum dev_driver_type {
 struct inttree_node;
 
 struct dev_record {
+    int fw_id;
+    void *fw_node;
+
+    int num_int_nodes;
     struct inttree_node *int_node;
 
     enum dev_driver_type type;
@@ -32,11 +37,14 @@ struct inttree_node {
 
     int fw_id;
     int fw_int_parent_id;
+    void *fw_node;
+    void *fw_int_parent_node;
     struct driver_int_encode fw_int_encode;
 
     int is_int_ctrl;
     int int_handler_seq;
 
+    struct inttree_node *next_in_dev;
     struct inttree_node *next;
 
     struct inttree_node *parent;
@@ -183,22 +191,65 @@ static struct dev_record *enum_devtree_node(struct devtree_node *node)
     struct dev_record *dev = mempool_alloc(sizeof(struct dev_record));
     memzero(dev, sizeof(struct dev_record));
 
+    int node_phandle = devtree_get_phandle(node);
+    dev->fw_id = node_phandle;
+    dev->fw_node = node;
+
     struct fw_dev_info fw_info = { .devtree_node = node };
     probe_dev(dev, &fw_info);
 
     dev->next = dev_list;
     dev_list = dev;
 
-    // Set up the associated interrupt node
-    dev->int_node = mempool_alloc(sizeof(struct inttree_node));
-    memzero(dev->int_node, sizeof(struct inttree_node));
+//     // TODO: deprecated
+//     // Set up the associated interrupt node
+//     dev->int_node = mempool_alloc(sizeof(struct inttree_node));
+//     memzero(dev->int_node, sizeof(struct inttree_node));
+//
+//     dev->int_node->dev = dev;
+//     dev->int_node->fw_id = devtree_get_phandle(node);
+//     dev->int_node->fw_int_parent_id = devtree_get_int_parent(node);
+//     dev->int_node->is_int_ctrl = devtree_is_intc(node);
+//     dev->int_node->fw_int_encode.data = devtree_get_int_encode(node,
+//                                    &dev->int_node->fw_int_encode.size);
 
-    dev->int_node->dev = dev;
-    dev->int_node->fw_id = devtree_get_phandle(node);
-    dev->int_node->fw_int_parent_id = devtree_get_int_parent(node);
-    dev->int_node->is_int_ctrl = devtree_is_intc(node);
-    dev->int_node->fw_int_encode.data = devtree_get_int_encode(node,
-                                   &dev->int_node->fw_int_encode.size);
+    // Set up the associated interrupt node
+    int next_pos = 0;
+    do {
+        int int_parent_phandle = 0;
+        void *int_parent_node = NULL;
+        void *encode = NULL;
+        int encode_len = 0;
+        next_pos = devtree_get_int(node, next_pos, &int_parent_phandle, &int_parent_node, &encode, &encode_len);
+
+        if (next_pos >= 0) {
+            struct inttree_node *int_node = mempool_alloc(sizeof(struct inttree_node));
+            memzero(int_node, sizeof(struct inttree_node));
+
+            int_node->dev = dev;
+            int_node->fw_id = node_phandle;
+            int_node->fw_int_parent_id = int_parent_phandle;
+            int_node->fw_node = node;
+            int_node->fw_int_parent_node = int_parent_node;
+            int_node->fw_int_encode.data = encode;
+            int_node->fw_int_encode.size = encode_len;
+            int_node->is_int_ctrl = devtree_is_intc(node);
+
+            // Fixup root intc which has no "interrupt-parent" node
+            if (int_node->is_int_ctrl && !int_node->fw_int_parent_node) {
+                int_node->fw_int_parent_id = int_node->fw_id;
+                int_node->fw_int_parent_node = int_node->fw_node;
+            }
+
+//             kprintf("fw @ %p, id: %d, parent fw @ %p, id: %d\n",
+//                     node, int_node->fw_id,
+//                     int_node->fw_int_parent_node, int_node->fw_int_parent_id);
+
+            int_node->next_in_dev = dev->int_node;
+            dev->int_node = int_node;
+            dev->num_int_nodes++;
+        }
+    } while (next_pos > 0);
 
     // Keep traversing
     struct devtree_node *child = devtree_get_child_node(node);
@@ -231,31 +282,47 @@ static void enum_all_devices()
 /*
  * Int tree
  */
-static int is_int_parent(struct dev_record *dev, struct dev_record *intc_dev)
+static int is_int_parent(struct inttree_node *dev_int_node,
+                         struct inttree_node *intc_int_node)
 {
-    return intc_dev->int_node->fw_id != -1 &&
-           dev->int_node->fw_int_parent_id == intc_dev->int_node->fw_id;
+    return dev_int_node &&
+            dev_int_node->fw_int_parent_node == intc_int_node->fw_node;
 }
 
-static void find_all_int_children(struct dev_record *intc_dev)
+static void setup_inttree_node(struct dev_record *dev,
+                               struct inttree_node *dev_int_node,
+                               struct dev_record *intc_dev,
+                               struct inttree_node *intc_int_node)
+{
+    if (dev == intc_dev) {
+        panic_if(int_hierarchy, "Only one root intc allowed!");
+        int_hierarchy = intc_int_node;
+        kprintf("Found root intc @ fw id: %d\n", intc_int_node->fw_id);
+    } else {
+        dev_int_node->sibling = intc_int_node->child;
+        dev_int_node->parent = intc_int_node;
+        intc_int_node->child = dev_int_node;
+
+        if (intc_dev->driver && intc_dev->driver->setup_int &&
+            dev->driver && dev->driver_param.int_seq
+        ) {
+            //kprintf("dev: %s\n", dev->driver->name);
+            intc_dev->driver->setup_int(&intc_dev->driver_param,
+                                        &dev_int_node->fw_int_encode,
+                                        &dev->driver_param);
+        }
+    }
+}
+
+static void find_all_int_children(struct dev_record *intc_dev,
+                                  struct inttree_node *intc_int_node)
 {
     for (struct dev_record *dev = dev_list; dev; dev = dev->next) {
-        if (is_int_parent(dev, intc_dev)) {
-            if (dev == intc_dev) {
-                panic_if(int_hierarchy, "Only one root intc allowed!");
-                int_hierarchy = intc_dev->int_node;
-            } else {
-                dev->int_node->sibling = intc_dev->int_node->child;
-                dev->int_node->parent = intc_dev->int_node;
-                intc_dev->int_node->child = dev->int_node;
-
-                if (intc_dev->driver && intc_dev->driver->setup_int &&
-                    dev->driver && dev->driver_param.int_seq
-                ) {
-                    //kprintf("dev: %s\n", dev->driver->name);
-                    intc_dev->driver->setup_int(&intc_dev->driver_param,
-                        &dev->int_node->fw_int_encode, &dev->driver_param);
-                }
+        for (struct inttree_node *dev_int_node = dev->int_node; dev_int_node;
+             dev_int_node = dev_int_node->next_in_dev
+        ) {
+            if (is_int_parent(dev_int_node, intc_int_node)) {
+                setup_inttree_node(dev, dev_int_node, intc_dev, intc_int_node);
             }
         }
     }
@@ -264,11 +331,15 @@ static void find_all_int_children(struct dev_record *intc_dev)
 static void build_int_hierarchy()
 {
     for (struct dev_record *dev = dev_list; dev; dev = dev->next) {
-        if (dev->int_node->is_int_ctrl) {
-            find_all_int_children(dev);
+        for (struct inttree_node *int_node = dev->int_node; int_node;
+             int_node = int_node->next_in_dev
+        ) {
+            if (int_node->is_int_ctrl) {
+                find_all_int_children(dev, int_node);
 
-            dev->int_node->next = int_list;
-            int_list = dev->int_node;
+                int_node->next = int_list;
+                int_list = int_node;
+            }
         }
     }
 
@@ -290,24 +361,37 @@ void *user_int_register(ulong phandle, ulong user_seq)
 {
     int fw_id = (long)phandle;
 
-    for (struct dev_record *dev = dev_list; dev; dev = dev->next) {
-        if (dev->int_node && dev->int_node->fw_id == fw_id) {
-            // Register interrupt
-            struct inttree_node *intc = dev->int_node->parent;
-            if (intc && intc->is_int_ctrl) {
-                struct dev_record *intc_dev = intc->dev;
-                struct internal_dev_driver *intc_drv = intc_dev->driver;
-                if (intc_drv && intc_drv->setup_int) {
-                    intc_drv->setup_int(&intc_dev->driver_param,
-                        &dev->int_node->fw_int_encode, &dev->driver_param);
-
-                    dev->driver_param.user_seq = user_seq;
-                    return dev;
-                }
-            }
-
+    // Find the dev
+    struct dev_record *dev = NULL;
+    for (struct dev_record *d = dev_list; d; d = d->next) {
+        if (d->fw_id == fw_id) {
+            dev = d;
             break;
         }
+    }
+
+    if (!dev) {
+        return NULL;
+    }
+
+    // Obtain int tree nodes
+    panic_if(dev->num_int_nodes > 1,
+             "interrupts-extended not supported by user interrupt handlers!\n");
+    struct inttree_node *int_node = dev->int_node;
+    struct inttree_node *intc_int_node = int_node->parent;
+    if (!intc_int_node || !intc_int_node->is_int_ctrl) {
+        return NULL;
+    }
+
+    // Invoke intc driver and register user handler
+    struct dev_record *intc_dev = intc_int_node->dev;
+    struct internal_dev_driver *intc_drv = intc_dev->driver;
+    if (intc_drv && intc_drv->setup_int) {
+        intc_drv->setup_int(&intc_dev->driver_param,
+                            &dev->int_node->fw_int_encode, &dev->driver_param);
+
+        dev->driver_param.user_seq = user_seq;
+        return dev;
     }
 
     return NULL;

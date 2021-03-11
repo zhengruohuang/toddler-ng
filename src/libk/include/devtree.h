@@ -9,10 +9,12 @@
 /*
  * Node
  */
+extern struct devtree_node *devtree_find_node_by_phandle(struct devtree_node *node,
+                                                         int phandle);
 extern struct devtree_node *devtree_find_child_node(struct devtree_node *node,
-    const char *name);
+                                                    const char *name);
 extern struct devtree_prop *devtree_find_prop(struct devtree_node *node,
-    const char *name);
+                                              const char *name);
 extern struct devtree_node *devtree_walk(const char *path);
 
 
@@ -47,9 +49,11 @@ extern int devtree_is_intc(struct devtree_node *node);
 extern int devtree_get_num_int_cells(struct devtree_node *node);
 extern int devtree_get_int_parent(struct devtree_node *node);
 extern int *devtree_get_int_encode(struct devtree_node *node, int *len);
-extern int devtree_get_int_ext(struct devtree_node *node, int idx, int *parent_phandle,
+extern int devtree_get_int_ext(struct devtree_node *node, int pos,
+                               int *parent_phandle, void **parent_node,
                                void **encode, int *encode_len);
-extern int devtree_get_int(struct devtree_node *node, int idx, int *parent_phandle,
+extern int devtree_get_int(struct devtree_node *node, int pos,
+                           int *parent_phandle, void **parent_node,
                            void **encode, int *encode_len);
 
 extern int devtree_get_use_ioport(struct devtree_node *node);

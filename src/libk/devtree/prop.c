@@ -325,6 +325,7 @@ int devtree_get_num_int_cells(struct devtree_node *node)
     return -1;
 }
 
+// TODO: deprecated
 int devtree_get_int_parent(struct devtree_node *node)
 {
     for (struct devtree_node *cur_node = node; cur_node;
@@ -344,6 +345,29 @@ int devtree_get_int_parent(struct devtree_node *node)
     return devtree_get_phandle(node);
 }
 
+int devtree_get_int_parent2(struct devtree_node *node, void **parent_node)
+{
+    for (struct devtree_node *cur_node = node; cur_node;
+         cur_node = devtree_get_parent_node(cur_node)
+    ) {
+        if (devtree_is_intc(cur_node) && cur_node != node) {
+            if (parent_node) *parent_node = cur_node;
+            return devtree_get_phandle(cur_node);
+        }
+
+        struct devtree_prop *prop = devtree_find_prop(cur_node, "interrupt-parent");
+        if (prop) {
+            u32 phandle = devtree_get_prop_data_u32(prop);
+            struct devtree_node *pnode = devtree_find_node_by_phandle(NULL, phandle);
+            if (parent_node) *parent_node = pnode;
+            return phandle;
+        }
+    }
+
+    if (parent_node) *parent_node = NULL;
+    return -1;
+}
+
 int *devtree_get_int_encode(struct devtree_node *node, int *len)
 {
     struct devtree_prop *prop = devtree_find_prop(node, "interrupts");
@@ -359,26 +383,62 @@ int *devtree_get_int_encode(struct devtree_node *node, int *len)
     return data;
 }
 
-int devtree_get_int_ext(struct devtree_node *node, int idx, int *parent_phandle,
+int devtree_get_int_ext(struct devtree_node *node, int pos,
+                        int *parent_phandle, void **parent_node,
                         void **encode, int *encode_len)
 {
     struct devtree_prop *prop = devtree_find_prop(node, "interrupts-extended");
-    if (!prop) {
+    if (pos < 0 || !prop) {
         return -1;
     }
 
-    // TODO
+    int len = prop->len;
+    void *data = devtree_get_prop_data(prop) + pos;
+    if (pos >= len) {
+        return -1;
+    }
 
-    return 0;
+    // Find int parent phandle and node
+    u32 phandle = swap_big_endian32(*(u32 *)data);
+    struct devtree_node *pnode = devtree_find_node_by_phandle(NULL, phandle);
+    panic_if(!pnode, "Bad phandle: %d, pos: %d\n", phandle, pos);
+
+    pos += 4;
+    if (parent_phandle) *parent_phandle = phandle;
+    if (parent_node) *parent_node = (void *)pnode;
+
+    // Find int encoding
+    int num_int_cells = devtree_get_num_int_cells(pnode);
+    if (pos + num_int_cells > len) {
+        return -1;
+    }
+
+    if (encode) *encode = data + pos;
+    if (encode_len) *encode_len = num_int_cells;
+
+    // Next
+    pos += num_int_cells * 4;
+    return pos >= len ? 0 : pos;
 }
 
-int devtree_get_int(struct devtree_node *node, int idx, int *parent_phandle,
+int devtree_get_int(struct devtree_node *node, int pos,
+                    int *parent_phandle, void **parent_node,
                     void **encode, int *encode_len)
 {
-    int next_pos = devtree_get_int_ext(node, idx, parent_phandle, encode, encode_len);
-    if (next_pos >= 0) {
-        return next_pos;
+    if (devtree_find_prop(node, "interrupts-extended")) {
+        return devtree_get_int_ext(node, pos, parent_phandle, parent_node,
+                                   encode, encode_len);
     }
+
+    if (pos) {
+        return -1;
+    }
+
+    int phandle = devtree_get_int_parent2(node, parent_node);
+    if (parent_phandle) *parent_phandle = phandle;
+
+    void *encode_data = devtree_get_int_encode(node, encode_len);
+    if (encode) *encode = encode_data;
 
     return 0;
 }
@@ -402,5 +462,19 @@ int devtree_get_use_poll(struct devtree_node *node)
 int devtree_get_enabled(struct devtree_node *node)
 {
     struct devtree_prop *prop = devtree_find_prop(node, "disabled");
-    return prop ? 0 : 1;
+    if (prop) {
+        return 0;
+    }
+
+    prop = devtree_find_prop(node, "status");
+    if (!prop) {
+        return 1;
+    }
+
+    char *data = devtree_get_prop_data(prop);
+    if (prop->len == 8 && data && !memcmp(data, "disabled", 8)) {
+        return 0;
+    }
+
+    return 1;
 }
