@@ -126,7 +126,6 @@ static void jump_to_hal()
 
     enable_mmu(largs->page_table);
     call_hal(largs);
-    kprintf("here?\n");
 }
 
 
@@ -135,7 +134,7 @@ static void jump_to_hal()
  */
 static void final_memmap()
 {
-    // Reserve memory used by firmware
+    // FIXME: Reserve memory used by firmware
     claim_memmap_region(0x80000000ull, (u64)LOADER_BASE - 0x80000000ull, MEMMAP_USED);
 
     // Direct map as much memory as possible
@@ -149,7 +148,7 @@ static void final_memmap()
 
 static void final_arch()
 {
-    // FIXME: map uart
+    // FIXME: Map uart
     map_range(root_page, UART_BASE_ADDR, UART_BASE_ADDR, 0x100, 0, 0, 1);
 }
 
@@ -198,7 +197,7 @@ static void setup_pmp()
 
 static void enter_supervisor_mode()
 {
-    struct machine_status_reg mstatus;
+    struct status_reg mstatus;
     read_mstatus(mstatus.value);
     mstatus.mpp = 1;
     mstatus.mpie = 0;

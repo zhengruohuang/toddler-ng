@@ -6,6 +6,7 @@
 #include <sys/api.h>
 #include <hal.h>
 
+#include "common/include/abi.h"
 #include "device/include/devtreefs.h"
 #include "device/include/devfs.h"
 
@@ -49,10 +50,8 @@ static void start_drivers()
 {
 #if defined(ARCH_ARMV7)
     init_pl011_driver();
-#elif defined(ARCH_MIPS32L) || defined(ARCH_MIPS64L)
+#elif (defined(ARCH_MIPS) || defined(ARCH_OPENRISC) || defined(ARCH_RISCV))
     init_ns16550_driver();
-#elif defined(ARCH_OPENRISC)
-    init_or1k_ns16550_driver();
 #endif
 
     init_dev_zero();

@@ -4,6 +4,7 @@
 #include <kth.h>
 #include <drv/drv.h>
 
+#include "common/include/abi.h"
 #include "libk/include/mem.h"
 
 
@@ -74,8 +75,6 @@ static int shiftbuf_read_one(shiftbuf_t *sb, unsigned char *data)
 /*
  * NS16550
  */
-#define SOUTH_BRIDGE_BASE_ADDR  0x18000000
-#define UART_BASE_ADDR          (SOUTH_BRIDGE_BASE_ADDR + 0x3f8)
 #define UART_DATA_REG           (0x0)
 #define UART_INT_ENABLE_REG     (0x1)
 #define UART_INT_ID_FIFO_REG    (0x2)
@@ -248,6 +247,21 @@ static int dev_ns16550_write(devid_t id, void *buf, size_t count, size_t offset,
 /*
  * Init
  */
+#if defined(ARCH_MIPS)
+    #define SOUTH_BRIDGE_BASE_ADDR  0x18000000
+    #define UART_BASE_ADDR          (SOUTH_BRIDGE_BASE_ADDR + 0x3f8)
+    #define DEVTREE_NODE_PHANDLE    0xc
+#elif defined(ARCH_OPENRISC)
+    #define UART_BASE_ADDR          0x90000000
+    #define DEVTREE_NODE_PHANDLE    0x2
+#elif defined(ARCH_RISCV)
+    #define UART_BASE_ADDR          0x10000000
+    #define DEVTREE_NODE_PHANDLE    0x0
+#else
+    #define UART_BASE_ADDR          0x0
+    #define DEVTREE_NODE_PHANDLE    0x0
+#endif
+
 static const struct drv_ops dev_ns16550_ops = {
     .read = dev_ns16550_read,
     .write = dev_ns16550_write,
@@ -274,7 +288,9 @@ static inline void start_ns16550()
 void init_ns16550_driver()
 {
     // Register handler
-    ns16550.seq = syscall_int_handler(0xc, ns16550_int_handler);
+    if (DEVTREE_NODE_PHANDLE) {
+        ns16550.seq = syscall_int_handler(DEVTREE_NODE_PHANDLE, ns16550_int_handler);
+    }
 
     // Register driver
     create_drv("/dev", "serial", 0, &dev_ns16550_ops, 1);

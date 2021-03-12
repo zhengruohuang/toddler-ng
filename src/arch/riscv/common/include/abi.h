@@ -2,6 +2,10 @@
 #define __ARCH_RISCV_COMMON_INCLUDE_ABI_H__
 
 
+// Generic name
+#define ARCH_RISCV
+
+
 // RISC-V 32
 #if (defined(ARCH_RISCV32))
     #define ARCH_WIDTH          32

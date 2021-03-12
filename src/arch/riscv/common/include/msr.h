@@ -26,9 +26,9 @@
 
 
 /*
- * Machine Status Register
+ * Status
  */
-struct machine_status_reg {
+struct status_reg {
     union {
         ulong value;
 
@@ -65,17 +65,73 @@ struct machine_status_reg {
 #endif
         };
     };
-} packed_struct;
+} natural_struct;
 
 #define read_mstatus(value)     read_csr(value, mstatus)
 #define write_mstatus(value)    write_csr(value, mstatus)
 
+#define read_sstatus(value)     read_csr(value, sstatus)
+#define write_sstatus(value)    write_csr(value, sstatus)
+
 
 /*
- * Machine Exception Program Counter
+ * Exception
  */
+#define TVEC_MODE_DIRECT    0
+#define TVEC_MODE_VECTORED  1
+
+struct trap_vec_base_addr_reg {
+    union {
+        ulong value;
+
+        struct {
+            ulong mode          : 2;
+            ulong base2         : sizeof(ulong) * 8 - 2; // base2 = base >> 2
+        };
+    };
+} natural_struct;
+
+struct cause_reg {
+    union {
+        ulong value;
+
+        struct {
+            ulong except_code   : sizeof(ulong) * 8 - 1;
+            ulong interrupt     : 1;
+        };
+    };
+} natural_struct;
+
 #define read_mepc(value)        read_csr(value, mepc)
 #define write_mepc(value)       write_csr(value, mepc)
+
+#define read_sscratch(value)    read_csr(value, sscratch)
+#define write_sscratch(value)   write_csr(value, sscratch)
+
+#define read_sepc(value)        read_csr(value, sepc)
+#define write_sepc(value)       write_csr(value, sepc)
+
+#define read_scause(value)      read_csr(value, scause)
+#define write_scause(value)     write_csr(value, scause)
+
+#define read_stval(value)       read_csr(value, stval)
+#define write_stval(value)      write_csr(value, stval)
+
+#define read_stvec(value)       read_csr(value, stvec)
+#define write_stvec(value)      write_csr(value, stvec)
+
+
+/*
+ * Interrupt
+ */
+#define read_sedeleg(value)     read_csr(value, sedeleg)
+#define write_sedeleg(value)    write_csr(value, sedeleg)
+
+#define read_sie(value)         read_csr(value, sie)
+#define write_sie(value)        write_csr(value, sie)
+
+#define read_sip(value)         read_csr(value, sip)
+#define write_sip(value)        write_csr(value, sip)
 
 
 /*
@@ -111,7 +167,7 @@ struct phys_mem_prot_cfg_reg {
         struct phys_mem_prot_cfg_reg_field fields[4];
 #endif
     };
-} packed_struct;
+} natural_struct;
 
 struct phys_mem_prot_addr_reg {
     union {
@@ -126,7 +182,7 @@ struct phys_mem_prot_addr_reg {
 #endif
         };
     };
-} packed_struct;
+} natural_struct;
 
 
 /*

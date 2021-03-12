@@ -1,9 +1,29 @@
 #ifndef __ARCH_MIPS_COMMON_INCLUDE_ABI_H__
 #define __ARCH_MIPS_COMMON_INCLUDE_ABI_H__
 
-// Generic name
+
+/*
+ * Generic names
+ */
 #define ARCH_MIPS
 
+// MIPS-32
+#if (defined(ARCH_MIPS32B) || defined(ARCH_MIPS32L))
+    #define ARCH_MIPS32
+
+// MIPS-64
+#elif (defined(ARCH_MIPS64B) || defined(ARCH_MIPS64L))
+    #define ARCH_MIPS64
+
+// Unknown
+#else
+    #error "Unknown arch width"
+#endif
+
+
+/*
+ * Width and endianness
+ */
 // MIPS-32 Big Endian
 #if (defined(ARCH_MIPS32B))
     #define ARCH_WIDTH          32
@@ -33,27 +53,35 @@
     #error "Unknown arch type"
 #endif
 
-// Base address
+
+/*
+ * Base addresses
+ */
+// MIPS-32
 #if (ARCH_WIDTH == 32)
     #define LOADER_BASE     0x80010000
     #define HAL_BASE        0x80110000
     #define KERNEL_BASE     0x80182000
     #define USER_BASE       0x100000
 
+// MIPS-64
 #elif (ARCH_WIDTH == 64)
     #define LOADER_BASE     0xffffffff80010000
     #define HAL_BASE        0x9000000000110000
     #define KERNEL_BASE     0x9000000000182000
     #define USER_BASE       0x100100000
 
+// Unknown
 #else
     #error "Unknown arch width"
 #endif
+
 
 // Stack growth
 #define STACK_GROWS_UP  0
 
 // Data alignment
 #define DATA_ALIGNMENT  8
+
 
 #endif

@@ -393,13 +393,13 @@ int devtree_get_int_ext(struct devtree_node *node, int pos,
     }
 
     int len = prop->len;
-    void *data = devtree_get_prop_data(prop) + pos;
+    void *data = devtree_get_prop_data(prop);
     if (pos >= len) {
         return -1;
     }
 
     // Find int parent phandle and node
-    u32 phandle = swap_big_endian32(*(u32 *)data);
+    u32 phandle = swap_big_endian32(*(u32 *)(data + pos));
     struct devtree_node *pnode = devtree_find_node_by_phandle(NULL, phandle);
     panic_if(!pnode, "Bad phandle: %d, pos: %d\n", phandle, pos);
 
@@ -409,15 +409,14 @@ int devtree_get_int_ext(struct devtree_node *node, int pos,
 
     // Find int encoding
     int num_int_cells = devtree_get_num_int_cells(pnode);
-    if (pos + num_int_cells > len) {
-        return -1;
-    }
+    int encode_bytes = num_int_cells * 4;
+    panic_if(pos + encode_bytes > len, "Bad interrupts-extended node!\n");
 
     if (encode) *encode = data + pos;
-    if (encode_len) *encode_len = num_int_cells;
+    if (encode_len) *encode_len = encode_bytes;
 
     // Next
-    pos += num_int_cells * 4;
+    pos += encode_bytes;
     return pos >= len ? 0 : pos;
 }
 

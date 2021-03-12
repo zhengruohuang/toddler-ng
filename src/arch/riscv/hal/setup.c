@@ -3,7 +3,7 @@
 #include "common/include/msr.h"
 #include "common/include/page.h"
 #include "hal/include/hal.h"
-// #include "hal/include/setup.h"
+#include "hal/include/setup.h"
 #include "hal/include/kprintf.h"
 #include "hal/include/lib.h"
 #include "hal/include/mp.h"
@@ -30,11 +30,6 @@ static inline void _raw_mmio_write8(ulong addr, u8 val)
 
 static int riscv_uart_putchar(int ch)
 {
-//     u32 ready = 0;
-//     while (!ready) {
-//         ready = mmio_read8(UART_LINE_STAT_ADDR) & 0x20;
-//     }
-
     _raw_mmio_write8(UART_DATA_ADDR, ch & 0xff);
     return 1;
 }
@@ -59,12 +54,14 @@ static void init_arch_mp()
 
 static void init_int()
 {
-//     init_int_entry();
+    init_mmu();
+    init_int_entry();
 }
 
 static void init_int_mp()
 {
-//     init_int_entry_mp();
+    init_mmu_mp();
+    init_int_entry_mp();
 }
 
 static void init_mm()
@@ -77,10 +74,12 @@ static void init_mm_mp()
 
 static void init_kernel_pre()
 {
+    init_libk_page_table_alloc(NULL, NULL);
 }
 
 static void init_kernel_post()
 {
+    init_libk_page_table_alloc(kernel_palloc, kernel_pfree);
 }
 
 
@@ -89,59 +88,49 @@ static void init_kernel_post()
  */
 static void disable_local_int()
 {
-//     __asm__ __volatile__ (
-//         "cpsid aif;"
-//         :
-//         :
-//         : "memory"
-//     );
+    struct status_reg status;
+    read_sstatus(status.value);
+    status.sie = 0;
+    status.uie = 0;
+    write_sstatus(status.value);
 }
 
 static void enable_local_int()
 {
-//     __asm__ __volatile__ (
-//         "cpsie aif;"
-//         :
-//         :
-//         : "memory"
-//     );
+    struct status_reg status;
+    read_sstatus(status.value);
+    status.sie = 1;
+    status.uie = 1;
+    write_sstatus(status.value);
 }
 
 static ulong get_cur_mp_id()
 {
-//     struct mp_affinity_reg mpidr;
-//     read_cpu_id(mpidr.value);
-//     return mpidr.lo24;
+    // TODO
     return 0;
 }
 
 static void register_drivers()
 {
-//     REGISTER_DEV_DRIVER(bcm2835_armctrl_intc);
-//     REGISTER_DEV_DRIVER(bcm2836_percpu_intc);
-//
-//     REGISTER_DEV_DRIVER(armv7_generic_timer);
-//
-//     REGISTER_DEV_DRIVER(armv7_cpu);
-//
-//     REGISTER_DEV_DRIVER(arm_pl011);
+    REGISTER_DEV_DRIVER(riscv_cpu_intc);
+
+    REGISTER_DEV_DRIVER(clint_timer);
 }
 
 static ulong get_syscall_params(struct reg_context *regs, ulong *param0, ulong *param1, ulong *param2)
 {
-    return 0;
-//     *param0 = regs->r1;
-//     *param1 = regs->r2;
-//     *param2 = regs->r3;
-//
-//     return regs->r0;
+    *param0 = regs->a1;
+    *param1 = regs->a2;
+    *param2 = regs->a3;
+
+    return regs->a0;
 }
 
 static void set_syscall_return(struct reg_context *regs, int success, ulong return0, ulong return1)
 {
-//     regs->r0 = success;
-//     regs->r1 = return0;
-//     regs->r2 = return1;
+    regs->a0 = success;
+    regs->a1 = return0;
+    regs->a2 = return1;
 }
 
 static void idle_cur_cpu()
@@ -157,20 +146,6 @@ static void halt_cur_cpu()
     }
 }
 
-static void invalidate_tlb(ulong asid, ulong vaddr, size_t size)
-{
-//     atomic_mb();
-//     inv_tlb_all();
-//     atomic_ib();
-}
-
-static void flush_tlb()
-{
-//     atomic_mb();
-//     inv_tlb_all();
-//     atomic_ib();
-}
-
 static void start_cpu(int mp_seq, ulong mp_id, ulong entry)
 {
 }
@@ -184,8 +159,12 @@ static void *init_user_page_table()
     struct loader_args *largs = get_loader_args();
     struct page_frame *kernel_page_table = largs->page_table;
 
+    // TODO: RISC-V 64
     // Duplicate the last 4MB mapping
     page_table->entries[1023].value = kernel_page_table->entries[1023].value;
+    page_table->entries[1022].value = kernel_page_table->entries[1022].value;
+    page_table->entries[1021].value = kernel_page_table->entries[1021].value;
+    page_table->entries[1020].value = kernel_page_table->entries[1020].value;
 
     return page_table;
 }
@@ -197,7 +176,7 @@ static void free_user_page_table(void *ptr)
 
 static void set_thread_context_param(struct reg_context *context, ulong param)
 {
-//     context->r0 = param;
+    context->a0 = param;
 }
 
 static void init_thread_context(struct reg_context *context, ulong entry,
@@ -209,15 +188,19 @@ static void init_thread_context(struct reg_context *context, ulong entry,
     // Set param
     set_thread_context_param(context, param);
 
-//     // Set PC and SP
-//     context->sp = stack_top;
-//     context->pc = entry;
-//
-//     // Set CPSR
-//     struct proc_status_reg psr;
-//     psr.value = 0;
-//     psr.mode = user_mode ? 0x10 : 0x1f;
-//     context->cpsr = psr.value;
+    // Set PC and SP
+    context->sp = stack_top;
+    context->pc = entry;
+
+    // Status
+    struct status_reg status = { .value = 0 };
+    status.upie = 1;
+    status.spie = 1;
+    status.spp = user_mode ? 0 : 1;
+    status.sum = 1;
+    status.mxr = 1;
+
+    context->status = status.value;
 }
 
 
@@ -263,16 +246,16 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.arch_enable_local_int = enable_local_int;
 
     funcs.vaddr_limit = USER_VADDR_LIMIT;
-    funcs.asid_limit = 0; // TODO: check if ASID is supported
+    funcs.asid_limit = 0; // Set in init_mmu
     funcs.init_addr_space = init_user_page_table;
     funcs.free_addr_space = free_user_page_table;
 
     funcs.init_context = init_thread_context;
     funcs.set_context_param = set_thread_context_param;
-//     funcs.switch_to = switch_to;
+    funcs.switch_to = switch_to;
 
-//     funcs.kernel_pre_dispatch = kernel_pre_dispatch;
-//     funcs.kernel_post_dispatch = kernel_post_dispatch;
+    funcs.kernel_pre_dispatch = kernel_pre_dispatch;
+    funcs.kernel_post_dispatch = kernel_post_dispatch;
 
     funcs.invalidate_tlb = invalidate_tlb;
     funcs.flush_tlb = flush_tlb;
@@ -282,20 +265,7 @@ static void hal_entry_bsp(struct loader_args *largs)
 
 static void hal_entry_mp()
 {
-//     // Switch to CPU-private stack, but leave some space for interrupt handling
-//     ulong sp = get_my_cpu_init_stack_top_vaddr();
-//     ulong pc = (ulong)&hal_mp;
-//
-//     __asm__ __volatile__ (
-//         // Set up stack top
-//         "mov sp, %[sp];"
-//
-//         // Jump to target
-//         "mov pc, %[pc];"
-//         :
-//         : [pc] "r" (pc), [sp] "r" (sp)
-//         : "memory"
-//     );
+    // TODO
 }
 
 void hal_entry(struct loader_args *largs, int mp)
