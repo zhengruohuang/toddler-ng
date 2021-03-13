@@ -43,19 +43,24 @@ static int generic_intc_int_handler(struct int_context *ictxt, struct kernel_dis
     return handle_type;
 }
 
-static inline int _generic_irq_raw_to_seq(struct internal_dev_driver *driver, struct driver_param *param, void *encode)
+static inline int _generic_irq_raw_to_seq(struct internal_dev_driver *driver,
+                                          struct driver_param *param,
+                                          void *encode, int allow_invalid)
 {
     int irq_seq = driver->intc.irq_raw_to_seq ?
                         driver->intc.irq_raw_to_seq(param, encode) :
                         swap_big_endian32(((int *)encode)[0]);
-    panic_if(irq_seq < 0, "Invalid IRQ seq: %d\n", irq_seq);
+
+    panic_if(irq_seq < 0 && !allow_invalid, "Invalid IRQ seq: %d, encode: %d\n",
+             irq_seq, swap_big_endian32(((int *)encode)[0]));
     panic_if(irq_seq >= driver->intc.max_num_devs, "IRQ seq %d exceeding limit %d\n",
              irq_seq, irq_seq >= driver->intc.max_num_devs);
 
     return irq_seq;
 }
 
-void generic_intc_dev_eoi(struct driver_param *param, struct driver_int_encode *encode, struct driver_param *dev)
+void generic_intc_dev_eoi(struct driver_param *param,
+                          struct driver_int_encode *encode, struct driver_param *dev)
 {
     struct internal_dev_driver *driver = param->driver;
     if (!driver->intc.end_irq) {
@@ -66,7 +71,7 @@ void generic_intc_dev_eoi(struct driver_param *param, struct driver_int_encode *
     int *int_srcs = encode->data;
 
     for (int g = 0; g < num_ints; g += param->intc.num_int_cells) {
-        int irq_seq = _generic_irq_raw_to_seq(driver, param, &int_srcs[g]);
+        int irq_seq = _generic_irq_raw_to_seq(driver, param, &int_srcs[g], 0);
         driver->intc.end_irq(param, NULL, irq_seq);
     }
 }
@@ -99,7 +104,8 @@ void generic_intc_dev_setup(struct driver_param *param)
     }
 }
 
-void generic_intc_dev_setup_int(struct driver_param *param, struct driver_int_encode *encode, struct driver_param *dev)
+void generic_intc_dev_setup_int(struct driver_param *param,
+                                struct driver_int_encode *encode, struct driver_param *dev)
 {
     kprintf("set int, data @ %p, size: %d\n", encode->data, encode->size);
 
@@ -112,7 +118,11 @@ void generic_intc_dev_setup_int(struct driver_param *param, struct driver_int_en
     int *int_srcs = encode->data;
 
     for (int g = 0; g < num_ints; g += param->intc.num_int_cells) {
-        int irq_seq = _generic_irq_raw_to_seq(driver, param, &int_srcs[g]);
+        int irq_seq = _generic_irq_raw_to_seq(driver, param, &int_srcs[g], 1);
+        if (irq_seq < 0) {
+            kprintf("Skip invalid IRQ: %d\n", irq_seq);
+            continue;
+        }
 
         kprintf("to enable irq seq: %d\n", irq_seq);
         driver->intc.devs[irq_seq] = dev;

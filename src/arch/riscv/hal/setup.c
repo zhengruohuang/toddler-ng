@@ -113,6 +113,7 @@ static ulong get_cur_mp_id()
 static void register_drivers()
 {
     REGISTER_DEV_DRIVER(riscv_cpu_intc);
+    REGISTER_DEV_DRIVER(plic_intc);
 
     REGISTER_DEV_DRIVER(clint_timer);
 }

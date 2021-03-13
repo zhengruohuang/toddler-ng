@@ -66,6 +66,7 @@ void int_handler_entry(struct reg_context *regs)
     ulong error_code = 0;
 
     if (cause.interrupt) {
+        seq = INT_SEQ_DEV;
     } else {
         switch (cause.except_code) {
         case EXCEPT_CODE_INSTR_ILLEGAL:

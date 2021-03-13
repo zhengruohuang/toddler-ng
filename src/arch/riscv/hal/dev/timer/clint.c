@@ -1,11 +1,13 @@
 #include "common/include/inttypes.h"
-#include "common/include/msr.h"
+#include "common/include/atomic.h"
 #include "hal/include/vecnum.h"
 #include "hal/include/kprintf.h"
 #include "hal/include/devtree.h"
 #include "hal/include/lib.h"
+#include "hal/include/mem.h"
 #include "hal/include/int.h"
 #include "hal/include/dev.h"
+#include "hal/include/sbi.h"
 
 
 #define INT_FREQ_DIV    10
@@ -15,7 +17,31 @@
 struct clint_timer_record {
     ulong freq;
     u32 timer_step;
+    ulong mtime_base;
 };
+
+
+/*
+ * IO helpers
+ */
+static inline u64 clint_mtime_read(struct clint_timer_record *record)
+{
+    ulong addr = record->mtime_base;
+    u64 mtime = 0;
+#if (ARCH_WIDTH == 32)
+    u32 upper = mmio_read32(addr + 4ul);
+    u32 lower = mmio_read32(addr);
+    while (upper != mmio_read32(addr + 4ul)) {
+        atomic_mb();
+        upper = mmio_read32(addr + 4ul);
+        lower = mmio_read32(addr);
+    }
+    mtime = ((u64)upper << 32) | ((u64)lower);
+#elif (ARCH_WIDTH == 64)
+    mtime = mmio_read64(addr);
+#endif
+    return mtime;
+}
 
 
 /*
@@ -23,11 +49,9 @@ struct clint_timer_record {
  */
 static void update_compare(struct clint_timer_record *record)
 {
-//     u32 count = 0;
-//     read_cp0_count(count);
-//
-//     count += record->timer_step;
-//     write_cp0_compare(count);
+    u64 mtimecmp = clint_mtime_read(record);
+    mtimecmp += record->timer_step;
+    sbi_set_timer(mtimecmp);
 }
 
 
@@ -77,7 +101,16 @@ static void *create(struct fw_dev_info *fw_info, struct driver_param *param)
     struct clint_timer_record *record = mempool_alloc(sizeof(struct clint_timer_record));
     memzero(record, sizeof(struct clint_timer_record));
 
-    record->freq = devtree_get_clock_frequency(fw_info->devtree_node);
+    u64 reg = 0, size = 0;
+    int next = devtree_get_translated_reg(fw_info->devtree_node, 0, &reg, &size);
+    panic_if(next, "riscv,clint0 requires only one reg field!");
+
+    paddr_t mmio_paddr = cast_u64_to_paddr(reg);
+    paddr_t mtime_paddr = mmio_paddr + 0xbff8ull;
+    ulong mmio_vaddr = get_dev_access_window(mtime_paddr, 8, DEV_PFN_UNCACHED);
+    record->mtime_base = mmio_vaddr;
+
+    record->freq = 0x989680;    // TODO: read devtree
 
     kprintf("Found RISC-V clint timer!\n");
     return record;

@@ -19,6 +19,23 @@ struct riscv_cpu_intc_record {
 /*
  * Int manipulation
  */
+static int irq_raw_to_seq(struct driver_param *param, void *encode)
+{
+    int irq = swap_big_endian32(*(u32 *)encode);
+
+    // Skip hypervisor ints
+    if (irq == 2 || irq == 6) {
+        return -1;
+    }
+
+    // Redirect machine ints to supervisor
+    if (irq == 3 || irq == 7) {
+        return irq - 2;
+    }
+
+    return irq;
+}
+
 static void enable_irq(struct driver_param *param, struct int_context *ictxt, int irq_seq)
 {
     ulong sie = 0;
@@ -42,16 +59,6 @@ static void end_irq(struct driver_param *param, struct int_context *ictxt, int i
 
 static void setup_irq(struct driver_param *param, int irq_seq)
 {
-    // Skip hypervisor ints
-    if (irq_seq == 2 || irq_seq == 6) {
-        return;
-    }
-
-    // Redirect machine ints to supervisor
-    if (irq_seq == 3 || irq_seq == 7) {
-        irq_seq -= 2;
-    }
-
     struct riscv_cpu_intc_record *record = param->record;
     record->valid_bitmap |= 0x1ul << irq_seq;
 
@@ -103,7 +110,7 @@ static const char *riscv_cpu_intc_devtree_names[] = {
 DECLARE_INTC_DRIVER(riscv_cpu_intc, "RISC-V Hart-Level Interrupt Controller",
                     riscv_cpu_intc_devtree_names,
                     create, setup, /*start*/NULL,
-                    /*start_cpu*/NULL, /*cpu_power_on*/NULL, /*raw_to_seq*/NULL,
-                    setup_irq, enable_irq, disable_irq, end_irq,
+                    /*start_cpu*/NULL, /*cpu_power_on*/NULL,
+                    irq_raw_to_seq, setup_irq, enable_irq, disable_irq, end_irq,
                     pending_irq, MAX_NUM_INT_SRCS,
                     INT_SEQ_ALLOC_START);
