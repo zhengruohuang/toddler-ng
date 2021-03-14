@@ -10,9 +10,6 @@
 /*
  * Int
  */
-extern_per_cpu(ulong, quick_int_stack_top);
-extern_per_cpu(ulong, kernel_int_stack_top);
-
 extern void init_int_entry_mp();
 extern void init_int_entry();
 

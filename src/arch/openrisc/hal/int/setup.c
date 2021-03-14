@@ -64,23 +64,18 @@ static inline void save_ctxt1_regs_to_mem(struct reg_context *regs)
 /*
  * OpenRISC handler entry
  */
-void quick_int_handler_entry(int except, struct reg_context *regs)
+void tlb_miss_handler_entry(int except, struct reg_context *regs)
 {
     panic_if(except != EXCEPT_NUM_ITLB_MISS && except != EXCEPT_NUM_DTLB_MISS,
              "Must be TLB miss!\n");
 
-    //kprintf("quick int handler entry @ %p, %p\n", quick_regs, kernel_regs);
+    //kprintf("TLB int handler entry @ %p, %p\n", quick_regs, kernel_regs);
 
     ulong epc = 0;
     read_epcr0(epc);
 
     ulong eear = 0;
     read_eear0(eear);
-
-//     if (show_tlb_miss) {
-//     char *ename = except_names[except];
-//     kprintf("%s (%d), EPC @ %lx, EEAR @ %lx\n", ename, except, epc, eear);
-//     }
 
     int itlb = except == EXCEPT_NUM_ITLB_MISS ? 1 : 0;
     int err = tlb_refill(itlb, eear);
@@ -90,7 +85,7 @@ void quick_int_handler_entry(int except, struct reg_context *regs)
     }
 }
 
-void kernel_int_handler_entry(int except, struct reg_context *regs)
+void int_handler_entry(int except, struct reg_context *regs)
 {
     //kprintf("kernel int handler entry @ %p, %p\n",  kernel_regs, quick_regs);
 
@@ -156,8 +151,9 @@ void kernel_int_handler_entry(int except, struct reg_context *regs)
     flush_tlb();
 
     // Return to the context prior to exception
-    //kprintf("To return, seq: %d\n", seq);
+    set_local_int_state(1);
     restore_context_gpr(regs);
+
     unreachable();
 }
 
@@ -167,30 +163,19 @@ void kernel_int_handler_entry(int except, struct reg_context *regs)
  */
 extern void raw_int_entry_base();
 
-// Quick int stack is used when an exception occurs
-// If the exception is not a TLB refill,
-// then stack is switched to kernel int stack and MMU and interrupt are enabled
-// Note that only TLB refill exception may end up being a page fault,
-// and in such case, stack is also switched along with MMU and interrupt enabled
-decl_per_cpu(ulong, quick_int_stack_top);
-decl_per_cpu(ulong, kernel_int_stack_top);
+// TLB miss stack is used when an TLB miss occurs, with MMU auto disabled
+// Otherwise the default int stack is used, and MMU is re-enabled
+// Note that a TLB miss may end up being a page fault,
+// and in such case, stack is switched to default along with MMU enabled
+static decl_per_cpu(ulong, tlb_miss_stack_top);
 
-static inline ulong _setup_kernel_stack()
+static inline ulong _setup_default_int_stack()
 {
-    // Set up stack top for context saving
-    ulong stack_top = get_my_cpu_stack_top_vaddr() - sizeof(struct reg_context);
-
-    // Align the stack to 16B
-    stack_top = ALIGN_DOWN(stack_top, 16) - 16;
-
-    // Remember the stack top
-    ulong *cur_kernel_stack_top = get_per_cpu(ulong, kernel_int_stack_top);
-    *cur_kernel_stack_top = stack_top;
-
-    return stack_top;
+    struct reg_context *int_ctxt = get_cur_int_reg_context();
+    return (ulong)(void *)int_ctxt;
 }
 
-static inline ulong _setup_quick_stack()
+static inline ulong _setup_tlb_miss_stack()
 {
     ppfn_t stack_base_ppfn = pre_palloc(1);
     paddr_t stack_base_paddr = ppfn_to_paddr(stack_base_ppfn);
@@ -203,7 +188,7 @@ static inline ulong _setup_quick_stack()
     stack_top = ALIGN_DOWN(stack_top, 16);
 
     // Remember the stack top
-    ulong *cur_quick_stack_top = get_per_cpu(ulong, quick_int_stack_top);
+    ulong *cur_quick_stack_top = get_per_cpu(ulong, tlb_miss_stack_top);
     *cur_quick_stack_top = stack_top;
 
     return stack_top;
@@ -219,8 +204,8 @@ void init_int_entry_mp()
     kprintf("EVBAR @ %x, entry @ %p\n", evbar.value, &raw_int_entry_base);
 
     // Set up stacks
-    ulong kernel_stack_top = _setup_kernel_stack();
-    ulong quick_stack_top = _setup_quick_stack();
+    ulong kernel_stack_top = _setup_default_int_stack();
+    ulong quick_stack_top = _setup_tlb_miss_stack();
 
     kprintf("Stack top, quick @ %lx, kernel @ %lx\n", quick_stack_top, kernel_stack_top);
 

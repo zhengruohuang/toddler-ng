@@ -12,24 +12,19 @@
 void switch_to(ulong thread_id, struct reg_context *context,
                void *page_table, int user_mode, ulong asid, ulong tcb)
 {
-    // Copy context to interrupt stack
-    ulong *cur_stack_top = get_per_cpu(ulong, cur_int_stack_top);
-    memcpy((void *)*cur_stack_top, context, sizeof(struct reg_context));
-
 //     kprintf("Switch to PC @ %lx, SP @ %lx, user: %d, ASID: %d, thread: %lx\n",
 //             context->pc, context->sp, user_mode, asid, thread_id);
 
     // Set up fast TCB access - k0
-    struct reg_context *target_ctxt = (void *)*cur_stack_top;
-    target_ctxt->k0 = tcb;
+    context->k0 = tcb;
 
     // Set EPC to PC
-    write_cp0_epc(target_ctxt->pc);
+    write_cp0_epc(context->pc);
 
     // Set CAUSE based on delay slot state
     struct cp0_cause cause;
     read_cp0_cause(cause.value);
-    cause.bd = target_ctxt->delay_slot ? 1 : 0;
+    cause.bd = context->delay_slot ? 1 : 0;
     write_cp0_cause(cause.value);
 
     // Set SR based on user/kernel mode, also set EXL bit - switching is enabled
@@ -50,7 +45,7 @@ void switch_to(ulong thread_id, struct reg_context *context,
     enable_local_int();
 
     // Restore GPRs
-    restore_context_gpr(target_ctxt);
+    restore_context_gpr(context);
 }
 
 void kernel_pre_dispatch(ulong thread_id, struct kernel_dispatch *kdi)

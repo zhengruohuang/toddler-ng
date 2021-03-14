@@ -275,6 +275,10 @@ void loader_entry(ulong boot_hart, void *fdt)
     funcs.final_arch = final_arch;
     funcs.jump_to_hal = jump_to_hal;
 
+    // Set up sscratch
+    ulong my_cpu_hart = boot_hart;
+    write_sscratch(&my_cpu_hart);
+
     // Go to loader!
     loader(&fw_args, &funcs);
 }

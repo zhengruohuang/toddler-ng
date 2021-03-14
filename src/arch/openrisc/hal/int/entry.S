@@ -1,8 +1,8 @@
 #include "hal/include/vecnum.h"
 
 
-.extern quick_int_handler_entry
-.extern kernel_int_handler_entry
+.extern tlb_miss_handler_entry
+.extern int_handler_entry
 .global raw_int_entry_base
 
 
@@ -41,14 +41,14 @@
 
 .macro HANDLE_EXCEPT vec
     SAVE_REGS_TO_CTXT1
-    CALL_LOADER_EXCEPT r16 kernel_int_handler_entry \vec
+    CALL_LOADER_EXCEPT r16 int_handler_entry \vec
     UNREACHEABLE
 .endm
 
 .macro HANDLE_TLB_EXCEPT tlb_vec pf_vec
     SAVE_REGS_TO_CTXT1
-    CALL_LOADER_EXCEPT r14 quick_int_handler_entry \tlb_vec
-    CALL_LOADER_EXCEPT r16 kernel_int_handler_entry \pf_vec
+    CALL_LOADER_EXCEPT r14 tlb_miss_handler_entry \tlb_vec
+    CALL_LOADER_EXCEPT r16 int_handler_entry \pf_vec
     UNREACHEABLE
 .endm
 

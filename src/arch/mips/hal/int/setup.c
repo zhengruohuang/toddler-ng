@@ -153,8 +153,6 @@ extern void raw_int_entry_base();
 
 ulong *per_cpu_context_base_table = NULL;
 
-decl_per_cpu(ulong, cur_int_stack_top);
-
 void init_int_entry_mp()
 {
     // Set BEV to 0 to enable custom exception handler location
@@ -189,17 +187,9 @@ void init_int_entry_mp()
     write_cp0_ebase(ebase.value);
 #endif
 
-    // Set up stack top for context saving
-    ulong stack_top = get_my_cpu_stack_top_vaddr() - sizeof(struct reg_context);
-
-    // Align the stack to 16B
-    stack_top = ALIGN_DOWN(stack_top, 16);
-
-    // Remember the stack top
-    ulong *cur_stack_top = get_per_cpu(ulong, cur_int_stack_top);
-    *cur_stack_top = stack_top;
-
     // Set up stack for each different mode
+    struct reg_context *int_ctxt = get_cur_int_reg_context();
+    ulong stack_top = (ulong)(void *)int_ctxt;
     kprintf("Set exception handler stack @ %lx\n", stack_top);
 
     // Set ctxt base table so that the raw handler knows where the stack is

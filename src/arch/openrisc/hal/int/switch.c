@@ -12,7 +12,6 @@
 void switch_to(ulong thread_id, struct reg_context *context,
                void *page_table, int user_mode, ulong asid, ulong tcb)
 {
-//     if (dev_int_fired)
 //     kprintf("Switch to PC @ %lx, SP @ %lx, user: %d, ASID: %d, thread: %lx\n",
 //             context->pc, context->sp, user_mode, asid, thread_id);
 
@@ -35,12 +34,12 @@ void switch_to(ulong thread_id, struct reg_context *context,
 void kernel_pre_dispatch(ulong thread_id, struct kernel_dispatch *kdi)
 {
 //     disable_mmu();
-//     flush_tlb();
 //
 //     void *page_table = get_kernel_page_table();
 //     set_page_table(page_table);
 //
-//     //enable_mmu();
+//     flush_tlb();
+//     enable_mmu();
 }
 
 void kernel_post_dispatch(ulong thread_id, struct kernel_dispatch *kdi)
@@ -51,4 +50,5 @@ void kernel_post_dispatch(ulong thread_id, struct kernel_dispatch *kdi)
 //     set_page_table(rctxt->page_table);
 //
 //     flush_tlb();
+//     enable_mmu();
 }

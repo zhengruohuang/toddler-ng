@@ -119,20 +119,19 @@ void int_handler_entry(struct reg_context *regs)
  */
 extern void raw_int_entry();
 
-decl_per_cpu(ulong, int_stack_top);
+// decl_per_cpu(ulong, int_stack_top);
 
 void init_int_entry_mp()
 {
-    // Set up stack top for context saving
-    ulong stack_top = get_my_cpu_stack_top_vaddr() - sizeof(struct reg_context);
+    // Remember CPU hart
+    ulong *my_cpu_hart_ptr = NULL;
+    read_sscratch(my_cpu_hart_ptr);
+    ulong my_cpu_hart = *my_cpu_hart_ptr;
 
-    // Align the stack to 16B
-    stack_top = ALIGN_DOWN(stack_top, 16);
-
-    // Remember the stack top
-    ulong *cur_stack_top = get_per_cpu(ulong, int_stack_top);
-    *cur_stack_top = stack_top;
-    write_sscratch(stack_top);
+    // Set up int ctxt and make sscratch point to it
+    struct reg_context *int_ctxt = get_cur_int_reg_context();
+    int_ctxt->my_cpu_hart = my_cpu_hart;
+    write_sscratch(int_ctxt);
 
     // Set up handler entry
     ulong base = (ulong)(void *)&raw_int_entry;
@@ -142,11 +141,6 @@ void init_int_entry_mp()
     tvec.base2 = base >> 2;
 
     write_stvec(tvec.value);
-
-    ulong sie = 0;
-    read_sie(sie);
-    sie |= 0x3;
-    write_sie(sie);
 }
 
 void init_int_entry()

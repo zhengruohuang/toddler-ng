@@ -22,12 +22,10 @@ static void switch_page_table(struct l1table *page_table)
 void switch_to(ulong thread_id, struct reg_context *context,
                void *page_table, int user_mode, ulong asid, ulong tcb)
 {
+    //kprintf("cur_stack_top: %p, PC @ %p, SP @ %p, R0: %p\n", *cur_stack_top, context->pc, context->sp, context->r0);
+
     // Set up fast TCB access
     write_software_thread_id(tcb);
-
-    // Copy context to interrupt stack
-    ulong *cur_stack_top = get_per_cpu(ulong, cur_int_stack_top);
-    memcpy((void *)*cur_stack_top, context, sizeof(struct reg_context));
 
     // Mark interrupt state as enabled
     set_local_int_state(1);
@@ -35,11 +33,8 @@ void switch_to(ulong thread_id, struct reg_context *context,
     // Switch page dir
     switch_page_table(page_table);
 
-    //kprintf("cur_stack_top: %p, PC @ %p, SP @ %p, R0: %p\n", *cur_stack_top, context->pc, context->sp, context->r0);
-    //kprintf("Target PC @ %p\n", *(ulong *)*cur_stack_top);
-
     // Restore GPRs
-    restore_context_gpr(*cur_stack_top);
+    restore_context_gpr(*context);
 }
 
 

@@ -106,8 +106,11 @@ static void enable_local_int()
 
 static ulong get_cur_mp_id()
 {
-    // TODO
-    return 0;
+    ulong *my_cpu_hart_ptr = NULL;
+    read_sscratch(my_cpu_hart_ptr);
+
+    ulong my_cpu_hart = *my_cpu_hart_ptr;
+    return my_cpu_hart;
 }
 
 static void register_drivers()
@@ -160,12 +163,16 @@ static void *init_user_page_table()
     struct loader_args *largs = get_loader_args();
     struct page_frame *kernel_page_table = largs->page_table;
 
-    // TODO: RISC-V 64
-    // Duplicate the last 4MB mapping
+#if (ARCH_WIDTH == 32)
+    // Duplicate the last 16MB mapping
     page_table->entries[1023].value = kernel_page_table->entries[1023].value;
     page_table->entries[1022].value = kernel_page_table->entries[1022].value;
     page_table->entries[1021].value = kernel_page_table->entries[1021].value;
     page_table->entries[1020].value = kernel_page_table->entries[1020].value;
+#elif (ARCH_WIDTH == 64)
+    // Duplicate the last block mapping
+    page_table->entries[511].value = kernel_page_table->entries[511].value;
+#endif
 
     return page_table;
 }

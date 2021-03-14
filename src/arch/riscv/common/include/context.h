@@ -10,6 +10,8 @@
  * Context
  */
 struct reg_context {
+    ulong my_cpu_hart;
+
     union {
         ulong regs[32];
 

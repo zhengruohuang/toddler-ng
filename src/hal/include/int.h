@@ -107,6 +107,7 @@ struct running_context {
     ulong tcb;
 };
 
+extern_per_cpu(struct reg_context *, cur_int_reg_context);
 extern_per_cpu(struct running_context, cur_running_context);
 
 static inline struct running_context *get_cur_running_context()
@@ -148,6 +149,11 @@ static inline void *get_cur_running_page_table()
 {
     struct running_context *rctxt = get_cur_running_context();
     return rctxt->page_table;
+}
+
+static inline struct reg_context *get_cur_int_reg_context()
+{
+    return *get_per_cpu(struct reg_context *, cur_int_reg_context);
 }
 
 extern void switch_context(ulong thread_id, struct reg_context *context,

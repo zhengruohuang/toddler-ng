@@ -11,8 +11,6 @@
 /*
  * Int
  */
-extern_per_cpu(ulong, cur_int_stack_top);
-
 extern void init_int_entry_mp();
 extern void init_int_entry();
 

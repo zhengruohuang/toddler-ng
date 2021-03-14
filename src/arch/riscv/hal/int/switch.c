@@ -15,13 +15,8 @@ void switch_to(ulong thread_id, struct reg_context *context,
 //     kprintf("Switch to PC @ %lx, SP @ %lx, user: %d, ASID: %d, thread: %lx\n",
 //             context->pc, context->sp, user_mode, asid, thread_id);
 
-    // Copy context to interrupt stack
-    ulong *cur_stack_top = get_per_cpu(ulong, int_stack_top);
-    struct reg_context *target_regs = (void *)*cur_stack_top;
-    memcpy(target_regs, context, sizeof(struct reg_context));
-
     // Set up fast TCB access
-    target_regs->tp = tcb;
+    context->tp = tcb;
 
     // Mark interrupt state as enabled
     set_local_int_state(1);
@@ -30,7 +25,7 @@ void switch_to(ulong thread_id, struct reg_context *context,
     switch_page_table(page_table, asid);
 
     // Restore GPRs
-    restore_context_gpr(target_regs);
+    restore_context_gpr(context);
 
     unreachable();
 }
