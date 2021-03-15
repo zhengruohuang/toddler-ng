@@ -288,9 +288,13 @@ static inline void start_ns16550()
 void init_ns16550_driver()
 {
     // Register handler
-    if (DEVTREE_NODE_PHANDLE) {
-        ns16550.seq = syscall_int_handler(DEVTREE_NODE_PHANDLE, ns16550_int_handler);
-    }
+#if DEVTREE_NODE_PHANDLE
+    ns16550.seq = syscall_int_handler(DEVTREE_NODE_PHANDLE, ns16550_int_handler);
+#elif defined(ARCH_RISCV)
+    ns16550.seq = syscall_int_handler2("/soc/uart", 0, ns16550_int_handler);
+#else
+    ns16550.seq = 0;
+#endif
 
     // Register driver
     create_drv("/dev", "serial", 0, &dev_ns16550_ops, 1);

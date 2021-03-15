@@ -25,10 +25,10 @@ The next generation Toddler
 
 ## Status
 
-Planned = Not yet started
-Initial = Initial exploration
-Active  = Active development
-Current = Up to date
+* Planned = Not yet started
+* Initial = Initial exploration
+* Active  = Active development
+* Current = Up to date
 
 ### Arch
 
@@ -39,18 +39,18 @@ Current = Up to date
 | alpha-clipper-qemu    | Active    | Planned   |                    |
 | armv7-raspi2-qemu     | Current   | Current   |                    |
 | aarch64v8-raspi3-qemu | Current   | Active    | Minor fixes needed |
-| mips32l-malta-generic | Current   | Current   |                    |
-| mips32b-malta-generic | Current   | Current   | Minor fixes needed |
-| mips64l-malta-generic | Current   | Current   |                    |
-| mips64b-malta-generic | Current   | Current   | Minor fixes needed |
-| powerpc-mac-generic   | Current   | Active    | Minor fixes needed |
-| powerpc64-mac-generic | Initial   | Planned   |                    |
+| mips32l-malta-qemu    | Current   | Current   |                    |
+| mips32b-malta-qemu    | Current   | Current   | Minor fixes needed |
+| mips64l-malta-qemu    | Current   | Current   |                    |
+| mips64b-malta-qemu    | Current   | Current   | Minor fixes needed |
+| powerpc-mac-qemu      | Current   | Active    | Minor fixes needed |
+| powerpc64-mac-qemu    | Initial   | Planned   |                    |
 | sparcv8-leon3-qemu    | Current   | Planned   | Minor fixes needed |
-| sparcv8-sun4m-generic | Active    | Planned   |                    |
-| sparcv9-sun4u-generic | Planned   | Planned   |                    |
-| riscv32-virt-qemu     | Current   | Planned   | Minor fixes needed |
-| riscv64-virt-qemu     | Current   | Planned   | Minor fixes needed |
-| m68k-atari-aranym     | Active    | Planned   |                    |
+| sparcv8-sun4m-qemu    | Active    | Planned   |                    |
+| sparcv9-sun4u-qemu    | Planned   | Planned   |                    |
+| riscv32-virt-qemu     | Current   | Current   |                    |
+| riscv64-virt-qemu     | Current   | Active    |                    |
+| m68k-q800-qemu        | Active    | Planned   |                    |
 | sh4-r2d-qemu          | Active    | Planned   |                    |
 | openrisc-sim-qemu     | Current   | Current   |                    |
 | ia64-sim-ski          | Initial   | Planned   |                    |

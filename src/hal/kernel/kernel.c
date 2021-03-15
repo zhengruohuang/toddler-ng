@@ -102,6 +102,7 @@ static void fill_hal_exports()
 
     // User-space interrupt handler
     hexp.int_register = user_int_register;
+    hexp.int_register2 = user_int_register2;
     hexp.int_eoi = user_int_eoi;
 
     // Clock

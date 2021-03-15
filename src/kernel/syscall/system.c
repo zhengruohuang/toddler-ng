@@ -146,6 +146,22 @@ int syscall_handler_int_register(struct process *p, struct thread *t,
     return SYSCALL_HANDLED_CONTINUE;
 }
 
+int syscall_handler_int_register2(struct process *p, struct thread *t,
+                                  struct kernel_dispatch *kdi)
+{
+    ulong fw_path_vaddr = kdi->param0;
+    paddr_t fw_path_paddr = get_hal_exports()->translate(p->page_table, fw_path_vaddr);
+    void *fw_path_ptr = hal_cast_paddr_to_kernel_ptr(fw_path_paddr);
+
+    ulong fw_pos = kdi->param1;
+    ulong entry = kdi->param2;
+    ulong seq = int_handler_register2(p, (const char *)fw_path_ptr, fw_pos, entry);
+
+    int err = seq == -1ul ? -1 : 0;
+    hal_set_syscall_return(kdi->regs, err, seq, 0);
+    return SYSCALL_HANDLED_CONTINUE;
+}
+
 int syscall_handler_int_eoi(struct process *p, struct thread *t,
                             struct kernel_dispatch *kdi)
 {

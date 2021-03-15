@@ -24,6 +24,7 @@ enum syscall_nums {
     SYSCALL_INTERRUPT,
     SYSCALL_INT_ALLOC,
     SYSCALL_INT_HANDLER,
+    SYSCALL_INT_HANDLER2,
     SYSCALL_INT_EOI,
 
     // Fault

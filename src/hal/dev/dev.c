@@ -357,25 +357,14 @@ int handle_dev_int(struct int_context *ictxt, struct kernel_dispatch *kdi)
 /*
  * User-space
  */
-void *user_int_register(ulong phandle, ulong user_seq)
+static void *_user_int_register(struct dev_record *dev, int int_pos, ulong user_seq)
 {
-    int fw_id = (long)phandle;
-
-    // Find the dev
-    struct dev_record *dev = NULL;
-    for (struct dev_record *d = dev_list; d; d = d->next) {
-        if (d->fw_id == fw_id) {
-            dev = d;
-            break;
-        }
-    }
-
     if (!dev) {
         return NULL;
     }
 
     // Obtain int tree nodes
-    panic_if(dev->num_int_nodes > 1,
+    panic_if(int_pos || dev->num_int_nodes > 1,
              "interrupts-extended not supported by user interrupt handlers!\n");
     struct inttree_node *int_node = dev->int_node;
     struct inttree_node *intc_int_node = int_node->parent;
@@ -395,6 +384,40 @@ void *user_int_register(ulong phandle, ulong user_seq)
     }
 
     return NULL;
+}
+
+void *user_int_register(ulong phandle, ulong user_seq)
+{
+    int fw_id = (long)phandle;
+
+    // Find the dev
+    struct dev_record *dev = NULL;
+    for (struct dev_record *d = dev_list; d; d = d->next) {
+        if (d->fw_id == fw_id) {
+            dev = d;
+            break;
+        }
+    }
+
+    // Register
+    return _user_int_register(dev, 0, user_seq);
+}
+
+void *user_int_register2(const char *fw_path, int fw_pos, ulong user_seq)
+{
+    void *fw_node = devtree_walk(fw_path);
+
+    // Find the dev
+    struct dev_record *dev = NULL;
+    for (struct dev_record *d = dev_list; d; d = d->next) {
+        if (d->fw_node == fw_node) {
+            dev = d;
+            break;
+        }
+    }
+
+    // Register
+    return _user_int_register(dev, fw_pos, user_seq);
 }
 
 void user_int_eoi(void *hal_dev)

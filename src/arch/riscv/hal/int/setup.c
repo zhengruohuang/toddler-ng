@@ -18,6 +18,7 @@
 static inline void save_extra_context(struct reg_context *regs)
 {
     read_sepc(regs->pc);
+    read_sstatus(regs->status);
 }
 
 static inline u32 read_instr4(ulong pc)

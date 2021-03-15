@@ -24,6 +24,7 @@ void init_dispatch()
 
     handlers[SYSCALL_INTERRUPT] = syscall_handler_interrupt;
     handlers[SYSCALL_INT_HANDLER] = syscall_handler_int_register;
+    handlers[SYSCALL_INT_HANDLER2] = syscall_handler_int_register2;
     handlers[SYSCALL_INT_EOI] = syscall_handler_int_eoi;
 
     handlers[SYSCALL_FAULT_PAGE] = syscall_handler_fault_page;

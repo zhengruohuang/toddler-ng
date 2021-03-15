@@ -54,6 +54,7 @@ typedef void (*enable_local_int_t)();
 
 // User-space interrupt handler
 typedef void *(*int_register_t)(ulong phandle, ulong user_seq);
+typedef void *(*int_register2_t)(const char *fw_path, int fw_pos, ulong user_seq);
 typedef void (*int_eoi_t)(void *hal_dev);
 
 // Clock
@@ -128,6 +129,7 @@ struct hal_exports {
 
     // User-space interrupt handler
     int_register_t int_register;
+    int_register2_t int_register2;
     int_eoi_t int_eoi;
 
     // Clock

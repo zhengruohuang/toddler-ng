@@ -85,8 +85,34 @@ ulong int_handler_register(struct process *p, ulong phandle, ulong entry)
     return h->seq;
 }
 
+ulong int_handler_register2(struct process *p, const char *fw_path, int fw_pos, ulong entry)
+{
+    struct int_handler_ipc *h = alloc_int_handler();
+    if (!h) {
+        return -1ul;
+    }
+
+    void *hal_dev = NULL;
+    spinlock_exclusive_int(&int_reg_lock) {
+        hal_dev = get_hal_exports()->int_register2(fw_path, fw_pos, h->seq);
+    }
+
+    if (!hal_dev) {
+        free_int_handler(h);
+        return -1ul;
+    }
+
+    h->hal_dev = hal_dev;
+    h->proc = p;
+    h->entry = entry;
+    ref_count_inc(&p->ref_count);
+
+    return h->seq;
+}
+
 int int_handler_unregister(struct process *p, ulong seq)
 {
+    panic("Unimplemented!\n");
     return -1;
 }
 

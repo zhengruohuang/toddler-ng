@@ -32,10 +32,17 @@ thread_info_block_t *syscall_get_tib()
 /*
  * Interrupt
  */
-ulong syscall_int_handler(ulong intc_phandle, thread_entry_t entry)
+ulong syscall_int_handler(ulong dev_fw_id, thread_entry_t entry)
 {
     ulong seq = -1ul;
-    sysenter(SYSCALL_INT_HANDLER, intc_phandle, (ulong)entry, 0, &seq, NULL);
+    sysenter(SYSCALL_INT_HANDLER, dev_fw_id, (ulong)entry, 0, &seq, NULL);
+    return seq;
+}
+
+ulong syscall_int_handler2(const char *dev_fw_path, int dev_fw_pos, thread_entry_t entry)
+{
+    ulong seq = -1ul;
+    sysenter(SYSCALL_INT_HANDLER2, (ulong)dev_fw_path, dev_fw_pos, (ulong)entry, &seq, NULL);
     return seq;
 }
 

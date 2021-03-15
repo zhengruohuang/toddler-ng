@@ -23,15 +23,15 @@ struct plic_intc_record {
 };
 
 
-static inline u32 plic_read(ulong base, ulong offset)
+static inline u32 plic_read(ulong base, ulong idx)
 {
-    ulong addr = base + offset;
+    ulong addr = base + idx * 4;
     return mmio_read32(addr);
 }
 
-static inline void plic_write(ulong base, ulong offset, u32 val)
+static inline void plic_write(ulong base, ulong idx, u32 val)
 {
-    ulong addr = base + offset;
+    ulong addr = base + idx * 4;
     mmio_write32(addr, val);
 }
 
@@ -41,18 +41,26 @@ static inline void plic_write(ulong base, ulong offset, u32 val)
  */
 static void enable_irq(struct driver_param *param, struct int_context *ictxt, int irq_seq)
 {
-//     ulong sie = 0;
-//     read_sie(sie);
-//     sie |= 0x1ul << irq_seq;
-//     write_sie(sie);
+    struct plic_intc_record *record = param->record;
+
+    int reg_num = irq_seq / 32;
+    int reg_pos = irq_seq % 32;
+
+    u32 mask = plic_read(record->enable_base, reg_num);
+    mask |= 0x1 << reg_pos;
+    plic_write(record->enable_base, reg_num, mask);
 }
 
 static void disable_irq(struct driver_param *param, struct int_context *ictxt, int irq_seq)
 {
-//     ulong sie = 0;
-//     read_sie(sie);
-//     sie &= ~(0x1ul << irq_seq);
-//     write_sie(sie);
+    struct plic_intc_record *record = param->record;
+
+    int reg_num = irq_seq / 32;
+    int reg_pos = irq_seq % 32;
+
+    u32 mask = plic_read(record->enable_base, reg_num);
+    mask &= ~(0x1 << reg_pos);
+    plic_write(record->enable_base, reg_num, mask);
 }
 
 static void end_irq(struct driver_param *param, struct int_context *ictxt, int irq_seq)
@@ -68,12 +76,22 @@ static void setup_irq(struct driver_param *param, int irq_seq)
     struct plic_intc_record *record = param->record;
     record->valid_bitmap |= 0x1ull << irq_seq;
 
+    plic_write(record->priority_base, irq_seq, 1);
+
     enable_irq(param, NULL, irq_seq);
 }
 
 static void disable_irq_all(struct driver_param *param)
 {
-//     write_sie(0);
+    struct plic_intc_record *record = param->record;
+
+    for (int cnt = 0, i = 0; cnt < record->num_devs; cnt += 32, i++) {
+        plic_write(record->enable_base, i, 0);
+    }
+
+    for (int i = 0; i < record->num_devs; i++) {
+        plic_write(record->priority_base, i, 0);
+    }
 }
 
 
@@ -102,6 +120,8 @@ static inline ulong _get_access_window(paddr_t mmio_base_paddr, paddr_t offset, 
     return vaddr;
 }
 
+#define PLIC_CTXT_ID 1
+
 static void *create(struct fw_dev_info *fw_info, struct driver_param *param)
 {
     struct plic_intc_record *record = mempool_alloc(sizeof(struct plic_intc_record));
@@ -114,6 +134,7 @@ static void *create(struct fw_dev_info *fw_info, struct driver_param *param)
     // ndev
     struct devtree_prop *ndev_prop = devtree_find_prop(fw_info->devtree_node, "riscv,ndev");
     record->num_devs = ndev_prop ? devtree_get_prop_data_u32(ndev_prop) : MAX_NUM_INT_SRCS;
+    panic_if(record->num_devs > MAX_NUM_INT_SRCS, "PLIC ndev exceeding max supported!\n");
 
     // reg
     u64 reg = 0, size = 0;
@@ -123,11 +144,11 @@ static void *create(struct fw_dev_info *fw_info, struct driver_param *param)
     paddr_t mmio_paddr = cast_u64_to_paddr(reg);
     record->priority_base = _get_access_window(mmio_paddr, 0x000000, MAX_NUM_INT_SRCS * 4);
     record->pending_base =  _get_access_window(mmio_paddr, 0x001000, MAX_NUM_INT_SRCS * 4 / 32);
-    record->enable_base =   _get_access_window(mmio_paddr, 0x002000, MAX_NUM_INT_SRCS * 4 / 32);
-    record->threshold =     _get_access_window(mmio_paddr, 0x200000, 4);
-    record->complete =      _get_access_window(mmio_paddr, 0x200004, 4);
+    record->enable_base =   _get_access_window(mmio_paddr, 0x002000 + PLIC_CTXT_ID * 0x80, MAX_NUM_INT_SRCS * 4 / 32);
+    record->threshold =     _get_access_window(mmio_paddr, 0x200000 + PLIC_CTXT_ID * 0x1000, 4);
+    record->complete =      _get_access_window(mmio_paddr, 0x200004 + PLIC_CTXT_ID * 0x1000, 4);
 
-    kprintf("Found RISC-V plic intc\n");
+    kprintf("Found RISC-V PLIC intc\n");
     return record;
 }
 
