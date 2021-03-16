@@ -21,5 +21,6 @@ build_opts['qemu'] = {
     'bootargs'  : 'test',
     'bootimg'   : img_dir + 'boot.elf',
     'mp'        : '4',
+    'default_mp': True,
     'bios'      : ext_dir + 'riscv/opensbi-{0}-generic-fw_dynamic.elf'.format(target_arch)
 }

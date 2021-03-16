@@ -115,6 +115,19 @@ struct devtree_prop *devtree_find_prop(struct devtree_node *node,
 
 
 /*
+ * Parent and ancestor
+ */
+int devtree_in_subtree(struct devtree_node *parent, struct devtree_node *node)
+{
+    while (node && parent != node) {
+        node = devtree_get_parent_node(node);
+    }
+
+    return parent != node;
+}
+
+
+/*
  * Walk
  */
 struct devtree_node *devtree_walk(const char *path)

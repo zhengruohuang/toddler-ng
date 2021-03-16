@@ -209,7 +209,18 @@ ulong arch_get_cur_mp_id()
     }
 
     panic_if(get_num_cpus() != 1,
-             "MP arch HAL must implement get_cpu_index!");
+             "MP arch HAL must implement get_cur_mp_id in MP system!");
+    return 0;
+}
+
+int arch_get_cur_mp_seq()
+{
+    if (arch_funcs.get_cur_mp_seq) {
+        return arch_funcs.get_cur_mp_seq();
+    }
+
+    panic_if(get_num_cpus() != 1,
+             "MP arch HAL must implement get_cur_mp_seq in MP system!");
     return 0;
 }
 
@@ -347,6 +358,9 @@ void hal(struct loader_args *largs, struct hal_arch_funcs *funcs)
     // Init CPU
     init_topo();
     init_per_cpu_area();
+
+    // CPU-local interrupt
+    setup_int_hierarchy();
 
     // Init interrupt
     init_context();

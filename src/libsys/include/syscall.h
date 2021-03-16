@@ -35,7 +35,7 @@ static inline tid_t syscall_get_tid()
 /*
  * Interrupt
  */
-extern ulong syscall_int_handler(ulong dev_fw_id, thread_entry_t entry);
+extern ulong syscall_int_handler(ulong dev_fw_id, int dev_fw_pos, thread_entry_t entry);
 extern ulong syscall_int_handler2(const char *dev_fw_path, int dev_fw_pos, thread_entry_t entry);
 extern int syscall_int_eoi(ulong seq);
 

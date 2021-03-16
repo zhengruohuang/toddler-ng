@@ -150,9 +150,9 @@ __restore_registers_except_ra:
     la_ul   k1, per_cpu_context_base_table
     ld_ul   k1, 0(k1)
 
-    /* Find out current CPUnum and store to k0 */
-    mfc0    k0, $15, 1          /* Read EBbase - CP0 reg 15 sel 1 */
-    andi    k0, k0, 0x3ff       /* Get CPU ID */
+    /* Find out current MP seq and store to k0 */
+    mfc0    k0, $4, 0           /* Read PTE Context - CP0 reg 4 sel 0 */
+    srl     k0, k0, 23          /* Get PTEBase, which is used for storing MP seq */
 
     /* Load the ctxt baes for current CPU */
     sll_ul  k0, k0, WORD_SHIFT  /* Calculate offset - cpu_id * 4 (8 on 64-bit) */

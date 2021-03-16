@@ -417,4 +417,11 @@ struct power_mgmt_reg {
 #define write_pmr(value)        __mtspr(value, 8, 0)
 
 
+/*
+ * MP
+ */
+#define read_core_id(value)     __mfspr(value, 0, 128)
+#define read_num_cores(value)   __mfspr(value, 0, 129)
+
+
 #endif

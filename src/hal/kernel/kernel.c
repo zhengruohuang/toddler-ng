@@ -89,7 +89,7 @@ static void fill_hal_exports()
     // MP
     hexp.num_cpus = get_num_cpus();
     hexp.get_cur_mp_id = funcs->get_cur_mp_id;
-    hexp.get_cur_mp_seq = get_cur_mp_seq;
+    hexp.get_cur_mp_seq = funcs->get_cur_mp_seq;
     hexp.access_per_cpu_var = access_per_cpu_var;
 
     // Physical memory map

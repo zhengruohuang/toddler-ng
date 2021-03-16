@@ -344,7 +344,14 @@ struct mp_affinity_reg {
     };
 } packed4_struct;
 
-#define read_cpu_id(value)     __mrc(value, p15, 0, 5, c0, c0)
+#define read_cpu_id(value)      __mrc(value, p15, 0, 5, c0, c0)
+
+
+/*
+ * TPIDRPRW - PL1 only Thread ID Register - Stores MP Seq
+ */
+#define read_pl1_tid(value)     __mrc(value, p15, 0, 4, c13, c0)
+#define write_pl1_tid(value)    __mcr(value, p15, 0, 4, c13, c0)
 
 
 #endif

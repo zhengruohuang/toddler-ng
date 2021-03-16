@@ -3,6 +3,7 @@
 #include "common/include/msr.h"
 #include "common/include/page.h"
 #include "hal/include/hal.h"
+#include "hal/include/sbi.h"
 #include "hal/include/setup.h"
 #include "hal/include/kprintf.h"
 #include "hal/include/lib.h"
@@ -91,7 +92,6 @@ static void disable_local_int()
     struct status_reg status;
     read_sstatus(status.value);
     status.sie = 0;
-    status.uie = 0;
     write_sstatus(status.value);
 }
 
@@ -100,17 +100,27 @@ static void enable_local_int()
     struct status_reg status;
     read_sstatus(status.value);
     status.sie = 1;
-    status.uie = 1;
     write_sstatus(status.value);
+}
+
+static inline struct mp_context *_get_cur_mp_context()
+{
+    struct mp_context *mp_ctxt = NULL;
+    read_sscratch(mp_ctxt);
+
+    return mp_ctxt;
 }
 
 static ulong get_cur_mp_id()
 {
-    ulong *my_cpu_hart_ptr = NULL;
-    read_sscratch(my_cpu_hart_ptr);
+    struct mp_context *mp_ctxt = _get_cur_mp_context();
+    return mp_ctxt->id;
+}
 
-    ulong my_cpu_hart = *my_cpu_hart_ptr;
-    return my_cpu_hart;
+static int get_cur_mp_seq()
+{
+    struct mp_context *mp_ctxt = _get_cur_mp_context();
+    return mp_ctxt->seq;
 }
 
 static void register_drivers()
@@ -119,6 +129,8 @@ static void register_drivers()
     REGISTER_DEV_DRIVER(plic_intc);
 
     REGISTER_DEV_DRIVER(clint_timer);
+
+    REGISTER_DEV_DRIVER(riscv_cpu);
 }
 
 static ulong get_syscall_params(struct reg_context *regs, ulong *param0, ulong *param1, ulong *param2)
@@ -152,6 +164,7 @@ static void halt_cur_cpu()
 
 static void start_cpu(int mp_seq, ulong mp_id, ulong entry)
 {
+    sbi_hart_start(mp_id, entry, 0);
 }
 
 static void *init_user_page_table()
@@ -202,7 +215,6 @@ static void init_thread_context(struct reg_context *context, ulong entry,
 
     // Status
     struct status_reg status = { .value = 0 };
-    status.upie = 1;
     status.spie = 1;
     status.spp = user_mode ? 0 : 1;
     status.sum = 1;
@@ -241,6 +253,7 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.translate = generic_translate;
 
     funcs.get_cur_mp_id = get_cur_mp_id;
+    funcs.get_cur_mp_seq = get_cur_mp_seq;
     funcs.mp_entry = largs->mp_entry;
     funcs.start_cpu = start_cpu;
 
@@ -273,14 +286,35 @@ static void hal_entry_bsp(struct loader_args *largs)
 
 static void hal_entry_mp()
 {
-    // TODO
+    // Switch to CPU-private stack
+    ulong sp = get_my_cpu_init_stack_top_vaddr();
+    ulong pc = (ulong)&hal_mp;
+
+    __asm__ __volatile__ (
+        // Set up stack top
+        "mv     x2, %[sp];"
+        "addi   x2, x2, -16;"
+
+        // Jump to target
+        "mv     x6, %[pc];"
+        "jr     x6;"
+        "nop;"
+        :
+        : [pc] "r" (pc), [sp] "r" (sp)
+        : "memory"
+    );
 }
 
 void hal_entry(struct loader_args *largs, int mp)
 {
     if (mp) {
+        int mp_seq = get_cur_bringup_mp_seq();
+        struct mp_context *mp_ctxt = _get_cur_mp_context();
+        mp_ctxt->seq = mp_seq;
         hal_entry_mp();
     } else {
+        struct mp_context *mp_ctxt = _get_cur_mp_context();
+        mp_ctxt->seq = 0;
         hal_entry_bsp(largs);
     }
 

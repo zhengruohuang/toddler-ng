@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 
-def run_arm_qemu(mp):
+def run_riscv_qemu(mp='default'):
     if not in_dict('qemu', build_opts):
         return
 
@@ -9,7 +9,10 @@ def run_arm_qemu(mp):
     opts['exec'] = riscv_qemu_name
     if not 'cpu' in opts:
         opts['cpu'] = riscv_qemu_default_cpu
-    if not mp:
+
+    if mp == 'default' and (not 'default_mp' in opts or not opts['default_mp']):
+        opts['mp'] = False
+    elif mp == False:
         opts['mp'] = False
 
     run_qemu(opts)
@@ -19,13 +22,13 @@ def build_arch():
     pass
 
 def qemu8():
-    run_arm_qemu(True)
+    run_riscv_qemu(True)
 
 def qemu_gui():
-    run_arm_qemu(False)
+    run_riscv_qemu('default')
 
 def qemu():
-    run_arm_qemu(False)
+    run_riscv_qemu('default')
 
 def start_emu():
     emu_type = 'qemu'

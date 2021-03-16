@@ -60,6 +60,8 @@ static struct dev_record *dev_hierarchy = NULL;
 
 static struct inttree_node *int_list = NULL;
 static struct inttree_node *int_hierarchy = NULL;
+static struct inttree_node **cpu_local_int_hierarchy = NULL;
+static int num_global_int_roots = 0;
 
 
 /*
@@ -136,7 +138,7 @@ void start_all_devices()
 void start_all_devices_mp()
 {
     ulong id = arch_get_cur_mp_id();
-    int seq = get_mp_seq_by_id(id);
+    int seq = arch_get_cur_mp_seq();
     drv_func_cpu_power_on(seq, id);
 }
 
@@ -295,7 +297,12 @@ static void setup_inttree_node(struct dev_record *dev,
                                struct inttree_node *intc_int_node)
 {
     if (dev == intc_dev) {
-        panic_if(int_hierarchy, "Only one root intc allowed!");
+        if (int_hierarchy) {
+            kprintf("Found more than one root intc!\n");
+        }
+
+        num_global_int_roots++;
+        intc_int_node->sibling = int_hierarchy;
         int_hierarchy = intc_int_node;
         kprintf("Found root intc @ fw id: %d\n", intc_int_node->fw_id);
     } else {
@@ -346,11 +353,73 @@ static void build_int_hierarchy()
     panic_if(!int_hierarchy, "No root intc found!\n");
 }
 
+int set_cpu_local_intc(void *cpu_fw_node, int mp_seq)
+{
+    for (struct inttree_node *prev_intc = NULL, *intc = int_hierarchy; intc;
+         prev_intc = intc, intc = intc->sibling
+    ) {
+        void *intc_fw_node = intc->dev->fw_node;
+        if (devtree_in_subtree(cpu_fw_node, intc_fw_node)) {
+            if (prev_intc) {
+                prev_intc->sibling = intc->sibling;
+            } else {
+                int_hierarchy = intc->sibling;
+            }
+
+            intc->sibling = NULL;
+            num_global_int_roots--;
+
+            panic_if(!cpu_local_int_hierarchy, "CPU local intc not initialized!\n");
+            panic_if(mp_seq >= get_num_cpus(), "Invalid MP seq: %d\n", mp_seq);
+            cpu_local_int_hierarchy[mp_seq] = intc;
+
+            kprintf("CPU local intc found for MP seq: %d, intc @ %p\n",
+                    mp_seq, intc);
+            return 0;
+        }
+    }
+
+    return -1;
+}
+
+void setup_int_hierarchy()
+{
+    int num_cpus = get_num_cpus();
+    panic_if(num_global_int_roots > num_cpus,
+             "Num root intc exceeding num cpus!\n");
+
+    if (num_global_int_roots == 1) {
+        return;
+    }
+
+    ulong size = sizeof(struct inttree_node *) * num_cpus;
+    cpu_local_int_hierarchy = mempool_alloc(size);
+    memzero(cpu_local_int_hierarchy, size);
+
+    drv_func_detect_cpu_local_intc();
+
+    panic_if(num_global_int_roots > 1,
+             "At most one global root intc allowed!\n");
+}
+
 int handle_dev_int(struct int_context *ictxt, struct kernel_dispatch *kdi)
 {
-    int seq = int_hierarchy->dev->driver_param.int_seq;
-    ictxt->param = &int_hierarchy->dev->driver_param;
-    return invoke_int_handler(seq, ictxt, kdi);
+    struct inttree_node *root_intc = int_hierarchy;
+
+    int mp_seq = ictxt->mp_seq;
+    if (cpu_local_int_hierarchy && cpu_local_int_hierarchy[mp_seq]) {
+        root_intc = cpu_local_int_hierarchy[mp_seq];
+    }
+
+    panic_if(!root_intc, "Found no root intc!\n");
+
+    int irq_seq = root_intc->dev->driver_param.int_seq;
+    ictxt->param = &root_intc->dev->driver_param;
+    return invoke_int_handler(irq_seq, ictxt, kdi);
+
+//     int seq = int_hierarchy->dev->driver_param.int_seq;
+//     ictxt->param = &int_hierarchy->dev->driver_param;
+//     return invoke_int_handler(seq, ictxt, kdi);
 }
 
 
@@ -386,21 +455,19 @@ static void *_user_int_register(struct dev_record *dev, int int_pos, ulong user_
     return NULL;
 }
 
-void *user_int_register(ulong phandle, ulong user_seq)
+void *user_int_register(ulong fw_id, int fw_pos, ulong user_seq)
 {
-    int fw_id = (long)phandle;
-
     // Find the dev
     struct dev_record *dev = NULL;
     for (struct dev_record *d = dev_list; d; d = d->next) {
-        if (d->fw_id == fw_id) {
+        if (d->fw_id == (int)fw_id) {
             dev = d;
             break;
         }
     }
 
     // Register
-    return _user_int_register(dev, 0, user_seq);
+    return _user_int_register(dev, fw_pos, user_seq);
 }
 
 void *user_int_register2(const char *fw_path, int fw_pos, ulong user_seq)

@@ -36,7 +36,8 @@ static ulong get_per_cpu_area_start_vaddr(int cpu_seq)
 
 ulong get_my_cpu_area_start_vaddr()
 {
-    return get_per_cpu_area_start_vaddr(get_cur_mp_seq());
+    ulong mp_seq = arch_get_cur_mp_seq();
+    return get_per_cpu_area_start_vaddr(mp_seq);
 }
 
 ulong get_my_cpu_data_area_start_vaddr()
@@ -58,15 +59,10 @@ ulong get_my_cpu_init_stack_top_vaddr()
 #endif
 }
 
-// FIXME: this function must be run in serial mode
 static void init_per_cpu_var(int *offset, size_t size)
 {
-    if (!is_single_cpu()) {
-        while (1);
-    }
-
-    panic_if(!is_single_cpu(),
-             "Per-CPU var must be initialized in single-CPU phase!\n");
+    panic_if(is_any_secondary_cpu_started(),
+             "Per-CPU var must be initialized before any secondary CPU starts!\n");
 
     panic_if(cur_per_cpu_offset + size >= PAGE_SIZE,
              "Per-CPU var out of space!\n");

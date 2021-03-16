@@ -102,7 +102,13 @@ static paddr_t access_win_to_phys(void *ptr)
     panic_if(vaddr < SEG_DIRECT_CACHED || vaddr >= SEG_KERNEL,
              "Unable to convert from access win to phys addr, out of range!");
 #elif (ARCH_WIDTH == 64)
-    // TODO
+    if (vaddr >= SEG_DIRECT_CACHED_LOW && vaddr < SEG_DIRECT_CACHED_LOW + SEG_DIRECT_SIZE_LOW) {
+        // OK
+    } else if (vaddr >= SEG_DIRECT_CACHED && vaddr < SEG_DIRECT_CACHED + SEG_DIRECT_SIZE) {
+        // OK
+    } else {
+        panic("Unable to convert from access win to phys addr, out of range!");
+    }
 #endif
 
     // Map to phyical address

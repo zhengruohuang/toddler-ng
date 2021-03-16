@@ -18,7 +18,7 @@ The next generation Toddler
 * X11
 * Package management system
 
-## Misc
+## Misc.
 * Fix up SMP support
 * x86: replace NASM assmebly with GAS on x86 and multiboot compliant
 * More architectures - OpenRISC, HPPA, SuperH, IA64, s390, VAX
@@ -30,7 +30,7 @@ The next generation Toddler
 * Active  = Active development
 * Current = Up to date
 
-### Arch
+### Targets
 
 | Target                | Loader    | HAL       | Note               |
 | --------------------- | --------- | --------- | ------------------ |

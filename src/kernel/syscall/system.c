@@ -137,9 +137,10 @@ int syscall_handler_interrupt(struct process *p, struct thread *t,
 int syscall_handler_int_register(struct process *p, struct thread *t,
                                  struct kernel_dispatch *kdi)
 {
-    ulong phandle = kdi->param0;
-    ulong entry = kdi->param1;
-    ulong seq = int_handler_register(p, phandle, entry);
+    ulong fw_id = kdi->param0;
+    ulong fw_pos = kdi->param1;
+    ulong entry = kdi->param2;
+    ulong seq = int_handler_register(p, fw_id, fw_pos, entry);
 
     int err = seq == -1ul ? -1 : 0;
     hal_set_syscall_return(kdi->regs, err, seq, 0);

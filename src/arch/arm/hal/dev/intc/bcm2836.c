@@ -367,8 +367,10 @@ static void start_cpu(struct driver_param *param, int seq, ulong id, ulong entry
 {
     panic_if(seq >= 4, "Unable to start CPU #%ld @ %lx\n", seq, id);
 
-    int cur_seq = get_cur_mp_seq();
-    panic_if(seq == cur_seq, "Unable to start myself CPU #%ld @ %lx\n", seq, id);
+    int cur_seq = arch_get_cur_mp_seq();
+    ulong cur_id = arch_get_cur_mp_id();
+    panic_if(seq == cur_seq || id == cur_id,
+             "Unable to start myself CPU #%ld @ %lx\n", seq, id);
 
     kprintf("Seq: %d, ID: %lx, entry @ %lx\n", seq, id, entry);
 

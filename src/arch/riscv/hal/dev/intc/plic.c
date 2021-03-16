@@ -3,6 +3,7 @@
 #include "common/include/msr.h"
 #include "hal/include/kprintf.h"
 #include "hal/include/devtree.h"
+#include "hal/include/hal.h"
 #include "hal/include/lib.h"
 #include "hal/include/mem.h"
 #include "hal/include/int.h"
@@ -120,8 +121,6 @@ static inline ulong _get_access_window(paddr_t mmio_base_paddr, paddr_t offset, 
     return vaddr;
 }
 
-#define PLIC_CTXT_ID 1
-
 static void *create(struct fw_dev_info *fw_info, struct driver_param *param)
 {
     struct plic_intc_record *record = mempool_alloc(sizeof(struct plic_intc_record));
@@ -136,6 +135,10 @@ static void *create(struct fw_dev_info *fw_info, struct driver_param *param)
     record->num_devs = ndev_prop ? devtree_get_prop_data_u32(ndev_prop) : MAX_NUM_INT_SRCS;
     panic_if(record->num_devs > MAX_NUM_INT_SRCS, "PLIC ndev exceeding max supported!\n");
 
+    // FIXME: plic ctxt
+    ulong hartid = arch_get_cur_mp_id();
+    ulong plic_ctxt_id = hartid * 2 + 1;
+
     // reg
     u64 reg = 0, size = 0;
     int next = devtree_get_translated_reg(fw_info->devtree_node, 0, &reg, &size);
@@ -144,9 +147,9 @@ static void *create(struct fw_dev_info *fw_info, struct driver_param *param)
     paddr_t mmio_paddr = cast_u64_to_paddr(reg);
     record->priority_base = _get_access_window(mmio_paddr, 0x000000, MAX_NUM_INT_SRCS * 4);
     record->pending_base =  _get_access_window(mmio_paddr, 0x001000, MAX_NUM_INT_SRCS * 4 / 32);
-    record->enable_base =   _get_access_window(mmio_paddr, 0x002000 + PLIC_CTXT_ID * 0x80, MAX_NUM_INT_SRCS * 4 / 32);
-    record->threshold =     _get_access_window(mmio_paddr, 0x200000 + PLIC_CTXT_ID * 0x1000, 4);
-    record->complete =      _get_access_window(mmio_paddr, 0x200004 + PLIC_CTXT_ID * 0x1000, 4);
+    record->enable_base =   _get_access_window(mmio_paddr, 0x002000 + plic_ctxt_id * 0x80, MAX_NUM_INT_SRCS * 4 / 32);
+    record->threshold =     _get_access_window(mmio_paddr, 0x200000 + plic_ctxt_id * 0x1000, 4);
+    record->complete =      _get_access_window(mmio_paddr, 0x200004 + plic_ctxt_id * 0x1000, 4);
 
     kprintf("Found RISC-V PLIC intc\n");
     return record;

@@ -38,14 +38,23 @@ extern void init_per_cpu_area();
  * Topology
  */
 extern int get_num_cpus();
+extern int is_single_cpu();
 
-extern void setup_mp_id_trans(int cpus, int fields, ...);
-extern void add_mp_id_trans(ulong mp_id);
-extern void final_mp_id_trans();
+extern void set_num_cpus(int n);
+
+extern void set_mp_trans(int mp_seq, ulong mp_id);
+extern void final_mp_trans();
 
 extern ulong get_mp_id_by_seq(int mp_seq);
-extern int get_mp_seq_by_id(ulong mp_id);
-extern int get_cur_mp_seq();
+
+// FIXME: deprecated
+// extern void setup_mp_id_trans(int cpus, int fields, ...);
+// extern void add_mp_id_trans(ulong mp_id);
+// extern void final_mp_id_trans();
+//
+// extern ulong get_mp_id_by_seq(int mp_seq);
+// extern int get_mp_seq_by_id(ulong mp_id);
+// extern int get_cur_mp_seq();
 
 extern void init_topo();
 
@@ -53,10 +62,14 @@ extern void init_topo();
 /*
  * Secondary CPUs
  */
-extern int is_single_cpu();
+extern int is_any_secondary_cpu_started();
+extern ulong get_cur_bringup_mp_id();
+extern int get_cur_bringup_mp_seq();
 
 extern void bringup_all_secondary_cpus();
+
 extern void release_secondary_cpu_lock();
+
 extern void secondary_cpu_init_done();
 
 

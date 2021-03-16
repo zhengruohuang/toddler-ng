@@ -428,7 +428,7 @@ extern void tlb_shootdown_stats(ulong *count, ulong *global_seq);
 /*
  * Interrupt
  */
-extern ulong int_handler_register(struct process *p, ulong phandle, ulong entry);
+extern ulong int_handler_register(struct process *p, ulong fw_id, int fw_pos, ulong entry);
 extern ulong int_handler_register2(struct process *p, const char *fw_path, int fw_pos, ulong entry);
 extern int int_handler_unregister(struct process *p, ulong seq);
 

@@ -60,7 +60,7 @@ static void free_int_handler(struct int_handler_ipc *h)
  */
 static spinlock_t int_reg_lock = SPINLOCK_INIT;
 
-ulong int_handler_register(struct process *p, ulong phandle, ulong entry)
+ulong int_handler_register(struct process *p, ulong fw_id, int fw_pos, ulong entry)
 {
     struct int_handler_ipc *h = alloc_int_handler();
     if (!h) {
@@ -69,7 +69,7 @@ ulong int_handler_register(struct process *p, ulong phandle, ulong entry)
 
     void *hal_dev = NULL;
     spinlock_exclusive_int(&int_reg_lock) {
-        hal_dev = get_hal_exports()->int_register(phandle, h->seq);
+        hal_dev = get_hal_exports()->int_register(fw_id, fw_pos, h->seq);
     }
 
     if (!hal_dev) {

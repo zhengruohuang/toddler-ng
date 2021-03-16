@@ -22,9 +22,11 @@ extern int match_devtree_compatibles(struct devtree_node *node, const char *drvs
 extern void start_all_devices();
 extern void start_all_devices_mp();
 
+extern int set_cpu_local_intc(void *cpu_fw_node, int mp_seq);
+extern void setup_int_hierarchy();
 extern int handle_dev_int(struct int_context *ictxt, struct kernel_dispatch *kdi);
 
-extern void *user_int_register(ulong phandle, ulong user_seq);
+extern void *user_int_register(ulong fw_id, int fw_pos, ulong user_seq);
 extern void *user_int_register2(const char *fw_path, int fw_pos, ulong user_seq);
 extern void user_int_eoi(void *hal_dev);
 
@@ -36,6 +38,7 @@ extern void init_dev();
  */
 typedef void (*start_cpu_t)(struct driver_param *param, int seq, ulong id, ulong entry);
 typedef void (*detect_topology_t)(struct driver_param *param);
+typedef void (*detect_cpu_local_intc_t)(struct driver_param *param);
 typedef void (*cpu_power_on_t)(struct driver_param *param, int seq, ulong id);
 typedef void (*cpu_power_off_t)(struct driver_param *param, int seq, ulong id);
 
@@ -45,6 +48,7 @@ struct special_drv_func_record {
         void (*func)();
         start_cpu_t start_cpu;
         detect_topology_t detect_topology;
+        detect_cpu_local_intc_t detect_cpu_local_intc;
         cpu_power_on_t on_cpu_power_on;
         cpu_power_off_t on_cpu_power_off;
     };
@@ -59,6 +63,7 @@ struct special_drv_funcs {
     struct special_drv_func_record start_cpu;
     struct special_drv_func_record detect_topology;
 
+    struct special_drv_func_list *detect_cpu_local_intc;
     struct special_drv_func_list *cpu_power_on;
     struct special_drv_func_list *cpu_power_off;
 };
@@ -78,6 +83,7 @@ enum drv_func_invoke_result {
 
 extern int drv_func_start_cpu(int seq, ulong id, ulong entry);
 extern int drv_func_detect_topology();
+extern int drv_func_detect_cpu_local_intc();
 extern int drv_func_cpu_power_on(int seq, ulong id);
 extern int drv_func_cpu_power_off(int seq, ulong id);
 

@@ -1,4 +1,5 @@
 #include "common/include/inttypes.h"
+#include "common/include/context.h"
 #include "common/include/atomic.h"
 #include "common/include/msr.h"
 #include "loader/include/lib.h"
@@ -113,10 +114,10 @@ static void enable_mmu(void *root_page)
 
 typedef void (*hal_start_t)(struct loader_args *largs, int mp);
 
-static void call_hal(struct loader_args *largs)
+static void call_hal(struct loader_args *largs, int mp)
 {
     hal_start_t hal = largs->hal_entry;
-    hal(largs, 0);
+    hal(largs, mp);
 }
 
 static void jump_to_hal()
@@ -125,7 +126,17 @@ static void jump_to_hal()
     kprintf("Jump to HAL @ %p\n", largs->hal_entry);
 
     enable_mmu(largs->page_table);
-    call_hal(largs);
+    call_hal(largs, 0);
+}
+
+static void jump_to_hal_mp()
+{
+    struct loader_args *largs = get_loader_args();
+    kprintf("MP Jump to HAL @ %p, page table @ %p\n",
+            largs->hal_entry, largs->page_table);
+
+    enable_mmu(largs->page_table);
+    call_hal(largs, 1);
 }
 
 
@@ -244,7 +255,7 @@ static void init_libk()
 /*
  * The RISC-V entry point
  */
-void loader_entry(ulong boot_hart, void *fdt)
+void loader_entry(ulong hart, void *fdt)
 {
     /*
      * BSS will be initialized at the beginning of loader() func
@@ -266,6 +277,10 @@ void loader_entry(ulong boot_hart, void *fdt)
         fw_args.fdt.supplied = fdt;
     }
 
+    // MP entry
+    extern void _start_mp();
+    funcs.mp_entry = (ulong)&_start_mp;
+
     // Prepare funcs
     funcs.init_libk = init_libk;
     funcs.init_arch = init_arch;
@@ -276,13 +291,28 @@ void loader_entry(ulong boot_hart, void *fdt)
     funcs.jump_to_hal = jump_to_hal;
 
     // Set up sscratch
-    ulong my_cpu_hart = boot_hart;
-    write_sscratch(&my_cpu_hart);
+    struct mp_context mp = { };
+    mp.id = hart;
+    write_sscratch(&mp);
 
     // Go to loader!
     loader(&fw_args, &funcs);
 }
 
-void loader_entry_ap()
+void loader_entry_mp(ulong hart)
 {
+    kprintf("Booting hart: %lx\n", hart);
+    kprintf("Loader MP!\n");
+
+    // Set up sscratch
+    struct mp_context mp = { };
+    mp.id = hart;
+    write_sscratch(&mp);
+
+    // Go to HAL!
+    jump_to_hal_mp();
+
+    // Should never reach here
+    panic("Should never reach here");
+    while (1);
 }

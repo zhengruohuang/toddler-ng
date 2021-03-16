@@ -35,6 +35,7 @@ static inline int sysenter(ulong num, ulong p1, ulong p2, ulong p3,
         ".byte 0; .byte 0;"
         ".byte 0; .byte 0;"
         "ecall;"
+        "nop;"
         : "=r" (o0), "=r" (o1), "=r" (o2)
         : "r" (i0), "r" (i1), "r" (i2), "r" (i3), "r" (i4)
         : "memory"

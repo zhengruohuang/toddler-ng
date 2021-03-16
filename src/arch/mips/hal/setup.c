@@ -193,6 +193,11 @@ static ulong get_cur_mp_id()
     return (ulong)cpu_num;
 }
 
+static int get_cur_mp_seq()
+{
+    return read_mp_seq_from_pte_context();
+}
+
 static void register_drivers()
 {
     REGISTER_DEV_DRIVER(mips_cpu_intc);
@@ -303,6 +308,7 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.translate = generic_translate;
 
     funcs.get_cur_mp_id = get_cur_mp_id;
+    funcs.get_cur_mp_seq = get_cur_mp_seq;
     funcs.mp_entry = largs->mp_entry;
     funcs.start_cpu = start_cpu;
 
@@ -333,11 +339,19 @@ static void hal_entry_bsp(struct loader_args *largs)
     hal(largs, &funcs);
 }
 
+static void hal_entry_mp()
+{
+    panic("MP not implemented!\n");
+}
+
 void hal_entry(struct loader_args *largs, int mp)
 {
     if (mp) {
-        //hal_entry_mp();
+        int mp_seq = get_cur_bringup_mp_seq();
+        write_mp_seq_to_pte_context(mp_seq);
+        hal_entry_mp();
     } else {
+        write_mp_seq_to_pte_context(0);
         hal_entry_bsp(largs);
     }
 

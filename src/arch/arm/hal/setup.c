@@ -130,6 +130,13 @@ static ulong get_cur_mp_id()
     return mpidr.lo24;
 }
 
+static int get_cur_mp_seq()
+{
+    ulong mp_seq = 0;
+    read_pl1_tid(mp_seq);
+    return mp_seq;
+}
+
 static void register_drivers()
 {
     REGISTER_DEV_DRIVER(bcm2835_armctrl_intc);
@@ -279,6 +286,7 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.translate = translate;
 
     funcs.get_cur_mp_id = get_cur_mp_id;
+    funcs.get_cur_mp_seq = get_cur_mp_seq;
     funcs.mp_entry = largs->mp_entry;
     funcs.start_cpu = start_cpu;
 
@@ -312,6 +320,7 @@ static void hal_entry_bsp(struct loader_args *largs)
 static void hal_entry_mp()
 {
     // Switch to CPU-private stack, but leave some space for interrupt handling
+    // FIXME: sub sp, 16?
     ulong sp = get_my_cpu_init_stack_top_vaddr();
     ulong pc = (ulong)&hal_mp;
 
@@ -330,8 +339,11 @@ static void hal_entry_mp()
 void hal_entry(struct loader_args *largs, int mp)
 {
     if (mp) {
+        int mp_seq = get_cur_bringup_mp_seq();
+        write_pl1_tid(mp_seq);
         hal_entry_mp();
     } else {
+        write_pl1_tid(0);
         hal_entry_bsp(largs);
     }
 

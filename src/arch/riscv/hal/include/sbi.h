@@ -40,10 +40,10 @@ static inline struct sbiret __sbi_call(ulong eid, ulong fid, ulong a0, ulong a1,
 }
 
 
-#define sbi_call0(eid, fid)         __sbi_call(eid, fid, 0, 0, 0, 0, 0, 0)
-#define sbi_call1(eid, fid, a0)     __sbi_call(eid, fid, a0, 0, 0, 0, 0, 0)
-#define sbi_call2(eid, fid, a0, a1) __sbi_call(eid, fid, a0, a1, 0, 0, 0, 0)
-
+#define sbi_call0(eid, fid)             __sbi_call(eid, fid, 0, 0, 0, 0, 0, 0)
+#define sbi_call1(eid, fid, a0)         __sbi_call(eid, fid, a0, 0, 0, 0, 0, 0)
+#define sbi_call2(eid, fid, a0, a1)     __sbi_call(eid, fid, a0, a1, 0, 0, 0, 0)
+#define sbi_call3(eid, fid, a0, a1, a2) __sbi_call(eid, fid, a0, a1, a2, 0, 0, 0)
 
 static inline struct sbiret sbi_set_timer(u64 stime_value)
 {
@@ -55,6 +55,11 @@ static inline struct sbiret sbi_set_timer(u64 stime_value)
     ulong a1 = 0;
 #endif
     return sbi_call2(0x54494D45, 0, a0, a1);
+}
+
+static inline struct sbiret sbi_hart_start(ulong hartid, ulong start_addr, ulong opaque)
+{
+    return sbi_call3(0x48534D, 0, hartid, start_addr, opaque);
 }
 
 

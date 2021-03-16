@@ -57,7 +57,7 @@ void int_handler(int seq, struct int_context *ictxt)
     kdispatch.num = SYSCALL_INTERRUPT;
 
     ictxt->mp_id = arch_get_cur_mp_id();
-    ictxt->mp_seq = get_mp_seq_by_id(ictxt->mp_id);
+    ictxt->mp_seq = arch_get_cur_mp_seq();
 
     // Handle the interrupt
     int handle_type = invoke_int_handler(seq, ictxt, &kdispatch);

@@ -1,8 +1,8 @@
 .global _start
-.global _start_ap
+.global _start_mp
 
 .extern loader_entry
-.extern loader_entry_ap
+.extern loader_entry_mp
 
 
 .section ".data.stack"
@@ -25,9 +25,6 @@ _stack_top:
  * x11/a1 -> fdt
  */
 _start:
-    /* Spin if not boot hart */
-    bne x10, x0, _stop
-
     /* Set up stack, create stack frame */
     la sp, _stack_top
     addi sp, sp, -16
@@ -36,17 +33,20 @@ _start:
     j loader_entry
 
     /* Should never reach here */
-    wfi
-    j .
-    nop
+    j _stop
 
-_start_ap:
+_start_mp:
+    /* Set up stack, create stack frame */
+    la sp, _stack_top_mp
+    addi sp, sp, -16
+
+    /* Go to C */
+    j loader_entry_mp
+
     /* Should never reach here */
-    wfi
-    j .
-    nop
+    j _stop
 
 _stop:
     wfi
-    j .
+    j _stop
     nop

@@ -74,9 +74,6 @@ static int shiftbuf_read_one(shiftbuf_t *sb, unsigned char *data)
 /*
  * PL011
  */
-#define BCM2835_BASE            (0x3f000000ul)
-#define PL011_BASE              (BCM2835_BASE + 0x201000ul)
-
 struct pl011_mmio {
     u32 DR;     // Data register
     u32 RSRECR; // Receive status register/error clear register
@@ -235,6 +232,15 @@ static int dev_pl011_write(devid_t id, void *buf, size_t count, size_t offset,
 /*
  * Init
  */
+#if defined(ARCH_ARMV7)
+    #define BCM2835_BASE            (0x3f000000ul)
+    #define PL011_BASE              (BCM2835_BASE + 0x201000ul)
+    #define DEVTREE_NODE_PHANDLE    (0x18)
+#else
+    #define PL011_BASE              (0)
+    #define DEVTREE_NODE_PHANDLE    (0)
+#endif
+
 static const struct drv_ops dev_pl011_ops = {
     .read = dev_pl011_read,
     .write = dev_pl011_write,
@@ -262,7 +268,11 @@ static inline void start_pl011()
 void init_pl011_driver()
 {
     // Register handler
-    pl011.seq = syscall_int_handler(0x18, pl011_int_handler);
+#if DEVTREE_NODE_PHANDLE
+    pl011.seq = syscall_int_handler(DEVTREE_NODE_PHANDLE, 0, pl011_int_handler);
+#else
+    pl011.seq = 0;
+#endif
 
     // Register driver
     create_drv("/dev", "serial", 0, &dev_pl011_ops, 1);

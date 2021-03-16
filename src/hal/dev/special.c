@@ -41,6 +41,11 @@ void DECLARE_REG_SPECIAL_DRV_FUNC(detect_topology, param, func)
     reg_unique("detect_topo", &funcs.detect_topology, param, func);
 }
 
+void DECLARE_REG_SPECIAL_DRV_FUNC(detect_cpu_local_intc, param, func)
+{
+    reg_multi("detect_cpu_local_intc", &funcs.detect_cpu_local_intc, param, func);
+}
+
 void DECLARE_REG_SPECIAL_DRV_FUNC(cpu_power_on, param, func)
 {
     reg_multi("cpu_power_on", &funcs.cpu_power_on, param, func);
@@ -73,6 +78,18 @@ int drv_func_detect_topology()
     }
 
     return DRV_FUNC_INVOKE_NOT_REG;
+}
+
+int drv_func_detect_cpu_local_intc()
+{
+    for (struct special_drv_func_list *n = funcs.detect_cpu_local_intc;
+         n; n = n->next
+    ) {
+        panic_if(!n->record.func, "detect_cpu_local_intc invalid!\n");
+        n->record.detect_cpu_local_intc(n->record.param);
+    }
+
+    return DRV_FUNC_INVOKE_OK;
 }
 
 int drv_func_cpu_power_on(int seq, ulong id)

@@ -15,6 +15,9 @@ void switch_to(ulong thread_id, struct reg_context *context,
 //     kprintf("Switch to PC @ %lx, SP @ %lx, user: %d, ASID: %d, thread: %lx\n",
 //             context->pc, context->sp, user_mode, asid, thread_id);
 
+//     kprintf("Switch, CPU seq: %ld, ID: %lx\n",
+//             arch_get_cur_mp_seq(), arch_get_cur_mp_id());
+
     // Set up fast TCB access
     context->tp = tcb;
 

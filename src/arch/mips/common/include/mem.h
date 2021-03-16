@@ -77,6 +77,7 @@
     #define SEG_USER_SIZE           0x4000000000000000ul
     #define SEG_DIRECT_SIZE         0x800000000000000ul
     #define SEG_DIRECT_MASK         0x7fffffffffffffful
+    #define SEG_DIRECT_SIZE_LOW     0x20000000ul
     #define SEG_DIRECT_MASK_LOW     0x1ffffffful
 
 

@@ -9,8 +9,15 @@
 /*
  * Context
  */
+#define REG_CONTEXT_COPY_OFFSET (sizeof(struct mp_context))
+
+struct mp_context {
+    ulong id;
+    ulong seq;
+} natural_struct;
+
 struct reg_context {
-    ulong my_cpu_hart;
+    struct mp_context mp;
 
     union {
         ulong regs[32];

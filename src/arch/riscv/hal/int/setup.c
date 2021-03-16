@@ -68,6 +68,7 @@ void int_handler_entry(struct reg_context *regs)
 
     if (cause.interrupt) {
         seq = INT_SEQ_DEV;
+        error_code = cause.except_code;
     } else {
         switch (cause.except_code) {
         case EXCEPT_CODE_INSTR_ILLEGAL:
@@ -120,19 +121,21 @@ void int_handler_entry(struct reg_context *regs)
  */
 extern void raw_int_entry();
 
-// decl_per_cpu(ulong, int_stack_top);
-
 void init_int_entry_mp()
 {
-    // Remember CPU hart
-    ulong *my_cpu_hart_ptr = NULL;
-    read_sscratch(my_cpu_hart_ptr);
-    ulong my_cpu_hart = *my_cpu_hart_ptr;
+    // Remember MP
+    struct mp_context *mp_ctxt = NULL;
+    read_sscratch(mp_ctxt);
+    ulong mp_id = mp_ctxt->id;
+    ulong mp_seq = mp_ctxt->seq;
 
     // Set up int ctxt and make sscratch point to it
     struct reg_context *int_ctxt = get_cur_int_reg_context();
-    int_ctxt->my_cpu_hart = my_cpu_hart;
+    int_ctxt->mp.id = mp_id;
+    int_ctxt->mp.seq = mp_seq;
     write_sscratch(int_ctxt);
+
+    kprintf("int ctxt @ %p, int_ctxt, mp id: %lx\n", int_ctxt, mp_id);
 
     // Set up handler entry
     ulong base = (ulong)(void *)&raw_int_entry;

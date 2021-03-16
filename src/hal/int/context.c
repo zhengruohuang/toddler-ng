@@ -21,7 +21,15 @@ void switch_context(ulong thread_id, struct reg_context *context,
 
     // Copy the context to local, thus prevent page fault upon switching page dir
     struct reg_context *per_cpu_ctxt = *get_per_cpu(struct reg_context *, cur_int_reg_context);
-    memcpy(per_cpu_ctxt, context, sizeof(struct reg_context));
+    void *ctxt_dst = per_cpu_ctxt;
+    void *ctxt_src = context;
+    ulong ctxt_size = sizeof(struct reg_context);
+#if (defined(REG_CONTEXT_COPY_OFFSET))
+    ctxt_dst += REG_CONTEXT_COPY_OFFSET;
+    ctxt_src += REG_CONTEXT_COPY_OFFSET;
+    ctxt_size -= REG_CONTEXT_COPY_OFFSET;
+#endif
+    memcpy(ctxt_dst, ctxt_src, ctxt_size);
 
     // Save running ctxt
     struct running_context *rctxt = get_per_cpu(struct running_context, cur_running_context);

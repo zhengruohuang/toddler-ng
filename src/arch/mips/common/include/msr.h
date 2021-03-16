@@ -694,6 +694,26 @@ struct cp0_config5 {
  */
 #if (ARCH_WIDTH == 64)
 
+struct pte_context {
+    union {
+#if (ARCH_LITTLE_ENDIAN)
+        struct {
+            u64 zero    : 4;
+            u64 bad_vpn2: 19;
+            u64 pte_base: 41;
+        };
+#else
+        struct {
+            u64 pte_base: 41;
+            u64 bad_vpn2: 19;
+            u64 zero    : 4;
+        };
+#endif
+
+        u64 value;
+    };
+} packed8_struct;
+
 struct cp0_entry_hi {
     union {
 #if (ARCH_LITTLE_ENDIAN)
@@ -772,6 +792,9 @@ struct cp0_page_mask64 {
     };
 } packed8_struct;
 
+#define read_pte_context(value)     __dmfc0(value, 4, 0)
+#define write_pte_context(value)    __dmtc0(value, 4, 0)
+
 #define read_cp0_entry_hi(value)    __dmfc0(value, 10, 0)
 #define write_cp0_entry_hi(value)   __dmtc0(value, 10, 0)
 
@@ -791,6 +814,26 @@ struct cp0_page_mask64 {
  * TLB 32
  */
 #else
+
+struct pte_context {
+    union {
+#if (ARCH_LITTLE_ENDIAN)
+        struct {
+            u32 zero    : 4;
+            u32 bad_vpn2: 19;
+            u32 pte_base: 9;
+        };
+#else
+        struct {
+            u32 pte_base: 9;
+            u32 bad_vpn2: 19;
+            u32 zero    : 4;
+        };
+#endif
+
+        u32 value;
+    };
+} packed4_struct;
 
 struct cp0_entry_hi {
     union {
@@ -844,6 +887,9 @@ struct cp0_entry_lo {
     };
 } packed4_struct;
 
+#define read_pte_context(value)     __mfc0(value, 4, 0)
+#define write_pte_context(value)    __mtc0(value, 4, 0)
+
 #define read_cp0_entry_hi(value)    __mfc0(value, 10, 0)
 #define write_cp0_entry_hi(value)   __mtc0(value, 10, 0)
 
@@ -856,6 +902,24 @@ struct cp0_entry_lo {
 #define read_cp0_bad_vaddr(value)   __mfc0(value, 8, 0)
 
 #endif
+
+
+/*
+ * PTE Context Reg is used for storing MP seq
+ */
+static inline int read_mp_seq_from_pte_context()
+{
+    struct pte_context c;
+    read_pte_context(c.value);
+    return c.pte_base;
+}
+
+static inline void write_mp_seq_to_pte_context(int mp_seq)
+{
+    struct pte_context c = { .value = 0 };
+    c.pte_base = mp_seq;
+    write_pte_context(c.value);
+}
 
 
 #endif

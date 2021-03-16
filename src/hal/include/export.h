@@ -53,7 +53,7 @@ typedef int (*disable_local_int_t)();
 typedef void (*enable_local_int_t)();
 
 // User-space interrupt handler
-typedef void *(*int_register_t)(ulong phandle, ulong user_seq);
+typedef void *(*int_register_t)(ulong fw_id, int fw_pos, ulong user_seq);
 typedef void *(*int_register2_t)(const char *fw_path, int fw_pos, ulong user_seq);
 typedef void (*int_eoi_t)(void *hal_dev);
 

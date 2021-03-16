@@ -8,11 +8,11 @@
 #include "hal/include/mp.h"
 
 
-struct armv7_cpu {
-    int mp_seq;
+struct riscv_cpu {
     ulong mp_id;
-    int cpu_id, cluster_id;
-    struct armv7_cpu *next;
+    int mp_seq;
+    void *cpu_fw_node;
+    struct riscv_cpu *next;
 };
 
 
@@ -20,14 +20,14 @@ struct armv7_cpu {
  * Topology
  */
 static int num_cpus = 0;
-static struct armv7_cpu *cpus = NULL;
+static struct riscv_cpu *cpus = NULL;
 
 static void make_boot_cpu_mp_seq_zero()
 {
-    struct armv7_cpu *boot_cpu = NULL;
+    struct riscv_cpu *boot_cpu = NULL;
     ulong boot_mp_id = arch_get_cur_mp_id();
 
-    for (struct armv7_cpu *cpu = cpus; cpu; cpu = cpu->next) {
+    for (struct riscv_cpu *cpu = cpus; cpu; cpu = cpu->next) {
         if (cpu->mp_id == boot_mp_id) {
             if (!cpu->mp_seq) {
                 return;
@@ -38,7 +38,7 @@ static void make_boot_cpu_mp_seq_zero()
         }
     }
 
-    for (struct armv7_cpu *cpu = cpus; cpu; cpu = cpu->next) {
+    for (struct riscv_cpu *cpu = cpus; cpu; cpu = cpu->next) {
         if (!cpu->mp_seq) {
             cpu->mp_seq = boot_cpu->mp_seq;
             boot_cpu->mp_seq = 0;
@@ -55,24 +55,20 @@ static void detect_topology(struct driver_param *param)
 
     set_num_cpus(num_cpus);
 
-    for (struct armv7_cpu *cpu = cpus; cpu; cpu = cpu->next) {
+    for (struct riscv_cpu *cpu = cpus; cpu; cpu = cpu->next) {
         set_mp_trans(cpu->mp_seq, cpu->mp_id);
     }
 
     final_mp_trans();
+}
 
-//     // FIXME: deprecated
-//     setup_mp_id_trans(num_cpus, 3,
-//                       16, 8,    /* Aff2 */
-//                        8, 8,    /* Aff1 - Cluster ID */
-//                        0, 8     /* Aff0 - CPU ID */
-//                      );
-//
-//     for (struct armv7_cpu *cpu = cpus; cpu; cpu = cpu->next) {
-//         add_mp_id_trans(cpu->mp_id);
-//     }
-//
-//     final_mp_id_trans();
+static void detect_cpu_local_intc(struct driver_param *param)
+{
+    struct riscv_cpu *record = param->record;
+    kprintf("Detecting CPU local intc, mp id: %lx, seq: %d\n",
+            record->mp_id, record->mp_seq);
+
+    set_cpu_local_intc(record->cpu_fw_node, record->mp_seq);
 }
 
 
@@ -81,47 +77,41 @@ static void detect_topology(struct driver_param *param)
  */
 static void setup(struct driver_param *param)
 {
-    struct armv7_cpu *record = param->record;
+    struct riscv_cpu *record = param->record;
 
-    struct mp_affinity_reg mpr;
-    read_cpu_id(mpr.value);
-
-    if (record->mp_id == mpr.lo24) {
+    ulong mp_id = arch_get_cur_mp_id();
+    if (record->mp_id == mp_id) {
         REG_SPECIAL_DRV_FUNC(detect_topology, param, detect_topology);
     }
+
+    REG_SPECIAL_DRV_FUNC(detect_cpu_local_intc, param, detect_cpu_local_intc);
 }
 
 static int probe(struct fw_dev_info *fw_info, struct driver_param *param)
 {
     static const char *devtree_names[] = {
-        "arm,cortex-a7",
+        "riscv",
         NULL
     };
 
     if (fw_info->devtree_node &&
         match_devtree_compatibles(fw_info->devtree_node, devtree_names)
     ) {
-        struct armv7_cpu *record = mempool_alloc(sizeof(struct armv7_cpu));
-        memzero(record, sizeof(struct armv7_cpu));
+        struct riscv_cpu *record = mempool_alloc(sizeof(struct riscv_cpu));
+        memzero(record, sizeof(struct riscv_cpu));
         param->record = record;
 
         struct devtree_prop *prop = devtree_find_prop(fw_info->devtree_node, "reg");
-        panic_if(!prop, "Bad ARMv7 CPU devtree node!\n");
+        panic_if(!prop, "Bad RISC-V CPU devtree node!\n");
 
-        struct mp_affinity_reg mpr;
-        mpr.value = devtree_get_prop_data_u32(prop);
-
+        record->cpu_fw_node = fw_info->devtree_node;
         record->mp_seq = num_cpus;
-        record->mp_id = mpr.lo24;
-        record->cpu_id = mpr.cpu_id;
-        record->cluster_id = mpr.cluster_id;
-
+        record->mp_id = devtree_get_prop_data_u32(prop);
         record->next = cpus;
         cpus = record;
         num_cpus++;
 
-        kprintf("Found ARMv7 CPU @ %ld in cluster %ld\n",
-                record->cpu_id, record->cluster_id);
+        kprintf("Found RISC-V CPU, Hart @ %ld\n", record->mp_id);
         return FW_DEV_PROBE_OK;
     }
 
@@ -129,8 +119,8 @@ static int probe(struct fw_dev_info *fw_info, struct driver_param *param)
 }
 
 
-DECLARE_DEV_DRIVER(armv7_cpu) = {
-    .name = "ARMv7 CPU",
+DECLARE_DEV_DRIVER(riscv_cpu) = {
+    .name = "RISC-V CPU",
     .probe = probe,
     .setup = setup,
 };

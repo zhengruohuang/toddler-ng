@@ -14,10 +14,6 @@
 typedef ulong (*ioport_read_t)(ulong port, int size);
 typedef void (*ioport_write_t)(ulong port, int size, ulong val);
 
-// typedef ppfn_t (*palloc_t)(int count);
-// typedef int (*map_range_t)(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
-//                      int cache, int exec, int write, int kernel, int override);
-
 struct hal_arch_funcs {
     // Inits
     void (*init_libk)();
@@ -51,8 +47,9 @@ struct hal_arch_funcs {
     unmap_range_t kernel_unmap_range;
     page_translate_t translate;
 
-    // Get CPU index
+    // Multiprocessor
     get_cur_mp_id_t get_cur_mp_id;
+    get_cur_mp_seq_t get_cur_mp_seq;
 
     // Bring up secondary CPU
     ulong mp_entry;
@@ -107,7 +104,7 @@ extern ulong arch_hal_ioport_read(ulong port, int size);
 extern void arch_hal_ioport_write(ulong port, int size, ulong val);
 
 extern ulong arch_get_cur_mp_id();
-
+extern int arch_get_cur_mp_seq();
 extern void arch_start_cpu(int mp_seq, ulong mp_id, ulong entry);
 
 extern void arch_register_drivers();

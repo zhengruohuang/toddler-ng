@@ -125,8 +125,16 @@ static void enable_local_int()
 
 static ulong get_cur_mp_id()
 {
-    // TODO
-    return 0;
+    ulong mp_id = 0;
+    read_core_id(mp_id);
+    return mp_id;
+}
+
+static int get_cur_mp_seq()
+{
+    ulong mp_seq = 0;
+    read_gpr2(mp_seq, 18);
+    return mp_seq;
 }
 
 static void register_drivers()
@@ -253,6 +261,7 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.translate = generic_translate;
 
     funcs.get_cur_mp_id = get_cur_mp_id;
+    funcs.get_cur_mp_seq = get_cur_mp_seq;
     funcs.mp_entry = largs->mp_entry;
     funcs.start_cpu = start_cpu;
 
@@ -291,8 +300,11 @@ static void hal_entry_mp()
 void hal_entry(struct loader_args *largs, int mp)
 {
     if (mp) {
+        int mp_seq = get_cur_bringup_mp_seq();
+        write_gpr2(mp_seq, 18);
         hal_entry_mp();
     } else {
+        write_gpr2(0, 18);
         hal_entry_bsp(largs);
     }
 

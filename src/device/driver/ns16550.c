@@ -289,7 +289,7 @@ void init_ns16550_driver()
 {
     // Register handler
 #if DEVTREE_NODE_PHANDLE
-    ns16550.seq = syscall_int_handler(DEVTREE_NODE_PHANDLE, ns16550_int_handler);
+    ns16550.seq = syscall_int_handler(DEVTREE_NODE_PHANDLE, 0, ns16550_int_handler);
 #elif defined(ARCH_RISCV)
     ns16550.seq = syscall_int_handler2("/soc/uart", 0, ns16550_int_handler);
 #else

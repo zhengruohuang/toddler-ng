@@ -193,8 +193,8 @@ void init_int_entry_mp()
     kprintf("Set exception handler stack @ %lx\n", stack_top);
 
     // Set ctxt base table so that the raw handler knows where the stack is
-    int cpu_id = ebase.cpunum;
-    per_cpu_context_base_table[cpu_id] = stack_top;
+    int mp_seq = arch_get_cur_mp_seq(); //ebase.cpunum;
+    per_cpu_context_base_table[mp_seq] = stack_top;
 }
 
 void init_int_entry()

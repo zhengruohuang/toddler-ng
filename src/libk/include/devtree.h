@@ -15,6 +15,7 @@ extern struct devtree_node *devtree_find_child_node(struct devtree_node *node,
                                                     const char *name);
 extern struct devtree_prop *devtree_find_prop(struct devtree_node *node,
                                               const char *name);
+extern int devtree_in_subtree(struct devtree_node *parent, struct devtree_node *node);
 extern struct devtree_node *devtree_walk(const char *path);
 
 
