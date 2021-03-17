@@ -12,7 +12,7 @@ build_actions['build_mach'] = build_mach
 build_opts['dts'] = find_deepest_arch_file('dts/empty.dts')
 
 build_opts['embed_fdt'] = True
-build_opts['embed_coreimg'] = True if target_arch == 'riscv32' else False
+build_opts['embed_coreimg'] = True
 
 build_opts['qemu'] = {
     'machine'   : 'virt',

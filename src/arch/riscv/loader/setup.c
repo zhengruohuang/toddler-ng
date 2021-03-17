@@ -117,6 +117,7 @@ typedef void (*hal_start_t)(struct loader_args *largs, int mp);
 static void call_hal(struct loader_args *largs, int mp)
 {
     hal_start_t hal = largs->hal_entry;
+    kprintf("here @ %lx\n", hal);
     hal(largs, mp);
 }
 
