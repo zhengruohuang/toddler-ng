@@ -29,35 +29,36 @@ The next generation Toddler
 * Initial = Initial exploration
 * Active  = Active development
 * Current = Up to date
+* WIP = Work in progress
 
 ### Targets
 
-| Target                | Loader    | HAL       | Note               |
-| --------------------- | --------- | --------- | ------------------ |
-| ia32-pc-multiboot     | Current   | Active    | Minor fixes needed |
-| amd64-pc-multiboot    | Current   | Active    | Minor fixes needed |
-| alpha-clipper-qemu    | Active    | Planned   |                    |
-| armv7-raspi2-qemu     | Current   | Current   |                    |
-| aarch64v8-raspi3-qemu | Current   | Active    | Minor fixes needed |
-| mips32l-malta-qemu    | Current   | Current   |                    |
-| mips32b-malta-qemu    | Current   | Current   | Minor fixes needed |
-| mips64l-malta-qemu    | Current   | Current   |                    |
-| mips64b-malta-qemu    | Current   | Current   | Minor fixes needed |
-| powerpc-mac-qemu      | Current   | Active    | Minor fixes needed |
-| powerpc64-mac-qemu    | Initial   | Planned   |                    |
-| sparcv8-leon3-qemu    | Current   | Planned   | Minor fixes needed |
-| sparcv8-sun4m-qemu    | Active    | Planned   |                    |
-| sparcv9-sun4u-qemu    | Planned   | Planned   |                    |
-| riscv32-virt-qemu     | Current   | Current   |                    |
-| riscv64-virt-qemu     | Current   | Current   |                    |
-| m68k-q800-qemu        | Active    | Planned   |                    |
-| sh4-r2d-qemu          | Active    | Planned   |                    |
-| openrisc-sim-qemu     | Current   | Current   |                    |
-| ia64-sim-ski          | Initial   | Planned   |                    |
-| s390-virtio-qemu      | Planned   | Planned   |                    |
-| zarch-virtio-qemu     | Planned   | Planned   |                    |
-| hppa-sim-qemu         | Planned   | Planned   |                    |
-| vax-sim-simh          | Initial   | Planned   |                    |
+| Target                | Loader    | HAL       | SMP   | Note               |
+| --------------------- | --------- | --------- | ----- | ------------------ |
+| ia32-pc-multiboot     | Current   | Active    |       | Minor fixes needed |
+| amd64-pc-multiboot    | Current   | Active    |       | Minor fixes needed |
+| alpha-clipper-qemu    | Active    | Planned   |       |                    |
+| armv7-raspi2-qemu     | Current   | Current   | Yes   |                    |
+| aarch64v8-raspi3-qemu | Current   | Active    |       | Minor fixes needed |
+| mips32l-malta-qemu    | Current   | Current   | No    |                    |
+| mips32b-malta-qemu    | Current   | Current   | No    | Minor fixes needed |
+| mips64l-malta-qemu    | Current   | Current   | No    |                    |
+| mips64b-malta-qemu    | Current   | Current   | No    | Minor fixes needed |
+| powerpc-mac-qemu      | Current   | Active    |       | Minor fixes needed |
+| powerpc64-mac-qemu    | Initial   | Planned   |       |                    |
+| sparcv8-leon3-qemu    | Current   | Planned   |       | Minor fixes needed |
+| sparcv8-sun4m-qemu    | Active    | Planned   |       |                    |
+| sparcv9-sun4u-qemu    | Planned   | Planned   |       |                    |
+| riscv32-virt-qemu     | Current   | Current   | Yes   |                    |
+| riscv64-virt-qemu     | Current   | Current   | Yes   |                    |
+| m68k-q800-qemu        | Active    | Planned   |       |                    |
+| sh4-r2d-qemu          | Active    | Planned   |       |                    |
+| openrisc-sim-qemu     | Current   | Current   | No    |                    |
+| ia64-sim-ski          | Initial   | Planned   |       |                    |
+| s390-virtio-qemu      | Planned   | Planned   |       |                    |
+| zarch-virtio-qemu     | Planned   | Planned   |       |                    |
+| hppa-sim-qemu         | Planned   | Planned   |       |                    |
+| vax-sim-simh          | Initial   | Planned   |       |                    |
 
 ### Additional Targets
 
