@@ -119,11 +119,15 @@ struct devtree_prop *devtree_find_prop(struct devtree_node *node,
  */
 int devtree_in_subtree(struct devtree_node *parent, struct devtree_node *node)
 {
+    if (!parent) {
+        return 0;
+    }
+
     while (node && parent != node) {
         node = devtree_get_parent_node(node);
     }
 
-    return parent != node;
+    return parent == node;
 }
 
 

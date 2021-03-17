@@ -62,5 +62,10 @@ static inline struct sbiret sbi_hart_start(ulong hartid, ulong start_addr, ulong
     return sbi_call3(0x48534D, 0, hartid, start_addr, opaque);
 }
 
+static inline struct sbiret sbi_send_ipi(ulong hart_mask, ulong hart_mask_base)
+{
+    return sbi_call2(0x735049, 0, hart_mask, hart_mask_base);
+}
+
 
 #endif

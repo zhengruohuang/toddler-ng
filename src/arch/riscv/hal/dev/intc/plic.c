@@ -163,7 +163,7 @@ static const char *plic_intc_devtree_names[] = {
 
 DECLARE_INTC_DRIVER(plic_intc, "RISC-V Platform-Level Interrupt Controller",
                     plic_intc_devtree_names,
-                    create, setup, /*start*/NULL,
+                    create, setup, /*setup_cpu_local*/NULL, /*start*/NULL,
                     /*start_cpu*/NULL, /*cpu_power_on*/NULL, /*raw_to_seq*/NULL,
                     setup_irq, enable_irq, disable_irq, end_irq,
                     pending_irq, MAX_NUM_INT_SRCS,

@@ -408,7 +408,7 @@ static const char *bcm2836_percpu_intc_devtree_names[] = {
 
 DECLARE_INTC_DRIVER(bcm2836_percpu_intc, "BCM2836 Per-CPU Interrupt Controller",
                     bcm2836_percpu_intc_devtree_names,
-                    create, /*setup*/NULL, /*start*/NULL,
+                    create, /*setup*/NULL, /*setup_cpu_local*/NULL, /*start*/NULL,
                     start_cpu, /*cpu_power_on*/NULL, /*raw_to_seq*/NULL,
                     setup_irq, enable_irq, disable_irq, end_irq,
                     pending_irq, MAX_NUM_INT_SRCS,

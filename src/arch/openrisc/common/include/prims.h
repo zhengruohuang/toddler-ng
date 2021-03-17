@@ -110,7 +110,7 @@ static inline ulong atomic_cas_val(volatile ulong *addr,
         : [read] "=&r" (read)
         : [ptr] "r" (addr), [zero] "i" (0),
           [val_old] "r" (old_val), [val_new] "r" (new_val)
-        : "memory"
+        : "memory", "cc"
     );
 
     return read;

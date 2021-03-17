@@ -159,7 +159,14 @@ int hal_restore_local_int(int enabled)
 
 u64 hal_get_ms()
 {
-    return hal->get_ms();
+    //static spinlock_t ms_lock = SPINLOCK_INIT;
+
+    u64 ms = 0;
+    no_prempt() {
+        ms = hal->get_ms();
+    }
+
+    return ms;
 }
 
 ulong hal_get_asid_limit()

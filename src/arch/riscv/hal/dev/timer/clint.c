@@ -3,6 +3,7 @@
 #include "hal/include/vecnum.h"
 #include "hal/include/kprintf.h"
 #include "hal/include/devtree.h"
+#include "hal/include/hal.h"
 #include "hal/include/lib.h"
 #include "hal/include/mem.h"
 #include "hal/include/int.h"
@@ -54,6 +55,12 @@ static void update_compare(struct clint_timer_record *record)
     sbi_set_timer(mtimecmp);
 }
 
+static inline void broadcast(struct int_context *ictxt)
+{
+    ulong mask = (0x1ul << get_num_cpus()) - 0x1ul;
+    mask &= ~(0x1ul << ictxt->mp_id);
+    sbi_send_ipi(mask, 0);
+}
 
 
 /*
@@ -76,7 +83,8 @@ static void cpu_power_on(struct driver_param *param, int seq, ulong id)
     struct clint_timer_record *record = param->record;
     update_compare(record);
 
-    kprintf("MP Timer started! record @ %p, step: %d\n", record, record->timer_step);
+    kprintf("MP Timer started @ seq: %d! record @ %p, step: %d\n",
+            arch_get_cur_mp_seq(), record, record->timer_step);
 }
 
 static void start(struct driver_param *param)
@@ -84,7 +92,8 @@ static void start(struct driver_param *param)
     struct clint_timer_record *record = param->record;
     update_compare(record);
 
-    kprintf("Timer started! record @ %p, step: %d\n", record, record->timer_step);
+    kprintf("Timer started @ seq: %d! record @ %p, step: %d\n",
+            arch_get_cur_mp_seq(), record, record->timer_step);
 }
 
 static void setup(struct driver_param *param)

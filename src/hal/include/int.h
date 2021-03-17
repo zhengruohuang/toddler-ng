@@ -48,6 +48,8 @@ extern void init_int_handler();
  * Interrupt seqs
  */
 #define INT_SEQ_INVALID     0
+#define INT_SEQ_IGNORE      121
+#define INT_SEQ_KERNEL      122
 #define INT_SEQ_PANIC       123
 #define INT_SEQ_PAGE_FAULT  124
 #define INT_SEQ_DUMMY       125

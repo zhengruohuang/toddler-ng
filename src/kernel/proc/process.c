@@ -188,6 +188,8 @@ static void process_cleaner(ulong param)
     int all_vm_blocks_freed = 0;
 
     while (!all_threads_stopped || !all_vm_blocks_freed) {
+        //kprintf("Wait for event\n");
+
         // Wait for next cleanup event
         event_wait(&p->cleanup_event);
 

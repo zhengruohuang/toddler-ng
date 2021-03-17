@@ -29,6 +29,11 @@ static inline void __atomic_fence_rw_rw()
     __asm__ __volatile__ ( "fence rw, rw" : : : "memory" );
 }
 
+static inline void __atomic_fence_iorw_iorw()
+{
+    __asm__ __volatile__ ( "fence iorw, iorw" : : : "memory" );
+}
+
 
 /*
  * Pause
@@ -66,7 +71,7 @@ static inline void atomic_ib()
 // Full memory barrier
 static inline void atomic_mb()
 {
-    __atomic_fence_rw_rw();
+    __atomic_fence_iorw_iorw();
 }
 
 // Read barrier
@@ -98,22 +103,16 @@ static inline void atomic_wb()
 static inline ulong atomic_cas_val(volatile ulong *addr,
                                    ulong old_val, ulong new_val)
 {
-//     ulong read = *addr;
-//     if (read == old_val) {
-//         *addr = new_val;
-//     }
-//     return read;
-
-    ulong fail, read;
+    ulong fail, read = 0;
 
     __asm__ __volatile__ (
-        "1: fence rw, rw;"
+        "1:;"
         " " LR " %[read], (%[ptr]);"
         "   bne  %[read], %[val_old], 2f;"
         " " SC " %[fail], %[val_new], (%[ptr]);"
         "   bnez %[fail], 1b;"
-        "2: fence rw, rw;"
-        : [fail] "=r" (fail), [read] "=&r" (read)
+        "2: ;"
+        : [fail] "=&r" (fail), [read] "=&r" (read)
         : [ptr] "r" (addr), [val_old] "r" (old_val), [val_new] "r" (new_val)
         : "memory"
     );

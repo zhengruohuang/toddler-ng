@@ -112,7 +112,7 @@ static const char *mips_cpu_intc_devtree_names[] = {
 
 DECLARE_INTC_DRIVER(mips_cpu_intc, "MIPS CP0 Interrupt Controller",
                     mips_cpu_intc_devtree_names,
-                    create, setup, /*start*/NULL,
+                    create, setup, /*setup_cpu_local*/NULL, /*start*/NULL,
                     /*start_cpu*/NULL, /*cpu_power_on*/NULL, /*raw_to_seq*/NULL,
                     setup_irq, enable_irq, disable_irq, end_irq,
                     pending_irq, MAX_NUM_INT_SRCS,

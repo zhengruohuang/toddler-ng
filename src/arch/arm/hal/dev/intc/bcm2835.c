@@ -256,7 +256,7 @@ static const char *bcm2835_armctrl_intc_devtree_names[] = {
 
 DECLARE_INTC_DRIVER(bcm2835_armctrl_intc, "BCM2835 Top-Level Interrupt Controller",
                     bcm2835_armctrl_intc_devtree_names,
-                    create, setup, /*start*/NULL,
+                    create, setup, /*setup_cpu_local*/NULL, /*start*/NULL,
                     /*start_cpu*/NULL, /*cpu_power_on*/NULL,
                     irq_raw_to_seq, setup_irq, enable_irq, disable_irq, end_irq,
                     pending_irq, MAX_NUM_INT_SRCS,

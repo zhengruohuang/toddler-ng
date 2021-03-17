@@ -382,24 +382,36 @@ int set_cpu_local_intc(void *cpu_fw_node, int mp_seq)
     return -1;
 }
 
+void setup_int_hierarchy_mp()
+{
+    int mp_seq = arch_get_cur_mp_seq();
+    if (cpu_local_int_hierarchy && cpu_local_int_hierarchy[mp_seq]) {
+        struct inttree_node *intc = cpu_local_int_hierarchy[mp_seq];
+        struct internal_dev_driver *intc_drv = intc->dev->driver;
+
+        if (intc_drv && intc_drv->intc.setup_cpu_local) {
+            ulong mp_id = arch_get_cur_mp_id();
+            intc_drv->intc.setup_cpu_local(&intc->dev->driver_param,
+                                           mp_seq, mp_id);
+        }
+    }
+}
+
 void setup_int_hierarchy()
 {
     int num_cpus = get_num_cpus();
     panic_if(num_global_int_roots > num_cpus,
              "Num root intc exceeding num cpus!\n");
 
-    if (num_global_int_roots == 1) {
-        return;
-    }
-
     ulong size = sizeof(struct inttree_node *) * num_cpus;
     cpu_local_int_hierarchy = mempool_alloc(size);
     memzero(cpu_local_int_hierarchy, size);
 
     drv_func_detect_cpu_local_intc();
-
     panic_if(num_global_int_roots > 1,
              "At most one global root intc allowed!\n");
+
+    setup_int_hierarchy_mp();
 }
 
 int handle_dev_int(struct int_context *ictxt, struct kernel_dispatch *kdi)

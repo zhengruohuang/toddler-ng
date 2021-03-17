@@ -99,19 +99,19 @@ static inline void atomic_wb()
 static inline ulong atomic_cas_val(volatile ulong *addr,
                                    ulong old_val, ulong new_val)
 {
-    ulong failed, read;
+    ulong fail, read;
 
     __asm__ __volatile__ (
         "dmb;"
         "1: ldrex %[read], [%[ptr], #0];"
         "   cmp %[read], %[val_old];"
         "   bne 2f;"
-        "   strex %[failed], %[val_new], [%[ptr], #0];"
-        "   cmp %[failed], #1;"
+        "   strex %[fail], %[val_new], [%[ptr], #0];"
+        "   cmp %[fail], #1;"
         "   beq 1b;"
         "2:;"
         "dmb;"
-        : [failed] "=&r" (failed), [read] "=&r" (read)
+        : [fail] "=&r" (fail), [read] "=&r" (read)
         : [ptr] "r" (addr), [val_old] "r" (old_val), [val_new] "r" (new_val)
         : "cc", "memory"
     );

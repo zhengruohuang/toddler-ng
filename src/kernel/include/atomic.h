@@ -8,6 +8,15 @@
 
 
 /*
+ * Non-premptive
+ */
+#define no_prempt() \
+    for (int __term = 0, __int_ena = hal_disable_local_int(); !__term; \
+            __term = 1, hal_restore_local_int(__int_ena)) \
+        for ( ; !__term; __term = 1)
+
+
+/*
  * Spin lock
  */
 typedef struct {

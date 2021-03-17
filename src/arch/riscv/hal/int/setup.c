@@ -59,8 +59,9 @@ void int_handler_entry(struct reg_context *regs)
     struct cause_reg cause;
     read_scause(cause.value);
 
-//     kprintf("Interrupt: %d, cause: %u, regs @ %p, PC @ %lx, a0: %lx\n",
-//             cause.interrupt, cause.except_code, regs, regs->pc, regs->a0);
+//     if (arch_get_cur_mp_seq())
+//     kprintf("Interrupt: %d, cause: %u, regs @ %p, PC @ %lx, a0: %lx, MP seq: %d\n",
+//             cause.interrupt, cause.except_code, regs, regs->pc, regs->a0, arch_get_cur_mp_seq());
 
     // Figure out seq number
     int seq = 0;

@@ -12,8 +12,9 @@
 void switch_to(ulong thread_id, struct reg_context *context,
                void *page_table, int user_mode, ulong asid, ulong tcb)
 {
-//     kprintf("Switch to PC @ %lx, SP @ %lx, user: %d, ASID: %d, thread: %lx\n",
-//             context->pc, context->sp, user_mode, asid, thread_id);
+//     if (arch_get_cur_mp_seq())
+//     kprintf("Switch to PC @ %lx, SP @ %lx, user: %d, ASID: %d, thread: %lx, MP seq: %d\n",
+//             context->pc, context->sp, user_mode, asid, thread_id, arch_get_cur_mp_seq());
 
 //     kprintf("Switch, CPU seq: %ld, ID: %lx\n",
 //             arch_get_cur_mp_seq(), arch_get_cur_mp_id());

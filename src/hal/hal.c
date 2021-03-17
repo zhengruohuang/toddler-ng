@@ -397,6 +397,9 @@ void hal_mp()
     // Init MM
     arch_init_mm_mp();
 
+    // CPU-local interrupt
+    setup_int_hierarchy_mp();
+
     // Init interrupt
     init_context_mp();
     init_int_state_mp();

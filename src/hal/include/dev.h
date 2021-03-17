@@ -23,6 +23,7 @@ extern void start_all_devices();
 extern void start_all_devices_mp();
 
 extern int set_cpu_local_intc(void *cpu_fw_node, int mp_seq);
+extern void setup_int_hierarchy_mp();
 extern void setup_int_hierarchy();
 extern int handle_dev_int(struct int_context *ictxt, struct kernel_dispatch *kdi);
 

@@ -23,6 +23,19 @@ static int int_handler_dummy(struct int_context *context, struct kernel_dispatch
     return INT_HANDLE_SIMPLE;
 }
 
+static int int_handler_ignore(struct int_context *context, struct kernel_dispatch *kdi)
+{
+    return INT_HANDLE_SIMPLE;
+}
+
+static int int_handler_kernel(struct int_context *context, struct kernel_dispatch *kdi)
+{
+    kdi->num = SYSCALL_INTERRUPT;
+    kdi->param0 = 0;
+
+    return INT_HANDLE_CALL_KERNEL;
+}
+
 static int int_handler_dev(struct int_context *context, struct kernel_dispatch *kdi)
 {
     return handle_dev_int(context, kdi);
@@ -85,6 +98,8 @@ void init_int_handler()
 {
     set_default_int_handler(int_handler_dummy);
     set_int_handler(INT_SEQ_DUMMY, int_handler_dummy);
+    set_int_handler(INT_SEQ_IGNORE, int_handler_ignore);
+    set_int_handler(INT_SEQ_KERNEL, int_handler_kernel);
     set_int_handler(INT_SEQ_DEV, int_handler_dev);
     set_int_handler(INT_SEQ_PAGE_FAULT, int_handler_page_fault);
 }

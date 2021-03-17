@@ -353,7 +353,7 @@ static const char *i8259_intc_devtree_names[] = {
 
 DECLARE_INTC_DRIVER(i8259_intc, "Intel 8259 Interrupt Controller",
                     i8259_intc_devtree_names,
-                    create, setup, /*start*/NULL,
+                    create, setup, /*setup_cpu_local*/NULL, /*start*/NULL,
                     /*start_cpu*/NULL, /*cpu_power_on*/NULL, /*raw_to_seq*/NULL,
                     setup_irq, enable_irq, disable_irq, end_irq,
                     pending_irq, I8259_MAX_CHIPS * 8,

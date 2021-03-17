@@ -75,6 +75,7 @@ struct internal_dev_driver {
 
             void *(*create)(struct fw_dev_info *fw_info, struct driver_param *param);
             void (*setup)(struct driver_param *param);
+            void (*setup_cpu_local)(struct driver_param *param, int mp_seq, ulong mp_id);
             void (*start_cpu)(struct driver_param *param, int mp_seq, ulong mp_id, ulong entry);
             void (*cpu_power_on)(struct driver_param *param, int mp_seq, ulong mp_id);
 
@@ -154,7 +155,8 @@ extern void *generic_intc_dev_create(struct fw_dev_info *fw_info, struct driver_
     }
 
 #define DECLARE_INTC_DRIVER(struct_name, desc, dt_compt,                \
-                            intc_create, intc_setup, dev_start,         \
+                            intc_create, intc_setup,                    \
+                            intc_setup_cpu_local, dev_start,            \
                             intc_start_cpu, intc_cpu_power_on,          \
                             intc_irq_raw_to_seq,                        \
                             intc_setup_irq, intc_enable_irq,            \
@@ -177,6 +179,7 @@ extern void *generic_intc_dev_create(struct fw_dev_info *fw_info, struct driver_
             .irq_raw_to_seq = (intc_irq_raw_to_seq),                    \
             .create = (intc_create),                                    \
             .setup = (intc_setup),                                      \
+            .setup_cpu_local = (intc_setup_cpu_local),                  \
             .start_cpu = (intc_start_cpu),                              \
             .cpu_power_on = (intc_cpu_power_on),                        \
             .int_seq = (int_s),                                         \
