@@ -123,7 +123,6 @@ static void fill_hal_exports()
 
     // Context
     hexp.init_context = funcs->init_context;
-    hexp.set_context_param = funcs->set_context_param;
     hexp.switch_context = switch_context;
     hexp.set_syscall_return = funcs->set_syscall_return;
 

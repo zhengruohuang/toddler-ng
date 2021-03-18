@@ -19,9 +19,6 @@ void switch_to(ulong thread_id, struct reg_context *context,
 //     kprintf("Switch, CPU seq: %ld, ID: %lx\n",
 //             arch_get_cur_mp_seq(), arch_get_cur_mp_id());
 
-    // Set up fast TCB access
-    context->tp = tcb;
-
     // Mark interrupt state as enabled
     set_local_int_state(1);
 

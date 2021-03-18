@@ -287,6 +287,7 @@ ulong create_thread(struct process *p, ulong entry_point, ulong param,
     get_hal_exports()->init_context(
         &t->context, entry_point, param,
         t->memory.block_base + t->memory.stack.top_offset,
+        t->memory.block_base + t->memory.tls.start_offset,
         t->user_mode);
 
     // Sched class

@@ -73,8 +73,8 @@ typedef void *(*init_addr_space_t)();
 typedef void (*free_addr_space_t)(void *ptr);
 
 // Context
-typedef void (*init_context_t)(struct reg_context *context, ulong entry,
-                               ulong param, ulong stack_top, int user_mode);
+typedef void (*init_context_t)(struct reg_context *context, ulong entry, ulong param,
+                               ulong stack_top, ulong tcb, int user_mode);
 typedef void (*set_context_param_t)(struct reg_context *context, ulong param);
 typedef void (*switch_context_t)(ulong thread_id, struct reg_context *context,
                                  void *page_table, int user_mode, ulong asid, ulong tcb);

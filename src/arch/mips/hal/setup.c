@@ -250,19 +250,15 @@ static void free_user_page_table(void *ptr)
     kernel_pfree_ptr(ptr);
 }
 
-static void set_thread_context_param(struct reg_context *regs, ulong param)
-{
-    regs->a0 = param;
-}
-
 static void init_thread_context(struct reg_context *regs, ulong entry,
-                                ulong param, ulong stack_top, int user_mode)
+                                ulong param, ulong stack_top, ulong tcb, int user_mode)
 {
     // Set GPRs
     memzero(regs, sizeof(struct reg_context));
 
     // Set param
     regs->a0 = param;
+    regs->k0 = tcb;
 
     // Set other states
     regs->sp = stack_top;
@@ -327,7 +323,6 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.free_addr_space = free_user_page_table;
 
     funcs.init_context = init_thread_context;
-    funcs.set_context_param = set_thread_context_param;
     funcs.switch_to = switch_to;
 
     funcs.kernel_pre_dispatch = kernel_pre_dispatch;

@@ -21,9 +21,6 @@ void switch_to(ulong thread_id, struct reg_context *context,
     // Switch page table
     set_page_table(page_table);
 
-    // Set TCB
-    context->tls = tcb;
-
     // Set interrupt state, the interrupt will be enabled by restoring SR
     set_local_int_state(1);
 

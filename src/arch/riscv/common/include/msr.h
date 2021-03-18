@@ -217,4 +217,11 @@ struct supervisor_addr_trans_prot_reg {
 #define write_satp(value)       write_csr(value, satp)
 
 
+/*
+ * Timer
+ */
+#define read_mtime(value)       read_csr(value, time)
+#define read_mtimeh(value)      read_csr(value, timeh)
+
+
 #endif

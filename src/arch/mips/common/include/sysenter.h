@@ -3,7 +3,7 @@
 
 
 #include "common/include/inttypes.h"
-// #include "common/include/msr.h"
+#include "common/include/msr.h"
 
 static inline int sysenter(ulong num, ulong p1, ulong p2, ulong p3,
                            ulong *r1, ulong *r2)
@@ -39,14 +39,14 @@ static inline int sysenter(ulong num, ulong p1, ulong p2, ulong p3,
 #undef FAST_GET_TIB
 #endif
 
-#define FAST_GET_TIB 0
+#define FAST_GET_TIB 1
 
-// static inline ulong sysenter_get_tib()
-// {
-//     ulong tib = 0;
-//     read_software_thread_id(tib);
-//     return tib;
-// }
+static inline ulong sysenter_get_tib()
+{
+    ulong tib = 0;
+    read_k0(tib);
+    return tib;
+}
 
 
 #endif

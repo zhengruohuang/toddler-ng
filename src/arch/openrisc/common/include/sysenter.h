@@ -40,14 +40,21 @@ static inline int sysenter(ulong num, ulong p1, ulong p2, ulong p3,
 #undef FAST_GET_TIB
 #endif
 
-#define FAST_GET_TIB 0
+#define FAST_GET_TIB 1
 
-// static inline ulong sysenter_get_tib()
-// {
-//     ulong tib = 0;
-//     read_software_thread_id(tib);
-//     return tib;
-// }
+static inline ulong sysenter_get_tib()
+{
+    ulong value = 0;
+
+    __asm__ __volatile__ (
+        "l.ori %[reg], r10, 0;"
+        : [reg] "=r" (value)
+        :
+        : "memory"
+    );
+
+    return value;
+}
 
 
 #endif

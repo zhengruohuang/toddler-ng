@@ -75,7 +75,6 @@ struct hal_arch_funcs {
 
     // Context
     init_context_t init_context;
-    set_context_param_t set_context_param;
     switch_context_t switch_to;
 
     // Kernel dispatch
