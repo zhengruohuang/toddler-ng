@@ -254,8 +254,6 @@ void invalidate_tlb(ulong asid, ulong vaddr, size_t size)
  */
 void init_mmu_mp()
 {
-    setup_mmu();
-
     kernel_page_table = get_loader_args()->page_table;
     set_page_table(kernel_page_table);
 
@@ -265,5 +263,6 @@ void init_mmu_mp()
 
 void init_mmu()
 {
+    setup_mmu();
     init_mmu_mp();
 }

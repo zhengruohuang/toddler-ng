@@ -21,4 +21,5 @@ build_opts['qemu'] = {
     'bootargs'  : 'test',
     'bootimg'   : img_dir + 'boot.elf',
     'mp'        : '2',
+    'default_mp': 'smp' in target_model
 }

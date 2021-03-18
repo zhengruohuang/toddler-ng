@@ -13,5 +13,5 @@ _start:
 
     // Should never reach here
 __stop:
-    l.j     0
+    l.j     __stop
     l.nop

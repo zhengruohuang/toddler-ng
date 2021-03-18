@@ -54,6 +54,7 @@ The next generation Toddler
 | m68k-q800-qemu        | Active    | Planned   |       |                    |
 | sh4-r2d-qemu          | Active    | Planned   |       |                    |
 | openrisc-sim-qemu     | Current   | Current   | No    |                    |
+| openrisc-sim-qemu_smp | Current   | Active    | Yes   |                    |
 | ia64-sim-ski          | Initial   | Planned   |       |                    |
 | s390-virtio-qemu      | Planned   | Planned   |       |                    |
 | zarch-virtio-qemu     | Planned   | Planned   |       |                    |

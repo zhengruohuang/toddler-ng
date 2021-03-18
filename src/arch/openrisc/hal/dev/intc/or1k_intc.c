@@ -48,8 +48,6 @@ static inline void _disable_irq(int seq)
 /*
  * IRQ
  */
-
-
 static void enable_irq(struct driver_param *param, struct int_context *ictxt, int seq)
 {
     if (seq >= 32) {

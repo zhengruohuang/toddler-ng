@@ -117,7 +117,7 @@ typedef void (*hal_start_t)(struct loader_args *largs, int mp);
 static void call_hal(struct loader_args *largs, int mp)
 {
     hal_start_t hal = largs->hal_entry;
-    hal(largs, 0);
+    hal(largs, mp);
 }
 
 static void jump_to_hal()
@@ -126,6 +126,14 @@ static void jump_to_hal()
     kprintf("Jump to HAL @ %p\n", largs->hal_entry);
 
     call_hal(largs, 0);
+}
+
+static void jump_to_hal_mp()
+{
+    struct loader_args *largs = get_loader_args();
+    kprintf("MP Jump to HAL @ %p\n", largs->hal_entry);
+
+    call_hal(largs, 1);
 }
 
 
@@ -223,6 +231,10 @@ void loader_entry()
     // Prepare arg
     fw_args.fw_name = "none";
 
+    // MP entry
+    extern ulong _start_mp_flag;
+    funcs.mp_entry = (ulong)&_start_mp_flag;
+
     // Prepare funcs
     funcs.init_libk = init_libk;
     funcs.init_arch = init_arch;
@@ -248,5 +260,15 @@ void loader_entry()
 
 void loader_entry_mp()
 {
-    panic("MP not implemented!\n");
+    ulong coreid = 0;
+    read_core_id(coreid);
+    kprintf("Booting hart: %lx\n", coreid);
+    kprintf("Loader MP!\n");
+
+    // Go to HAL!
+    jump_to_hal_mp();
+
+    // Should never reach here
+    panic("Should never reach here");
+    while (1);
 }

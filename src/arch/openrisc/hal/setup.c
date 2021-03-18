@@ -141,6 +141,7 @@ static void register_drivers()
 {
     REGISTER_DEV_DRIVER(or1k_intc);
     REGISTER_DEV_DRIVER(or1k_cpu_timer);
+    REGISTER_DEV_DRIVER(or1200_cpu);
 }
 
 static ulong get_syscall_params(struct reg_context *regs, ulong *p1, ulong *p2, ulong *p3)
@@ -174,6 +175,7 @@ static void halt_cur_cpu()
 
 static void start_cpu(int mp_seq, ulong mp_id, ulong entry)
 {
+    atomic_write((void *)entry, mp_id);
 }
 
 static void *init_user_page_table()
@@ -287,7 +289,25 @@ static void hal_entry_bsp(struct loader_args *largs)
 
 static void hal_entry_mp()
 {
-    panic("MP not implemented!\n");
+    // Switch to CPU-private stack
+    ulong sp = get_my_cpu_init_stack_top_vaddr();
+    ulong pc = (ulong)&hal_mp;
+
+    __asm__ __volatile__ (
+        // Set up stack top
+        "l.ori  r1, %[sp], 0;"
+        "l.addi r1, r1, -16;"
+
+        // Jump to target
+        "l.ori  r15, %[pc], 0;"
+        "l.jr   r15;"
+        "l.nop;"
+        :
+        : [pc] "r" (pc), [sp] "r" (sp)
+        : "memory"
+    );
+
+    unreachable();
 }
 
 void hal_entry(struct loader_args *largs, int mp)
@@ -301,8 +321,6 @@ void hal_entry(struct loader_args *largs, int mp)
         hal_entry_bsp(largs);
     }
 
-    // Should never reach here
-    panic("Should never reach here");
-    while (1);
+    unreachable();
 }
 

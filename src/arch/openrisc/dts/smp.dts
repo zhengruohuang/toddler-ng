@@ -28,6 +28,12 @@
             reg = <0>;
             clock-frequency = <20000000>;
         };
+
+        cpu@1 {
+            compatible = "opencores,or1200-rtlsvn481", "opencores,or1200";
+            reg = <1>;
+            clock-frequency = <20000000>;
+        };
     };
 
     pic: pic {
@@ -36,6 +42,16 @@
         interrupt-controller;
         #interrupt-cells = <1>;
         interrupt-parent = <&pic>;
+    };
+
+    ompic: ompic@98000000 {
+        compatible = "openrisc,ompic";
+        reg = <0x98000000 16>;
+
+        interrupt-controller;
+        #interrupt-cells = <0>;
+        interrupt-parent = <&pic>;
+        interrupts = <1>;
     };
 
     timer {
