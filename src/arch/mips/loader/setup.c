@@ -281,6 +281,11 @@ void loader_entry(int kargc, u32 *kargv, u32 *env, ulong mem_size)
         karg_params.mem_size = mem_size;
     }
 
+    // Stack limit
+    extern ulong _stack_limit, _stack_limit_mp;
+    funcs.stack_limit = (ulong)&_stack_limit;
+    funcs.stack_limit_mp = (ulong)&_stack_limit_mp;
+
     // Prepare funcs
     funcs.init_libk = init_libk;
     funcs.init_arch = init_arch;
@@ -296,4 +301,5 @@ void loader_entry(int kargc, u32 *kargv, u32 *env, ulong mem_size)
 
     // Go to loader!
     loader(&fw_args, &funcs);
+    unreachable();
 }

@@ -295,9 +295,6 @@ static void jump_to_hal()
     enable_mmu(largs->page_table);
     enable_caches_bpred();
     call_hal(largs->hal_entry, largs, 0);
-
-//     hal_start hal = largs->hal_entry;
-//     hal(largs);
 }
 
 static void jump_to_hal_mp()
@@ -336,7 +333,10 @@ static void final_arch()
  */
 static void init_arch()
 {
+}
 
+static void init_arch_mp()
+{
 }
 
 
@@ -382,6 +382,11 @@ void loader_entry(ulong zero, ulong mach_id, void *mach_cfg)
         fw_args.fw_params = mach_cfg;
     }
 
+    // Stack limit
+    extern ulong _stack_limit, _stack_limit_mp;
+    funcs.stack_limit = (ulong)&_stack_limit;
+    funcs.stack_limit_mp = (ulong)&_stack_limit_mp;
+
     // MP entry
     extern void _start_mp();
     funcs.mp_entry = (ulong)&_start_mp;
@@ -396,22 +401,20 @@ void loader_entry(ulong zero, ulong mach_id, void *mach_cfg)
     funcs.jump_to_hal = jump_to_hal;
     funcs.register_drivers = register_drivers;
 
+    // MP funcs
+    funcs.init_arch_mp = init_arch_mp;
+    funcs.jump_to_hal_mp = jump_to_hal_mp;
+
     // Go to loader!
     loader(&fw_args, &funcs);
-
-    // Should never reach here
-    panic("Should never reach here");
-    while (1);
+    unreachable();
 }
 
 void loader_entry_mp()
 {
     kprintf("Loader MP!\n");
 
-    // Go to HAL!
-    jump_to_hal_mp();
-
-    // Should never reach here
-    panic("Should never reach here");
-    while (1);
+    // Go to loader!
+    loader_mp();
+    unreachable();
 }

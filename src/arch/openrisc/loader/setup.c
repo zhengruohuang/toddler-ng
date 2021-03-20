@@ -266,6 +266,7 @@ void loader_entry()
     funcs.final_arch = final_arch;
     funcs.jump_to_hal = jump_to_hal;
 
+    // MP funcs
     funcs.init_arch_mp = init_arch_mp;
     funcs.jump_to_hal_mp = jump_to_hal_mp;
 

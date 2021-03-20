@@ -242,6 +242,10 @@ static void init_arch()
     }
 }
 
+static void init_arch_mp()
+{
+}
+
 
 /*
  * Init libk
@@ -278,6 +282,11 @@ void loader_entry(ulong hart, void *fdt)
         fw_args.fdt.supplied = fdt;
     }
 
+    // Stack limit
+    extern ulong _stack_limit, _stack_limit_mp;
+    funcs.stack_limit = (ulong)&_stack_limit;
+    funcs.stack_limit_mp = (ulong)&_stack_limit_mp;
+
     // MP entry
     extern void _start_mp();
     funcs.mp_entry = (ulong)&_start_mp;
@@ -291,6 +300,10 @@ void loader_entry(ulong hart, void *fdt)
     funcs.final_arch = final_arch;
     funcs.jump_to_hal = jump_to_hal;
 
+    // MP funcs
+    funcs.init_arch_mp = init_arch_mp;
+    funcs.jump_to_hal_mp = jump_to_hal_mp;
+
     // Set up sscratch
     struct mp_context mp = { };
     mp.id = hart;
@@ -298,6 +311,7 @@ void loader_entry(ulong hart, void *fdt)
 
     // Go to loader!
     loader(&fw_args, &funcs);
+    unreachable();
 }
 
 void loader_entry_mp(ulong hart)
@@ -310,10 +324,7 @@ void loader_entry_mp(ulong hart)
     mp.id = hart;
     write_sscratch(&mp);
 
-    // Go to HAL!
-    jump_to_hal_mp();
-
-    // Should never reach here
-    panic("Should never reach here");
-    while (1);
+    // Go to loader!
+    loader_mp();
+    unreachable();
 }

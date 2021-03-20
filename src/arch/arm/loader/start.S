@@ -1,19 +1,22 @@
 .global _start
 .global _start_mp
 
+.global _stack_limit
+.global _stack_limit_mp
+
 .extern loader_entry
 .extern loader_entry_mp
 
 
 .section ".data.stack"
 
-.align 16
-_stack_limit:
+.balign 16
+_stack_limit_mp:
     .fill 1024, 1, 0
-
 _stack_top_mp:
-    .fill 7168, 1, 0
 
+_stack_limit:
+    .fill 7168, 1, 0
 _stack_top:
     .fill 16, 1, 0
 
