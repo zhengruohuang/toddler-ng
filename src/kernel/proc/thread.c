@@ -208,36 +208,13 @@ static struct thread *create_exec_context(struct process *p,
 
         t->memory.tls.start_paddr_ptr = (void *)(t->memory.block_base + t->memory.tls.start_offset);
         t->memory.stack.top_paddr_ptr = (void *)(t->memory.block_base + t->memory.stack.top_offset);
-    } else {
-//         // Allocate physical memory
-//         t->memory.tls.start_paddr_ptr = palloc_ptr(1);
-//         void *initial_stack_paddr_ptr = palloc_ptr(1);
-//         t->memory.stack.top_paddr_ptr = initial_stack_paddr_ptr + PAGE_SIZE;
 
+        set_stack_magic(t->memory.block_base + t->memory.stack.limit_offset);
+    } else {
         // Allocate and map a dynamic block
         t->memory.block = vm_alloc_thread(p, t, thread_block_mapper, thread_block_reuse);
         t->memory.block_base = t->memory.block->base;
-
-//         // Map virtual to physical
-//         get_hal_exports()->map_range(p->page_table,
-//                                      t->memory.block_base + t->memory.tls.start_offset,
-//                                      cast_ptr_to_paddr(t->memory.tls.start_paddr_ptr),
-//                                      t->memory.tls.size,
-//                                      1, 1, 1, 0, 0);
-//         get_hal_exports()->map_range(p->page_table,
-//                                      t->memory.block_base + t->memory.stack.top_offset - PAGE_SIZE,
-//                                      cast_ptr_to_paddr(initial_stack_paddr_ptr),
-//                                      PAGE_SIZE,
-//                                      1, 1, 1, 0, 0);
     }
-
-//     // Adjust stack top to make some room for msg block
-//     const ulong msg_block_size = align_up_ulong(sizeof(msg_t), 16);
-//     t->memory.msg.size = msg_block_size;
-//     t->memory.stack.top_offset -= msg_block_size;
-//     t->memory.stack.top_paddr_ptr -= msg_block_size;
-//     t->memory.msg.start_offset = t->memory.stack.top_offset;
-//     t->memory.msg.start_paddr_ptr = t->memory.stack.top_paddr_ptr;
 
     // Adjust stack top to make some room for msg block
     const ulong msg_block_size = MAX_MSG_SIZE;
@@ -312,6 +289,7 @@ void exit_thread(struct thread *t)
 
         // Clean up dynamic area
         if (proc->type == PROCESS_TYPE_KERNEL) {
+            check_stack_magic(t->memory.block_base + t->memory.stack.limit_offset);
             pfree_ptr((void *)t->memory.block_base);
         } else {
             vm_free_block(proc, t->memory.block);

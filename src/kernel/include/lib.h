@@ -9,6 +9,7 @@
 #include "libk/include/string.h"
 #include "libk/include/coreimg.h"
 #include "libk/include/devtree.h"
+#include "libk/include/stack.h"
 
 
 extern char *strdup(const char *s);
