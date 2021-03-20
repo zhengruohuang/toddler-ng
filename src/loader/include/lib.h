@@ -8,6 +8,7 @@
 #include "libk/include/string.h"
 #include "libk/include/coreimg.h"
 #include "libk/include/page.h"
+#include "libk/include/stack.h"
 
 
 #endif

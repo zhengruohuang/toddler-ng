@@ -37,11 +37,14 @@ static inline void _kprintf_lock()
     ulong old_val;
 
     do {
-        do {
-            old_val = _kprintf_lock_value;
+        atomic_mb();
+        old_val = _kprintf_lock_value;
+
+        while (old_val) {
             atomic_pause();
             atomic_mb();
-        } while (old_val);
+            old_val = _kprintf_lock_value;
+        }
     } while (!atomic_cas_bool(&_kprintf_lock_value, old_val, 1));
 }
 
@@ -65,6 +68,18 @@ int kprintf(const char *fmt, ...)
     _kprintf_lock();
     ret = __vkprintf(fmt, va);
     _kprintf_unlock();
+
+    va_end(va);
+    return ret;
+}
+
+int kprintf_unlocked(const char *fmt, ...)
+{
+    int ret = 0;
+    va_list va;
+    va_start(va, fmt);
+
+    ret = __vkprintf(fmt, va);
 
     va_end(va);
     return ret;
@@ -160,6 +175,25 @@ void arch_init_kernel_post()
 {
     if (arch_funcs.init_kernel_post) {
         arch_funcs.init_kernel_post();
+    }
+}
+
+
+/*
+ * Stack protect
+ */
+static void check_loader_stack()
+{
+    if (loader_args.stack_limit) {
+        check_stack_magic(loader_args.stack_limit);
+        check_stack_pos(loader_args.stack_limit);
+    }
+}
+
+static void check_loader_stack_mp()
+{
+    if (loader_args.stack_limit_mp) {
+        check_stack_magic(loader_args.stack_limit_mp);
     }
 }
 
@@ -383,6 +417,7 @@ void hal(struct loader_args *largs, struct hal_arch_funcs *funcs)
     start_all_devices();
 
     // And finally, start working
+    check_loader_stack();
     kernel_start();
 
     kprintf("HAL done!\n");
@@ -415,6 +450,8 @@ void hal_mp()
     start_all_devices_mp();
 
     // And finally, start working
+    check_loader_stack_mp();
+    check_my_cpu_stack();
     kernel_start();
 
     kprintf("HAL MP done!\n");

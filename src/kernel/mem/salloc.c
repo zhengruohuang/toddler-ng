@@ -66,22 +66,13 @@ struct salloc_bucket_list {
  */
 static struct salloc_bucket *alloc_bucket(salloc_obj_t *obj)
 {
-//     ppfn_t bucket_pfn = palloc_direct_mapped(obj->bucket_page_count);
-//     paddr_t bucket_paddr = ppfn_to_paddr(bucket_pfn);
-//     if (!bucket_paddr) {
-//         return NULL;
-//     }
-
     struct salloc_bucket *bucket = palloc_ptr(obj->bucket_page_count);
     if (!bucket) {
         return NULL;
     }
 
+    memzero(bucket, sizeof(struct salloc_bucket));
     ref_count_add(&obj->num_palloc_pages, obj->bucket_page_count);
-
-    //struct salloc_bucket *bucket = cast_paddr_to_ptr(bucket_paddr);
-    //struct salloc_bucket *bucket = hal_cast_paddr_to_kernel_ptr(bucket_paddr);
-    //kprintf("salloc bucket @ %p, paddr @ %llx\n", bucket, (u64)bucket_paddr);
 
     // Initialize the bucket header
     bucket->obj = obj;
@@ -114,16 +105,8 @@ static struct salloc_bucket *alloc_bucket(salloc_obj_t *obj)
 
 static void free_bucket(salloc_obj_t *obj, struct salloc_bucket *bucket)
 {
-    // FIXME: handle direct access
-//     paddr_t paddr = cast_ptr_to_paddr(bucket);
-//     ppfn_t pfn = paddr_to_ppfn(paddr);
-//     pfree(pfn);
     pfree_ptr(bucket);
-
     ref_count_sub(&obj->num_palloc_pages, obj->bucket_page_count);
-
-    //ulong addr = (ulong)bucket;
-    //pfree(ADDR_TO_PFN(addr));
 }
 
 static void insert_bucket(salloc_obj_t *obj, struct salloc_bucket *bucket)
@@ -278,7 +261,6 @@ void *salloc(salloc_obj_t *obj)
 
     // Setup the block
     block->bucket = bucket;
-//     kprintf("bucket @ %x, obj: %x\n", bucket, obj);
 
     // Change the bucket state and remove it from the partial list if necessary
     if (!bucket->avail_count) {
@@ -324,9 +306,6 @@ void sfree(void *ptr)
     // Obtain the bucket and obj
     struct salloc_bucket *bucket = block->bucket;
     salloc_obj_t *obj = bucket->obj;
-
-//     kprintf("bucket @ %x, obj: %x\n", bucket, obj);
-//     return;
 
     // Call the destructor
     if (obj->destructor) {

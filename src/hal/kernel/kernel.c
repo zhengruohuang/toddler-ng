@@ -147,6 +147,7 @@ static void call_kernel_entry()
 
 void init_kernel()
 {
+    disable_pre_palloc();
     fill_hal_exports();
     call_kernel_entry();
 }

@@ -45,6 +45,51 @@ struct loader_args *get_loader_args()
     return &loader_args;
 }
 
+static void save_extra_loader_args()
+{
+    // Save loader stack limits
+    loader_args.stack_limit = arch_funcs ? arch_funcs->stack_limit : 0;
+    loader_args.stack_limit_mp = arch_funcs ? arch_funcs->stack_limit_mp : 0;
+
+    // Save MP entry
+    loader_args.mp_entry = arch_funcs ? arch_funcs->mp_entry : 0;
+
+    // Save memory map
+    loader_args.memmap = get_memmap();
+    print_memmap();
+}
+
+
+/*
+ * Stack protect
+ */
+static void init_stack_prot()
+{
+    if (arch_funcs && arch_funcs->stack_limit) {
+        set_stack_magic(arch_funcs->stack_limit);
+    }
+
+    if (arch_funcs && arch_funcs->stack_limit_mp) {
+        set_stack_magic(arch_funcs->stack_limit_mp);
+    }
+}
+
+static void check_stack()
+{
+    if (arch_funcs && arch_funcs->stack_limit) {
+        check_stack_magic(arch_funcs->stack_limit);
+        check_stack_pos(arch_funcs->stack_limit);
+    }
+}
+
+static void check_stack_mp()
+{
+    if (arch_funcs && arch_funcs->stack_limit_mp) {
+        check_stack_magic(arch_funcs->stack_limit_mp);
+        check_stack_pos(arch_funcs->stack_limit_mp);
+    }
+}
+
 
 /*
  * Wrappers
@@ -64,6 +109,13 @@ static void init_arch()
     }
 }
 
+static void init_arch_mp()
+{
+    if (arch_funcs && arch_funcs->init_arch_mp) {
+        arch_funcs->init_arch_mp();
+    }
+}
+
 static void final_memmap()
 {
     if (arch_funcs && arch_funcs->final_memmap) {
@@ -76,13 +128,13 @@ static void final_arch()
     if (arch_funcs && arch_funcs->final_arch) {
         arch_funcs->final_arch();
     }
+}
 
-    // Save MP entry
-    loader_args.mp_entry = arch_funcs ? arch_funcs->mp_entry : 0;
-
-    // Save memory map
-    loader_args.memmap = get_memmap();
-    print_memmap();
+static void final_arch_mp()
+{
+    if (arch_funcs && arch_funcs->final_arch_mp) {
+        arch_funcs->final_arch_mp();
+    }
 }
 
 static void jump_to_hal()
@@ -91,6 +143,14 @@ static void jump_to_hal()
         "Arch loader must implement jump_to_hal()!");
 
     arch_funcs->jump_to_hal();
+}
+
+static void jump_to_hal_mp()
+{
+    panic_if(!arch_funcs || !arch_funcs->jump_to_hal_mp,
+        "Arch loader must implement jump_to_hal_mp()!");
+
+    arch_funcs->jump_to_hal_mp();
 }
 
 
@@ -109,6 +169,9 @@ void loader(struct firmware_args *args, struct loader_arch_funcs *funcs)
     // Arch-specific
     init_arch();
     init_libk();
+
+    // Stack protect
+    init_stack_prot();
 
     // Firmware and device tree
     init_firmware();
@@ -135,12 +198,32 @@ void loader(struct firmware_args *args, struct loader_arch_funcs *funcs)
     // Finalize
     final_arch();
 
+    // Save extra loader args
+    save_extra_loader_args();
+
     // Jump to HAL
+    check_stack();
     jump_to_hal();
 
     // Done
     devtree_print(NULL);
 
-    kprintf("Done!\n");
-    while (1);
+    kprintf("Loader done!\n");
+    unreachable();
+}
+
+void loader_mp()
+{
+    // Init
+    init_arch_mp();
+
+    // Finalize
+    final_arch_mp();
+
+    // Jump to HAL
+    check_stack_mp();
+    jump_to_hal_mp();
+
+    kprintf("MP Loader done!\n");
+    unreachable();
 }

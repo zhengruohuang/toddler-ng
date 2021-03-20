@@ -27,6 +27,10 @@ struct loader_arch_funcs {
     //int num_reserved_got_entries;
     u64 phys_mem_range_min, phys_mem_range_max;
 
+    // Stack
+    ulong stack_limit;
+    ulong stack_limit_mp;
+
     // MP entry
     ulong mp_entry;
 
@@ -36,6 +40,10 @@ struct loader_arch_funcs {
     void (*final_memmap)();
     void (*final_arch)();
     void (*jump_to_hal)();
+
+    void (*init_arch_mp)();
+    void (*final_arch_mp)();
+    void (*jump_to_hal_mp)();
 
     // Dev
     void (*register_drivers)();
@@ -59,7 +67,8 @@ extern struct loader_arch_funcs *get_loader_arch_funcs();
 extern struct loader_args *get_loader_args();
 
 extern void loader(struct firmware_args *args,
-    struct loader_arch_funcs *funcs);
+                   struct loader_arch_funcs *funcs);
+extern void loader_mp();
 
 
 #endif

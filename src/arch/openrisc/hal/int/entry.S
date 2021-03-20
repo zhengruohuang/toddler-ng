@@ -24,12 +24,12 @@
     l.mfspr r16, r0, 1024 + 64 + 16
 
     /* Set up stack */
-    l.add   r1, r0, \ctxt
-    l.addi  r1, r1, -0x20
+    l.or    r1, r0, \ctxt
+    l.addi  r1, r1, -0x10
 
     /* Set up param and go to the handler */
-    l.addi  r3, r0, \vec
-    l.add   r4, r0, \ctxt
+    l.ori   r3, r0, \vec
+    l.or    r4, r0, \ctxt
     l.jal   \entry
     l.nop
 .endm

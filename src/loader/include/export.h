@@ -18,6 +18,10 @@ struct loader_args {
     // Coreimg
     void *coreimg;
 
+    // Loader stack
+    ulong stack_limit;
+    ulong stack_limit_mp;
+
     // MP
     ulong mp_entry;
 

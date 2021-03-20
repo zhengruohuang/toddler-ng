@@ -44,6 +44,66 @@ static inline char *get_except_name(int except)
 
 
 /*
+ * TLB miss stack
+ */
+// TLB miss stack is used when an TLB miss occurs, with MMU auto disabled
+// Otherwise the default int stack is used, and MMU is re-enabled
+// Note that a TLB miss may end up being a page fault,
+// and in such case, stack is switched to default along with MMU enabled
+#define TLB_STACK_SIZE PAGE_SIZE
+
+static ulong tlb_miss_stack_area_base = 0;
+
+static decl_per_cpu(ulong, tlb_miss_stack_top);
+static decl_per_cpu(ulong, tlb_miss_stack_base);
+
+static inline void check_tlb_miss_stack()
+{
+    ulong stack_base = *get_per_cpu(ulong, tlb_miss_stack_base);
+    check_stack_magic(stack_base);
+    check_stack_pos(stack_base);
+}
+
+static ulong init_tlb_miss_stack_mp()
+{
+    // Find out current CPU's stack base
+    int mp_seq = arch_get_cur_mp_seq();
+    ulong stack_base_vaddr = tlb_miss_stack_area_base + mp_seq * TLB_STACK_SIZE;
+
+    // Set up and remember stack limit
+    ulong *cur_quick_stack_base = get_per_cpu(ulong, tlb_miss_stack_base);
+    *cur_quick_stack_base = stack_base_vaddr;
+    set_stack_magic(stack_base_vaddr);
+
+    // Set up stack top for context saving
+    ulong stack_top = stack_base_vaddr + TLB_STACK_SIZE;
+    stack_top -= 16 + sizeof(struct reg_context);
+
+    // Align the stack to 16B
+    stack_top = ALIGN_DOWN(stack_top, 16);
+
+    // Remember stack top
+    ulong *cur_tlb_stack_top = get_per_cpu(ulong, tlb_miss_stack_top);
+    *cur_tlb_stack_top = stack_top;
+
+    return stack_top;
+}
+
+static void init_tlb_miss_stack()
+{
+    int num_cpus = get_num_cpus();
+    ulong tlb_stack_area_size = num_cpus * TLB_STACK_SIZE;
+    tlb_stack_area_size = align_up_vsize(tlb_stack_area_size, PAGE_SIZE);
+
+    int num_pages = tlb_stack_area_size / PAGE_SIZE;
+    ppfn_t stack_base_ppfn = pre_palloc(num_pages);
+    paddr_t stack_base_paddr = ppfn_to_paddr(stack_base_ppfn);
+
+    tlb_miss_stack_area_base = pre_valloc(num_pages, stack_base_paddr, 1);
+}
+
+
+/*
  * Save registers to memory
  */
 static inline void save_ctxt1_regs_to_mem(struct reg_context *regs)
@@ -69,25 +129,37 @@ void tlb_miss_handler_entry(int except, struct reg_context *regs)
     panic_if(except != EXCEPT_NUM_ITLB_MISS && except != EXCEPT_NUM_DTLB_MISS,
              "Must be TLB miss!\n");
 
-    //kprintf("TLB int handler entry @ %p, %p\n", quick_regs, kernel_regs);
-
     ulong epc = 0;
     read_epcr0(epc);
 
     ulong eear = 0;
     read_eear0(eear);
 
+    for (int i = 0; i < 32; i++) {
+        ulong r = 0;
+        read_gpr1(r, i);
+
+        if (r == 0x108aa2c) {
+            kprintf("here?\n");
+            while (1);
+        }
+    }
+
     int itlb = except == EXCEPT_NUM_ITLB_MISS ? 1 : 0;
     int err = tlb_refill(itlb, eear);
+    check_tlb_miss_stack();
+
     if (!err) {
         restore_context_gpr_from_shadow1();
         unreachable();
     }
+
+//     kprintf("Page fault @ %lx, PC @ %lx\n", eear, epc);
 }
 
 void int_handler_entry(int except, struct reg_context *regs)
 {
-    //kprintf("kernel int handler entry @ %p, %p\n",  kernel_regs, quick_regs);
+//     kprintf_unlocked("kernel int handler entry, regs @ %p\n", regs);
 
     disable_mmu();
     disable_local_int();
@@ -105,7 +177,7 @@ void int_handler_entry(int except, struct reg_context *regs)
     int seq = 0;
     ulong error_code = eear;
 
-//     if (except != EXCEPT_NUM_SYSCALL && except != EXCEPT_NUM_TIMER)
+//     if (except != EXCEPT_NUM_SYSCALL)
 //     kprintf("Exception #%d: %s, EPC @ %lx, EEAR @ %lx\n",
 //             except, get_except_name(except), epc, eear);
 
@@ -163,37 +235,6 @@ void int_handler_entry(int except, struct reg_context *regs)
  */
 extern void raw_int_entry_base();
 
-// TLB miss stack is used when an TLB miss occurs, with MMU auto disabled
-// Otherwise the default int stack is used, and MMU is re-enabled
-// Note that a TLB miss may end up being a page fault,
-// and in such case, stack is switched to default along with MMU enabled
-static decl_per_cpu(ulong, tlb_miss_stack_top);
-
-static inline ulong _setup_default_int_stack()
-{
-    struct reg_context *int_ctxt = get_cur_int_reg_context();
-    return (ulong)(void *)int_ctxt;
-}
-
-static inline ulong _setup_tlb_miss_stack()
-{
-    ppfn_t stack_base_ppfn = pre_palloc(1);
-    paddr_t stack_base_paddr = ppfn_to_paddr(stack_base_ppfn);
-    ulong stack_base_vaddr = pre_valloc(1, stack_base_paddr, 1);
-
-    // Set up stack top for context saving
-    ulong stack_top = stack_base_vaddr + PAGE_SIZE - 32 - sizeof(struct reg_context);
-
-    // Align the stack to 16B
-    stack_top = ALIGN_DOWN(stack_top, 16);
-
-    // Remember the stack top
-    ulong *cur_quick_stack_top = get_per_cpu(ulong, tlb_miss_stack_top);
-    *cur_quick_stack_top = stack_top;
-
-    return stack_top;
-}
-
 void init_int_entry_mp()
 {
     // Set exception base addr
@@ -203,18 +244,23 @@ void init_int_entry_mp()
     write_evbar(evbar.value);
     kprintf("EVBAR @ %x, entry @ %p\n", evbar.value, &raw_int_entry_base);
 
-    // Set up stacks
-    ulong kernel_stack_top = _setup_default_int_stack();
-    ulong quick_stack_top = _setup_tlb_miss_stack();
+    // Set up TLB miss stack
+    ulong tlb_stack_top = init_tlb_miss_stack_mp();
 
-    kprintf("Stack top, quick @ %lx, kernel @ %lx\n", quick_stack_top, kernel_stack_top);
+    // Set up kernel stack
+    struct reg_context *int_ctxt = get_cur_int_reg_context();
+    ulong kernel_stack_top = (ulong)(void *)int_ctxt;
 
     // Set up ctxt2 s0 (r14) and s1 (r16)
-    write_gpr2(quick_stack_top, 14);
+    write_gpr2(tlb_stack_top, 14);
     write_gpr2(kernel_stack_top, 16);
+
+    kprintf("Stack top, quick @ %lx, kernel @ %lx\n",
+            tlb_stack_top, kernel_stack_top);
 }
 
 void init_int_entry()
 {
+    init_tlb_miss_stack();
     init_int_entry_mp();
 }

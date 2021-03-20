@@ -285,6 +285,7 @@ static void hal_entry_bsp(struct loader_args *largs)
     funcs.flush_tlb = flush_tlb;
 
     hal(largs, &funcs);
+    unreachable();
 }
 
 static void hal_entry_mp()

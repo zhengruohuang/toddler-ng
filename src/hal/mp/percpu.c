@@ -14,8 +14,10 @@
 
 #if (defined(STACK_GROWS_UP) && STACK_GROWS_UP)
 #define PER_CPU_STACK_START_OFFSET  (0 + 16)
+#define PER_CPU_STACK_LIMIT_OFFSET  ((PER_CPU_AREA_SIZE / 2) - 16)
 #else
 #define PER_CPU_STACK_START_OFFSET  ((PER_CPU_AREA_SIZE / 2) - 16)
+#define PER_CPU_STACK_LIMIT_OFFSET  (0 + 16)
 #endif
 
 
@@ -26,7 +28,7 @@ static int cur_per_cpu_offset = 0;
 
 
 /*
- * Access per-CPU vars
+ * Per-CPU areas
  */
 static ulong get_per_cpu_area_start_vaddr(int cpu_seq)
 {
@@ -59,6 +61,17 @@ ulong get_my_cpu_init_stack_top_vaddr()
 #endif
 }
 
+void check_my_cpu_stack()
+{
+    ulong stack_limit_vaddr = get_my_cpu_area_start_vaddr() + PER_CPU_STACK_LIMIT_OFFSET;
+    check_stack_magic(stack_limit_vaddr);
+    check_stack_pos(stack_limit_vaddr);
+}
+
+
+/*
+ * Per-CPU var
+ */
 static void init_per_cpu_var(int *offset, size_t size)
 {
     panic_if(is_any_secondary_cpu_started(),
@@ -109,6 +122,10 @@ void init_per_cpu_area()
 
         // Zero the area
         memzero((void *)cur_area_vstart, PER_CPU_AREA_SIZE);
+
+        // Set stack protect
+        ulong stack_limit_vaddr = cur_area_vstart + PER_CPU_STACK_LIMIT_OFFSET;
+        set_stack_magic(stack_limit_vaddr);
 
         // Tell the user
         kprintf("\tCPU #%d, per-CPU area: %lx -> %llx (%d bytes)\n", i,

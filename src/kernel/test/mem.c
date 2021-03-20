@@ -133,19 +133,16 @@ void test_mem()
     int mp_seq = hal_get_cur_mp_seq();
 
     barrier_wait_int(&bar);
-
     if (!mp_seq) {
         kprintf("Before mem testing\n");
         buddy_print();
     }
 
     barrier_wait_int(&bar);
-
     test_mem_palloc(mp_seq, &bar);
     test_mem_malloc(mp_seq, &bar);
 
     barrier_wait_int(&bar);
-
     if (!mp_seq) {
         kprintf("After mem testing\n");
         buddy_print();

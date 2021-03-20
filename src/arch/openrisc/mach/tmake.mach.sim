@@ -16,10 +16,10 @@ build_opts['embed_coreimg'] = True
 
 build_opts['qemu'] = {
     'machine'   : 'or1k-sim',
-    'memory'    : 128,
+    'memory'    : 256,
     'graphic'   : False,
     'bootargs'  : 'test',
     'bootimg'   : img_dir + 'boot.elf',
     'mp'        : '2',
-    'default_mp': 'smp' in target_model
+    'default_mp': ('smp' in target_model) or ('smp' in target_mach)
 }

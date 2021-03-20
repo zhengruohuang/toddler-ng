@@ -346,7 +346,7 @@ ppfn_t palloc_region(int count, int region)
     // Split higher order buddies if necessary
     if (!regions[region].buddies[order].has_next) {
         if (-1 == buddy_split(order + 1, region)) {
-            kprintf("Unable to split buddy");
+            kprintf("Palloc failed\n");
 
             spinlock_unlock_int(&regions[region].lock);
             return 0;

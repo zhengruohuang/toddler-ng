@@ -6,6 +6,8 @@
 #include "hal/include/mem.h"
 
 
+static int pre_palloc_enabled = 0;
+
 static int sysarea_grows_up = 0;
 static ulong sysarea_lower = 0;
 static ulong sysarea_upper = 0;
@@ -21,6 +23,8 @@ ulong get_sysarea_range(ulong *lower, ulong *upper)
 
 ppfn_t pre_palloc(int count)
 {
+    panic_if(!pre_palloc_enabled, "pre_palloc disabled!\n");
+
     ulong size = count * PAGE_SIZE;
     ulong align = PAGE_SIZE;
 
@@ -41,6 +45,8 @@ ppfn_t pre_palloc(int count)
 
 ulong pre_valloc(int count, paddr_t paddr, int cache)
 {
+    panic_if(!pre_palloc_enabled, "pre_valloc disabled!\n");
+
     struct hal_arch_funcs *arch_funcs = get_hal_arch_funcs();
 
     int use_direct_access = arch_funcs->has_direct_access;
@@ -83,6 +89,13 @@ void init_pre_palloc()
     sysarea_lower = align_down_vaddr(largs->sysarea_lower, PAGE_SIZE);
     sysarea_upper = align_up_vaddr(largs->sysarea_upper, PAGE_SIZE);
 
+    pre_palloc_enabled = 1;
+
     kprintf("Sysarea @ %lx - %lx, grows %s\n", sysarea_lower, sysarea_upper,
             sysarea_grows_up ? "up" : "down");
+}
+
+void disable_pre_palloc()
+{
+    pre_palloc_enabled = 0;
 }

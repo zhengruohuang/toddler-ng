@@ -90,6 +90,12 @@ void int_handler(int seq, struct int_context *ictxt)
         set_cur_running_in_user_mode(prev_in_user_mode);
     }
 
+    // Check stack
+    check_my_cpu_stack();
+
+    // Mark local interrupts as enabled
+    set_local_int_state(1);
+
     // Will now return, arch HAL must implement restoring from interrupt
 }
 

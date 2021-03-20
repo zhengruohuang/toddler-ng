@@ -177,6 +177,17 @@ static void final_arch()
 /*
  * Init
  */
+static void disable_mmu()
+{
+    struct supervision_reg sr;
+    read_sr(sr.value);
+
+    sr.dmmu_enabled = 0;
+    sr.immu_enabled = 0;
+
+    write_sr(sr.value);
+}
+
 static void check_features()
 {
     struct cpu_config_reg cpucfgr;
@@ -198,6 +209,12 @@ static void check_features()
 }
 
 static void init_arch()
+{
+    disable_mmu_and_caches();
+    check_features();
+}
+
+static void init_arch_mp()
 {
     disable_mmu_and_caches();
     check_features();
@@ -231,6 +248,11 @@ void loader_entry()
     // Prepare arg
     fw_args.fw_name = "none";
 
+    // Stack limit
+    extern ulong _stack_limit, _stack_limit_mp;
+    funcs.stack_limit = (ulong)&_stack_limit;
+    funcs.stack_limit_mp = (ulong)&_stack_limit_mp;
+
     // MP entry
     extern ulong _start_mp_flag;
     funcs.mp_entry = (ulong)&_start_mp_flag;
@@ -244,6 +266,9 @@ void loader_entry()
     funcs.final_arch = final_arch;
     funcs.jump_to_hal = jump_to_hal;
 
+    funcs.init_arch_mp = init_arch_mp;
+    funcs.jump_to_hal_mp = jump_to_hal_mp;
+
     // OR1K loader pretends to have direct access by keeping MMU disabled,
     // so that loader won't need to deal with TLB misses
     funcs.has_direct_access = 1;
@@ -252,10 +277,7 @@ void loader_entry()
 
     // Go to loader!
     loader(&fw_args, &funcs);
-
-    // Should never reach here
-    panic("Should never reach here");
-    while (1);
+    unreachable();
 }
 
 void loader_entry_mp()
@@ -265,10 +287,7 @@ void loader_entry_mp()
     kprintf("Booting hart: %lx\n", coreid);
     kprintf("Loader MP!\n");
 
-    // Go to HAL!
-    jump_to_hal_mp();
-
-    // Should never reach here
-    panic("Should never reach here");
-    while (1);
+    // Go to loader!
+    loader_mp();
+    unreachable();
 }

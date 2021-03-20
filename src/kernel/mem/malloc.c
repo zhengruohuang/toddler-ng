@@ -73,6 +73,10 @@ void *calloc(ulong count, size_t size)
 
 void free(void *ptr)
 {
+    if (!ptr) {
+        return;
+    }
+
     sfree(ptr);
 }
 

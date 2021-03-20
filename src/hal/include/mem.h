@@ -14,7 +14,9 @@ extern ulong get_sysarea_range(ulong *lower, ulong *upper);
 
 extern ppfn_t pre_palloc(int count);
 extern ulong pre_valloc(int count, paddr_t paddr, int cache);
+
 extern void init_pre_palloc();
+extern void disable_pre_palloc();
 
 
 /*
