@@ -13,17 +13,23 @@
 /*
  * TLB configs
  */
-static int has_hardware_walker[2] = { 0, 0 };
+struct tlb_config {
+    int has_hardware_walker[2];
 
-static int num_tlb_ways[2] = { 0, 0 };
-static int num_tlb_sets[2] = { 0, 0 };
-static ulong tlb_set_mask[2] = { 0, 0 };
+    int num_tlb_ways[2];
+    int num_tlb_sets[2];
+    ulong tlb_set_mask[2];
+};
+
+static decl_per_cpu(struct tlb_config, tlb_configs);
 
 static int protect_scheme_to_reg_idx[] = MMU_PROTECT_SCHEME_TO_REG_IDX;
 static struct mmu_protect_reg_setup protect_regs[] = MMU_PROTECT_REG_SETUP;
 
-static void setup_mmu()
+static void setup_mmu_mp()
 {
+    struct tlb_config *cfg = get_per_cpu(struct tlb_config, tlb_configs);
+
     for (int itlb = 0; itlb <= 1; itlb++) {
         struct mmu_config_reg mmucfgr;
         read_mmucfgr(mmucfgr.value, itlb);
@@ -38,12 +44,12 @@ static void setup_mmu()
             num_ways = 1;
         }
 
-        has_hardware_walker[itlb] = hw_walker;
-        num_tlb_ways[itlb] = num_ways;
-        num_tlb_sets[itlb] = num_sets;
+        cfg->has_hardware_walker[itlb] = hw_walker;
+        cfg->num_tlb_ways[itlb] = num_ways;
+        cfg->num_tlb_sets[itlb] = num_sets;
 
         ulong mask_set = num_sets - 0x1ul;
-        tlb_set_mask[itlb] = mask_set;
+        cfg->tlb_set_mask[itlb] = mask_set;
 
         kprintf("%sTLB, HW walker: %d, num ways: %u, num sets: %u, mask: %lx\n",
                 itlb ? "I" : "D", hw_walker, num_ways, num_sets, mask_set);
@@ -66,33 +72,6 @@ static void setup_mmu()
             }
 
             write_mmupr(mmupr, itlb);
-        }
-    }
-}
-
-
-/*
- * Page table
- */
-static void *kernel_page_table = NULL;
-static decl_per_cpu(void *, cur_page_table);
-
-void *get_kernel_page_table()
-{
-    return kernel_page_table;
-}
-
-void set_page_table(void *page_table)
-{
-    void **cur_page_table_ptr = get_per_cpu(void *, cur_page_table);
-    *cur_page_table_ptr = page_table;
-
-    for (int itlb = 0; itlb <= 1; itlb++) {
-        if (has_hardware_walker[itlb]) {
-            struct mmu_ctrl_reg mmucr;
-            mmucr.value = 0;
-            mmucr.page_table_hi22 = (ulong)page_table >> 10;
-            write_mmucr(mmucr.value, itlb);
         }
     }
 }
@@ -131,10 +110,47 @@ void enable_mmu()
 
 
 /*
+ * Page table
+ */
+static void *kernel_page_table = NULL;
+static decl_per_cpu(void *, cur_page_table);
+
+void *get_kernel_page_table()
+{
+    return kernel_page_table;
+}
+
+void set_page_table(void *page_table)
+{
+    int ena = disable_mmu();
+    atomic_mb();
+
+    void **cur_page_table_ptr = get_per_cpu(void *, cur_page_table);
+    *cur_page_table_ptr = page_table;
+
+    struct tlb_config *cfg = get_per_cpu(struct tlb_config, tlb_configs);
+    for (int itlb = 0; itlb <= 1; itlb++) {
+        if (cfg->has_hardware_walker[itlb]) {
+            struct mmu_ctrl_reg mmucr;
+            mmucr.value = 0;
+            mmucr.page_table_hi22 = (ulong)page_table >> 10;
+            write_mmucr(mmucr.value, itlb);
+        }
+    }
+
+    if (ena) {
+        enable_mmu();
+    }
+}
+
+
+/*
  * TLB refill
  */
 int tlb_refill(int itlb, ulong vaddr)
 {
+    struct tlb_config *cfg = get_per_cpu(struct tlb_config, tlb_configs);
+
     void *page_table = *get_per_cpu(void *, cur_page_table);
     panic_if(!page_table, "Unable to obtain current page table!\n");
 
@@ -151,11 +167,11 @@ int tlb_refill(int itlb, ulong vaddr)
     //kprintf("To fill %sTLB @ %lx, PFN %lx -> %x\n",
     //        itlb ? "I" : "D", vaddr, vaddr_to_vpfn(vaddr), pte.pfn);
 
-    int num_ways = num_tlb_ways[itlb];
+    int num_ways = cfg->num_tlb_ways[itlb];
     int max_lru_age = num_ways - 1;
 
     ulong vpfn = vaddr_to_vpfn(vaddr);
-    int set = vpfn & tlb_set_mask[itlb];
+    int set = vpfn & cfg->tlb_set_mask[itlb];
 
     int oldest_lru_age = 0;
     int way = 0;
@@ -228,9 +244,10 @@ void flush_tlb()
     int ena = disable_mmu();
     atomic_mb();
 
+    struct tlb_config *cfg = get_per_cpu(struct tlb_config, tlb_configs);
     for (int itlb = 0; itlb <= 1; itlb++) {
-        for (int s = 0; s < num_tlb_sets[itlb]; s++) {
-            for (int w = 0; w < num_tlb_ways[itlb]; w++) {
+        for (int s = 0; s < cfg->num_tlb_sets[itlb]; s++) {
+            for (int w = 0; w < cfg->num_tlb_ways[itlb]; w++) {
                 write_tlbmr(0, itlb, w, s);
             }
         }
@@ -254,6 +271,8 @@ void invalidate_tlb(ulong asid, ulong vaddr, size_t size)
  */
 void init_mmu_mp()
 {
+    setup_mmu_mp();
+
     kernel_page_table = get_loader_args()->page_table;
     set_page_table(kernel_page_table);
 
@@ -263,6 +282,5 @@ void init_mmu_mp()
 
 void init_mmu()
 {
-    setup_mmu();
     init_mmu_mp();
 }

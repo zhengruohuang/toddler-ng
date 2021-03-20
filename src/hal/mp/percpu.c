@@ -10,7 +10,9 @@
 
 #define PER_CPU_AREA_PAGE_COUNT     2
 #define PER_CPU_AREA_SIZE           (PAGE_SIZE * PER_CPU_AREA_PAGE_COUNT)
+
 #define PER_CPU_DATA_START_OFFSET   ((PER_CPU_AREA_SIZE / 2) + 16)
+#define PER_CPU_DATA_SIZE           ((PER_CPU_AREA_SIZE / 2) - 16)
 
 #if (defined(STACK_GROWS_UP) && STACK_GROWS_UP)
 #define PER_CPU_STACK_START_OFFSET  (0 + 16)
@@ -77,7 +79,7 @@ static void init_per_cpu_var(int *offset, size_t size)
     panic_if(is_any_secondary_cpu_started(),
              "Per-CPU var must be initialized before any secondary CPU starts!\n");
 
-    panic_if(cur_per_cpu_offset + size >= PAGE_SIZE,
+    panic_if(cur_per_cpu_offset + size >= PER_CPU_DATA_SIZE,
              "Per-CPU var out of space!\n");
 
     *offset = cur_per_cpu_offset;
