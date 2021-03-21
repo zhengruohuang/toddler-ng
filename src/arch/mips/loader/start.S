@@ -39,7 +39,7 @@ _cpunum_table:
 
 .balign 8
 _start:
-    /* Get CPUnum -> t1 */
+    /* Get CPUnum (EBase, CP0 reg 15 sel 1) -> t1 */
     mfc0_ul t1, $15, 1
     andi    t1, t1, 0x3ff
 
