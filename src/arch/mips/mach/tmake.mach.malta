@@ -20,4 +20,5 @@ build_opts['qemu'] = {
     'graphic'   : False,
     'bootargs'  : 'test',
     'mp'        : '4',
+    'default_mp': ('smp' in target_model) or ('smp' in target_mach)
 }

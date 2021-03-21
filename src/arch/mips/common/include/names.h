@@ -25,6 +25,8 @@
 // Model names
 #if (defined(MODEL_QEMU))
     #define MODEL_NAME "qemu"
+#elif (defined(MODEL_QEMU_SMP))
+    #define MODEL_NAME "qemu_smp"
 #elif (defined(MODEL_GENERIC))
     #define MODEL_NAME "generic"
 #else

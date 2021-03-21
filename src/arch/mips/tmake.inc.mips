@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 
-def run_mips_qemu(mp):
+def run_mips_qemu(mp='default'):
     if not in_dict('qemu', build_opts):
         return
 
@@ -9,7 +9,10 @@ def run_mips_qemu(mp):
     opts['exec'] = 'qemu-system-' + mips_endian_prefix_qemu
     if not in_dict('cpu', opts):
         opts['cpu'] = mips_qemu_default_cpu
-    if not mp:
+
+    if mp == 'default' and (not 'default_mp' in opts or not opts['default_mp']):
+        opts['mp'] = False
+    elif mp == False:
         opts['mp'] = False
 
     run_qemu(opts)
@@ -22,7 +25,7 @@ def qemu8():
     run_mips_qemu(True)
 
 def qemu():
-    run_mips_qemu(False)
+    run_mips_qemu('default')
 
 def start_emu():
     emu_type = 'qemu'

@@ -74,17 +74,34 @@ static int pending_irq(struct driver_param *param, struct int_context *ictxt)
     }
 
     ulong bitmap = cause.ip & record->valid_bitmap;
-    for (int i = 0; i < MAX_NUM_INT_SRCS; i++) {
-        if (bitmap & (0x1ul << seq)) {
-            return seq;
-        }
-
-        if (++seq >= MAX_NUM_INT_SRCS) {
-            seq = 0;
-        }
+    if (!bitmap) {
+        return -1;
     }
 
-    return -1;
+    int irq_seq = ctz(bitmap);
+    return irq_seq;
+
+//     for (int i = 0; i < MAX_NUM_INT_SRCS; i++) {
+//         if (bitmap & (0x1ul << seq)) {
+//             return seq;
+//         }
+//
+//         if (++seq >= MAX_NUM_INT_SRCS) {
+//             seq = 0;
+//         }
+//     }
+//
+//     return -1;
+}
+
+static void cpu_power_on(struct driver_param *param, int seq, ulong id)
+{
+    struct mips_cpu_intc_record *record = param->record;
+
+    const int timer_irq = 7;
+    if (record->valid_bitmap & timer_irq) {
+        enable_irq(param, NULL, timer_irq);
+    }
 }
 
 static void setup(struct driver_param *param)
@@ -113,7 +130,7 @@ static const char *mips_cpu_intc_devtree_names[] = {
 DECLARE_INTC_DRIVER(mips_cpu_intc, "MIPS CP0 Interrupt Controller",
                     mips_cpu_intc_devtree_names,
                     create, setup, /*setup_cpu_local*/NULL, /*start*/NULL,
-                    /*start_cpu*/NULL, /*cpu_power_on*/NULL, /*raw_to_seq*/NULL,
+                    /*start_cpu*/NULL, cpu_power_on, /*raw_to_seq*/NULL,
                     setup_irq, enable_irq, disable_irq, end_irq,
                     pending_irq, MAX_NUM_INT_SRCS,
                     INT_SEQ_ALLOC_START);

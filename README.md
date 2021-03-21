@@ -40,10 +40,10 @@ The next generation Toddler
 | alpha-clipper-qemu    | Active    | Planned   |       |                    |
 | armv7-raspi2-qemu     | Current   | Current   | Yes   |                    |
 | aarch64v8-raspi3-qemu | Current   | Active    |       | Minor fixes needed |
-| mips32l-malta-qemu    | Current   | Current   | No    |                    |
-| mips32b-malta-qemu    | Current   | Current   | No    | Minor fixes needed |
-| mips64l-malta-qemu    | Current   | Current   | No    |                    |
-| mips64b-malta-qemu    | Current   | Current   | No    | Minor fixes needed |
+| mips32l-malta-qemu    | Current   | Current   | Yes   | SMP: *-qemu_smp    |
+| mips32b-malta-qemu    | Current   | Current   | Yes   | Minor fixes needed |
+| mips64l-malta-qemu    | Current   | Current   | Yes   | SMP: *-qemu_smp    |
+| mips64b-malta-qemu    | Current   | Current   | Yes   | Minor fixes needed |
 | powerpc-mac-qemu      | Current   | Active    |       | Minor fixes needed |
 | powerpc64-mac-qemu    | Initial   | Planned   |       |                    |
 | sparcv8-leon3-qemu    | Current   | Planned   |       | Minor fixes needed |
@@ -59,6 +59,8 @@ The next generation Toddler
 | zarch-virtio-qemu     | Planned   | Planned   |       |                    |
 | hppa-sim-qemu         | Planned   | Planned   |       |                    |
 | vax-sim-simh          | Initial   | Planned   |       |                    |
+
+* MIPS SMP lacks GIC support
 
 ### Additional Targets
 

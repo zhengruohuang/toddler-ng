@@ -9,6 +9,7 @@
 #include "loader/include/loader.h"
 #include "loader/include/firmware.h"
 #include "loader/include/kprintf.h"
+#include "loader/include/args.h"
 
 
 /*
@@ -21,7 +22,7 @@
 
 static inline u8 _raw_mmio_read8(ulong addr)
 {
-    volatile u8 *ptr = (u8 *)(SEG_DIRECT_UNCACHED | addr);
+    volatile u8 *ptr = (u8 *)(SEG_DIRECT_UNCACHED_LOW | addr);
     u8 val = 0;
 
     atomic_mb();
@@ -33,7 +34,7 @@ static inline u8 _raw_mmio_read8(ulong addr)
 
 static inline void _raw_mmio_write8(ulong addr, u8 val)
 {
-    volatile u8 *ptr = (u8 *)(SEG_DIRECT_UNCACHED | addr);
+    volatile u8 *ptr = (u8 *)(SEG_DIRECT_UNCACHED_LOW | addr);
 
     atomic_mb();
     *ptr = val;
@@ -175,6 +176,15 @@ static void jump_to_hal()
     hal(largs, 0);
 }
 
+static void jump_to_hal_mp()
+{
+    struct loader_args *largs = get_loader_args();
+    kprintf("MP Jump to HAL @ %p\n", largs->hal_entry);
+
+    hal_start hal = largs->hal_entry;
+    hal(largs, 1);
+}
+
 
 /*
  * Finalize
@@ -205,6 +215,15 @@ static void final_memmap()
 
 static void final_arch()
 {
+    static struct mips_loader_args mips_loader_args;
+
+    extern u8 _cpunum_table;
+    mips_loader_args.cpunum_table.bool_array = &_cpunum_table;
+    mips_loader_args.cpunum_table.num_entries = 4096;
+
+    struct loader_args *largs = get_loader_args();
+    largs->arch_args = &mips_loader_args;
+    largs->arch_args_bytes = sizeof(struct mips_loader_args);
 }
 
 
@@ -234,6 +253,11 @@ static void init_arch()
 
     // Apply to CP0_STATUS
     write_cp0_status(reg.value);
+}
+
+static void init_arch_mp()
+{
+    init_arch();
 }
 
 
@@ -286,6 +310,10 @@ void loader_entry(int kargc, u32 *kargv, u32 *env, ulong mem_size)
     funcs.stack_limit = (ulong)&_stack_limit;
     funcs.stack_limit_mp = (ulong)&_stack_limit_mp;
 
+    // MP entry
+    extern ulong _start_mp_flag;
+    funcs.mp_entry = (ulong)&_start_mp_flag;
+
     // Prepare funcs
     funcs.init_libk = init_libk;
     funcs.init_arch = init_arch;
@@ -299,7 +327,20 @@ void loader_entry(int kargc, u32 *kargv, u32 *env, ulong mem_size)
     funcs.jump_to_hal = jump_to_hal;
     funcs.register_drivers = register_drivers;
 
+    // MP funcs
+    funcs.init_arch_mp = init_arch_mp;
+    funcs.jump_to_hal_mp = jump_to_hal_mp;
+
     // Go to loader!
     loader(&fw_args, &funcs);
+    unreachable();
+}
+
+void loader_entry_mp()
+{
+    kprintf("Loader MP!\n");
+
+    // Go to loader!
+    loader_mp();
     unreachable();
 }

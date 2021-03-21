@@ -35,10 +35,14 @@
     #define SEG_DIRECT_CACHED       0x80000000ul
     #define SEG_DIRECT_UNCACHED     0xa0000000ul
     #define SEG_KERNEL              0xc0000000ul
+    #define SEG_DIRECT_CACHED_LOW   SEG_DIRECT_CACHED
+    #define SEG_DIRECT_UNCACHED_LOW SEG_DIRECT_UNCACHED
 
     #define SEG_USER_SIZE           0x80000000ul
     #define SEG_DIRECT_SIZE         0x20000000ul
     #define SEG_DIRECT_MASK         0x1ffffffful
+    #define SEG_DIRECT_SIZE_LOW     SEG_DIRECT_SIZE
+    #define SEG_DIRECT_MASK_LOW     SEG_DIRECT_MASK
 
 
 /*

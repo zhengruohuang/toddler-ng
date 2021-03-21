@@ -185,11 +185,15 @@ static void enable_local_int()
 
 static ulong get_cur_mp_id()
 {
-    u32 cpu_num = 0;
+#if (ARCH_WIDTH == 32)
     struct cp0_ebase ebase;
     read_cp0_ebase(ebase.value);
+#elif (ARCH_WIDTH == 64)
+    struct cp0_ebase64 ebase;
+    read_cp0_ebase64(ebase.value);
+#endif
 
-    cpu_num = ebase.cpunum;
+    u32 cpu_num = ebase.cpunum;
     return (ulong)cpu_num;
 }
 
@@ -200,6 +204,7 @@ static int get_cur_mp_seq()
 
 static void register_drivers()
 {
+    REGISTER_DEV_DRIVER(mips_cpu);
     REGISTER_DEV_DRIVER(mips_cpu_intc);
     REGISTER_DEV_DRIVER(mips_cpu_timer);
 }
@@ -235,6 +240,7 @@ static void halt_cur_cpu()
 
 static void start_cpu(int mp_seq, ulong mp_id, ulong entry)
 {
+    atomic_write((void *)entry, mp_id);
 }
 
 static void *init_user_page_table()
@@ -264,10 +270,6 @@ static void init_thread_context(struct reg_context *regs, ulong entry,
     regs->sp = stack_top;
     regs->pc = entry;
     regs->delay_slot = 0;
-
-    //if (!user_mode) {
-    //    context->sp |= SEG_CACHED;
-    //}
 }
 
 
@@ -336,7 +338,23 @@ static void hal_entry_bsp(struct loader_args *largs)
 
 static void hal_entry_mp()
 {
-    panic("MP not implemented!\n");
+    // Switch to CPU-private stack
+    ulong sp = get_my_cpu_init_stack_top_vaddr();
+    ulong pc = (ulong)&hal_mp;
+
+    __asm__ __volatile__ (
+        // Set up stack top
+        "ori    $29, %[sp], 0;"
+
+        // Jump to target
+        "jr     %[pc];"
+        "nop;"
+        :
+        : [pc] "r" (pc), [sp] "r" (sp - 16)
+        : "memory"
+    );
+
+    unreachable();
 }
 
 void hal_entry(struct loader_args *largs, int mp)

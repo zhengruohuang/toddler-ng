@@ -91,6 +91,7 @@
 #define addu_ul     addu
 #define sub_ul      sub
 #define sll_ul      sll
+#define mfc0_ul     mfc0
 
 #elif (ARCH_WIDTH == 64)
 #define li_ul       dli
@@ -103,6 +104,7 @@
 #define addu_ul     daddu
 #define sub_ul      dsub
 #define sll_ul      dsll
+#define mfc0_ul     dmfc0
 
 #else
 #error "Unsupported arch width"
