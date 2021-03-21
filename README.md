@@ -51,7 +51,7 @@ The next generation Toddler
 | sparcv9-sun4u-qemu    | Planned   | Planned   |       |                    |
 | riscv32-virt-qemu     | Current   | Current   | Yes   |                    |
 | riscv64-virt-qemu     | Current   | Current   | Yes   |                    |
-| m68k-q800-qemu        | Active    | Planned   |       |                    |
+| m68k-mcf5208-qemu     | Active    | Planned   |       |                    |
 | sh4-r2d-qemu          | Active    | Planned   |       |                    |
 | openrisc-sim-qemu     | Current   | Current   | Yes*  | SMP: *-qemu_smp    |
 | ia64-sim-ski          | Initial   | Planned   |       |                    |
