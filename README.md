@@ -61,6 +61,7 @@ The next generation Toddler
 | vax-sim-simh          | Initial   | Planned   |       |                    |
 
 * MIPS SMP lacks GIC support
+* MIPS64 QEMU supports only single thread
 * OpenRISC QEMU supports up to 2 CPUs
 
 ### Additional Targets
