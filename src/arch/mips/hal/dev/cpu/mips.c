@@ -1,6 +1,5 @@
 #include "common/include/inttypes.h"
 #include "common/include/msr.h"
-#include "loader/include/args.h"
 #include "hal/include/kprintf.h"
 #include "hal/include/devtree.h"
 #include "hal/include/hal.h"
@@ -11,6 +10,8 @@
 
 struct mips_cpu {
     ulong mp_id;
+    int mp_seq;
+    void *cpu_fw_node;
     struct mips_cpu *next;
 };
 
@@ -18,50 +19,46 @@ struct mips_cpu {
 /*
  * Topology
  */
+static int num_cpus = 0;
 static struct mips_cpu *cpus = NULL;
+
+static void make_boot_cpu_mp_seq_zero()
+{
+    struct mips_cpu *boot_cpu = NULL;
+    ulong boot_mp_id = arch_get_cur_mp_id();
+
+    for (struct mips_cpu *cpu = cpus; cpu; cpu = cpu->next) {
+        if (cpu->mp_id == boot_mp_id) {
+            if (!cpu->mp_seq) {
+                return;
+            }
+
+            boot_cpu = cpu;
+            break;
+        }
+    }
+
+    for (struct mips_cpu *cpu = cpus; cpu; cpu = cpu->next) {
+        if (!cpu->mp_seq) {
+            cpu->mp_seq = boot_cpu->mp_seq;
+            boot_cpu->mp_seq = 0;
+            return;
+        }
+    }
+
+    panic("Inconsistent MP seq and ID!\n");
+}
 
 static void detect_topology(struct driver_param *param)
 {
-    struct loader_args *largs = get_loader_args();
-    struct mips_loader_args *mips_args = largs->arch_args;
+    make_boot_cpu_mp_seq_zero();
 
-    u8 *bool_array = mips_args->cpunum_table.bool_array;
-    int num_entries = mips_args->cpunum_table.num_entries;
-
-    // MIPS64 QEMU is not multi-threaded, therefore it's possible that other
-    // CPUs haven't initialized the cpunum table yet. The delay loop slows down
-    // current CPU a bit, and therefore gives other CPUs chance to initialize
-    // cpunum table. This is a temp hack. Eventually will be replaced by GIC.
-#if (ARCH_WIDTH == 64)
-    kprintf("bool array @ %lx\n", bool_array);
-    for (volatile ulong i = 0; i < 10000; i++) {
-        for (volatile ulong j = 0; j < 10000; j++);
-    }
-#endif
-
-    // Count num of CPUs
-    ulong num_cpus = 0;
-    for (int i = 0; i < num_entries; i++) {
-        if (bool_array[i]) {
-            num_cpus++;
-        }
-    }
     set_num_cpus(num_cpus);
 
-    // Set up translation
-    ulong boot_mp_id = arch_get_cur_mp_id();
-    set_mp_trans(0, boot_mp_id);
-
-    for (int i = 0, mp_seq = 1; i < num_entries; i++) {
-        ulong mp_id = i;
-        int valid = bool_array[i];
-        if (valid && mp_id != boot_mp_id) {
-            set_mp_trans(mp_seq, mp_id);
-            mp_seq++;
-        }
+    for (struct mips_cpu *cpu = cpus; cpu; cpu = cpu->next) {
+        set_mp_trans(cpu->mp_seq, cpu->mp_id);
     }
 
-    // Finalize
     final_mp_trans();
 }
 
@@ -82,7 +79,8 @@ static void setup(struct driver_param *param)
 static int probe(struct fw_dev_info *fw_info, struct driver_param *param)
 {
     static const char *devtree_names[] = {
-        "img,mips", "mips",
+        "img,mips",
+        "mips",
         NULL
     };
 
@@ -94,13 +92,16 @@ static int probe(struct fw_dev_info *fw_info, struct driver_param *param)
         param->record = record;
 
         struct devtree_prop *prop = devtree_find_prop(fw_info->devtree_node, "reg");
-        panic_if(!prop, "Bad OR1200 CPU devtree node!\n");
+        panic_if(!prop, "Bad MIPS CPU devtree node!\n");
 
+        record->cpu_fw_node = fw_info->devtree_node;
+        record->mp_seq = num_cpus;
         record->mp_id = devtree_get_prop_data_u32(prop);
         record->next = cpus;
         cpus = record;
+        num_cpus++;
 
-        kprintf("Found MIPS CPU\n");
+        kprintf("Found MIPS CPU, Hart @ %ld\n", record->mp_id);
         return FW_DEV_PROBE_OK;
     }
 

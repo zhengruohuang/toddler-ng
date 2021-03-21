@@ -9,7 +9,6 @@
 #include "loader/include/loader.h"
 #include "loader/include/firmware.h"
 #include "loader/include/kprintf.h"
-#include "loader/include/args.h"
 
 
 /*
@@ -215,15 +214,6 @@ static void final_memmap()
 
 static void final_arch()
 {
-    static struct mips_loader_args mips_loader_args;
-
-    extern u8 _cpunum_table;
-    mips_loader_args.cpunum_table.bool_array = &_cpunum_table;
-    mips_loader_args.cpunum_table.num_entries = 4096;
-
-    struct loader_args *largs = get_loader_args();
-    largs->arch_args = &mips_loader_args;
-    largs->arch_args_bytes = sizeof(struct mips_loader_args);
 }
 
 

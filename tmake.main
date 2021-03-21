@@ -15,8 +15,8 @@ def build_lib(name, srcs, incs):
     lib_files(
         bin_dir + name + '.a',
         files,
-        toolchain = get_toolchain('default'),
         includes = includes,
+        toolchain = get_toolchain('default'),
     )
 
 def build_libs():
@@ -86,8 +86,8 @@ def build_bin(name, dir, ld, libs, incs):
         ext_libs = libs,
         ext_ld_deps = [ ld ],
         ld_script = ld,
-        toolchain = get_toolchain('default'),
         includes = incs,
+        toolchain = get_toolchain('default'),
     )
 
     disasm_exec(
@@ -130,6 +130,7 @@ def build_fdt():
     compile_file(
         img_dir + 'fdt.dtb',
         build_opts['dts'],
+        includes = default_inc_dirs,
         toolchain = fdt_toolchain(),
     )
 

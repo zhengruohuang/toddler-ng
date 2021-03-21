@@ -119,7 +119,7 @@ tools_obj_dir   = obj_dir + 'tools/'
 tools_bin_dir   = bin_dir + 'tools/'
 
 # Include
-inc_dir         = [ src_dir ] + arch_dirs + mach_dirs
+default_inc_dirs= [ src_dir ] + arch_dirs + mach_dirs
 
 # Register obj dirs
 register_obj_dir(obj_dir, src_dir)
@@ -127,7 +127,7 @@ register_obj_dir(obj_dir, b2c_dir)
 register_obj_dir(tools_obj_dir, tools_src_dir)
 
 # Set up tool chain
-set_toolchain_opt('includes', inc_dir)
+set_toolchain_opt('includes', default_inc_dirs)
 set_toolchain_opt('macros', [
     'ARCH_' + target_arch.upper(),
     'MACH_' + target_mach.upper(),

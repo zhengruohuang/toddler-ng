@@ -9,8 +9,6 @@
 .global _stack_limit
 .global _stack_limit_mp
 
-.global _cpunum_table
-
 .extern loader_entry
 .extern loader_entry_mp
 
@@ -28,13 +26,6 @@ _stack_top:
     .fill 16, 1, 0
 
 
-.section ".data.mp"
-
-.balign 16
-_cpunum_table:
-    .fill 4096, 1, 0
-
-
 .section ".text.boot"
 
 .balign 8
@@ -42,14 +33,6 @@ _start:
     /* Get CPUnum (EBase, CP0 reg 15 sel 1) -> t1 */
     mfc0_ul t1, $15, 1
     andi    t1, t1, 0x3ff
-
-    /* Register current CPU in cpunum bool table */
-    la_ul   t2, _cpunum_table
-    addu_ul t2, t1, t2
-    li      t3, 1
-    sb      t3, 0(t2)
-    nop
-    sync
 
     /* Redirect to MP startup rountine if CPUnum != 0 */
     bne     t1, zero, _start_mp

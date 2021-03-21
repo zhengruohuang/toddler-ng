@@ -5,20 +5,24 @@ def build_mach():
     pass
 
 
+# SMP
+smp = ('smp' in target_model) or ('smp' in target_mach)
+
 # Setup callback functions
 build_actions['build_mach'] = build_mach
 
 # Setup mach options
-build_opts['dts'] = find_deepest_arch_file('dts/malta.dts')
+dts = 'dts/malta_4cpu.dts' if smp else 'dts/malta.dts'
+build_opts['dts'] = find_deepest_arch_file(dts)
 
 build_opts['embed_fdt'] = True
 build_opts['embed_coreimg'] = False
 
 build_opts['qemu'] = {
     'machine'   : 'malta',
-    'memory'    : 256,
+    'memory'    : 512 if smp else 256,
     'graphic'   : False,
     'bootargs'  : 'test',
-    'mp'        : '4',
-    'default_mp': ('smp' in target_model) or ('smp' in target_mach)
+    'mp'        : '4' if smp else '1',
+    'default_mp': smp
 }
