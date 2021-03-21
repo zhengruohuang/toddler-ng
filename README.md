@@ -40,10 +40,10 @@ The next generation Toddler
 | alpha-clipper-qemu    | Active    | Planned   |       |                    |
 | armv7-raspi2-qemu     | Current   | Current   | Yes   |                    |
 | aarch64v8-raspi3-qemu | Current   | Active    |       | Minor fixes needed |
-| mips32l-malta-qemu    | Current   | Current   | Yes   | SMP: *-qemu_smp    |
-| mips32b-malta-qemu    | Current   | Current   | Yes   | Minor fixes needed |
-| mips64l-malta-qemu    | Current   | Current   | Yes   | SMP: *-qemu_smp    |
-| mips64b-malta-qemu    | Current   | Current   | Yes   | Minor fixes needed |
+| mips32l-malta-qemu    | Current   | Current   | Yes*  | SMP: *-qemu_smp    |
+| mips32b-malta-qemu    | Current   | Current   | Yes*  | Minor fixes needed |
+| mips64l-malta-qemu    | Current   | Current   | Yes*  | SMP: *-qemu_smp    |
+| mips64b-malta-qemu    | Current   | Current   | Yes*  | Minor fixes needed |
 | powerpc-mac-qemu      | Current   | Active    |       | Minor fixes needed |
 | powerpc64-mac-qemu    | Initial   | Planned   |       |                    |
 | sparcv8-leon3-qemu    | Current   | Planned   |       | Minor fixes needed |
@@ -53,7 +53,7 @@ The next generation Toddler
 | riscv64-virt-qemu     | Current   | Current   | Yes   |                    |
 | m68k-q800-qemu        | Active    | Planned   |       |                    |
 | sh4-r2d-qemu          | Active    | Planned   |       |                    |
-| openrisc-sim-qemu     | Current   | Current   | Yes   | SMP: *-qemu_smp    |
+| openrisc-sim-qemu     | Current   | Current   | Yes*  | SMP: *-qemu_smp    |
 | ia64-sim-ski          | Initial   | Planned   |       |                    |
 | s390-virtio-qemu      | Planned   | Planned   |       |                    |
 | zarch-virtio-qemu     | Planned   | Planned   |       |                    |
@@ -61,6 +61,7 @@ The next generation Toddler
 | vax-sim-simh          | Initial   | Planned   |       |                    |
 
 * MIPS SMP lacks GIC support
+* OpenRISC QEMU supports up to 2 CPUs
 
 ### Additional Targets
 
