@@ -48,6 +48,9 @@ static void test_mem_palloc(int mp_seq, barrier_t *bar)
             for (int j = 0; j < PALLOC_TEST_PER_ORDER; j++) {
                 int count = 0x1 << i;
                 ppfn_t pfn = palloc(count);
+                if (!pfn) {
+                    kprintf("Palloc test failed!\n");
+                }
                 results[r++] = pfn;
             }
         }
@@ -99,6 +102,9 @@ static void test_mem_malloc(int mp_seq, barrier_t *bar)
 
             for (int j = 0; j < MALLOC_TEST_PER_SIZE; j++) {
                 void *ptr = malloc(size);
+                if (!ptr) {
+                    kprintf("Malloc test failed!\n");
+                }
                 results[r++] = ptr;
             }
         }

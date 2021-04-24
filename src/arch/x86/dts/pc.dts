@@ -3,7 +3,121 @@
 / {
     #address-cells = <2>;
     #size-cells = <2>;
-    chosen { };
     aliases { };
     memory@0 { device_type = "memory"; };
+
+    chosen {
+        stdout-path = &uart0;
+    };
+
+    acpi {
+        compatible = "intel,acpi";
+    };
+
+    local_apic: local_apic {
+        compatible = "intel,local-apic";
+        reg = <0x0 0xfee00000 0x0 0x100>;
+
+        interrupt-controller;
+        #interrupt-cells = <0x1>;
+    };
+
+    io_apic: io_apic {
+        compatible = "intel,io-apic";
+        reg = <0x0 0xfec00000 0x0 0x100>;
+
+        interrupt-controller;
+        #interrupt-cells = <0x1>;
+        interrupt-parent = <&local_apic>;
+        interrupts = <0x0>;
+    };
+
+    piix4e: south_bridge@0 {
+        compatible = "intel,piix4e";
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        ranges = <0x0 0x0 0x0 0x400>;
+        use-ioport;
+
+        i8259: interrupt-controller@20 {
+            compatible = "intel,i8259";
+            reg = <0x20 2 0xa0 2>;
+            #interrupt-cells = <0x1>;
+        };
+
+        i8253: pit@40 {
+            compatible = "intel,i8253";
+            reg = <0x40 0x20>;
+
+            interrupt-parent = <&io_apic>;
+            interrupts = <0x0>;
+        };
+
+        i8042: keyboard@60 {
+            compatible = "intel,i8042";
+            reg = <0x60 0x10>;
+
+            interrupt-parent = <&io_apic>;
+            interrupts = <0x1>;
+        };
+
+        i8237: dma@c0 {
+            compatible = "intel,i8237";
+            reg = <0xc0 0x20>;
+        };
+
+        rtc: rtc@70 {
+            compatible = "motorola,mc146818";
+            reg = <0x70 0x8>;
+
+            interrupt-parent = <&io_apic>;
+            interrupts = <0x8>;
+        };
+
+        ide1: ide@1f0 {
+            compatible = "intel,hdc";
+            reg = <0x1f0 0x8>;
+
+            interrupt-parent = <&io_apic>;
+            interrupts = <0x14>;
+        };
+
+        ide2: ide@170 {
+            compatible = "intel,hdc";
+            reg = <0x170 0x8>;
+
+            interrupt-parent = <&io_apic>;
+            interrupts = <0x815>;
+        };
+
+        i82077aa: fdc@3f0 {
+            compatible = "intel,i82077aa";
+            reg = <0x3f0 0x8>;
+
+            interrupt-parent = <&io_apic>;
+            interrupts = <0x6>;
+        };
+
+        uart0: serial@3f8 {
+            compatible = "ns16550";
+            reg = <0x3f8 0x8>;
+            reg-shift = <0>;
+            clock-frequency = <1843200>;
+
+            interrupt-parent = <&io_apic>;
+            interrupts = <0x4>;
+        };
+
+        uart1: serial@2f8 {
+            compatible = "ns16550";
+            reg = <0x2f8 0x8>;
+            reg-shift = <0>;
+            clock-frequency = <1843200>;
+            disabled;
+
+            interrupt-parent = <&io_apic>;
+            interrupts = <0x3>;
+        };
+    };
 };

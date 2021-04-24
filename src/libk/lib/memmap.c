@@ -211,7 +211,7 @@ static void do_tag_memmap_region(u64 start, u64 size, u32 mask, int tag)
         u64 entry_end = entry->start + entry->size;
 
         // Split the entry and tag the second half
-        if (entry->start < start && entry_end < end) {
+        if (entry->start < start && entry_end > start && entry_end < end) {
             entry = split_entry(i, start - entry->start);
             if (tag) entry->tags |=  mask;
             else     entry->tags &= ~mask;
@@ -219,7 +219,7 @@ static void do_tag_memmap_region(u64 start, u64 size, u32 mask, int tag)
         }
 
         // Split the entry and tag the first half
-        else if (entry->start > start && entry_end > end) {
+        else if (entry->start > start && entry->start < end && entry_end > end) {
             split_entry(i, start - entry->start);
             if (tag) entry->tags |=  mask;
             else     entry->tags &= ~mask;

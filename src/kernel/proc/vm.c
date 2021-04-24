@@ -217,6 +217,7 @@ struct vm_block *vm_alloc(struct process *p, ulong base, ulong size, ulong attri
                     list_remove(&p->vm.avail_unmapped, &target_block->node);
                 } else {
                     target_block->base += size;
+                    target_block->size -= size;
                 }
             } else if (target_end == end) {
                 target_block->size -= size;

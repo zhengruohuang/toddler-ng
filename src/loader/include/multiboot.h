@@ -34,15 +34,15 @@ struct multiboot_aout_symbol_table {
     u32 strsize;
     u32 addr;
     u32 reserved;
-} packed_struct;
+} packed4_struct;
 
 struct multiboot_elf_section_header_table {
     u32 num;
     u32 size;
     u32 addr;
     u32 shndx;
-} packed_struct;
-    
+} packed4_struct;
+
 struct multiboot_info {
     // Multiboot info version number
     u32 flags;
@@ -97,13 +97,13 @@ struct multiboot_info {
     u32 framebuffer_height;
     u8 framebuffer_bpp;
     u8 framebuffer_type;
-    
+
     union {
         struct {
             u32 framebuffer_palette_addr;
             u16 framebuffer_palette_num_colors;
         };
-        
+
         struct {
             u8 framebuffer_red_field_position;
             u8 framebuffer_red_mask_size;
@@ -113,7 +113,7 @@ struct multiboot_info {
             u8 framebuffer_blue_mask_size;
         };
     };
-} packed_struct;
+} packed4_struct;
 
 
 /*
@@ -140,7 +140,7 @@ struct multiboot_mmap_entry {
     u64 addr;
     u64 len;
     u32 type;
-} packed_struct;
+} packed4_struct;
 
 
 /*
@@ -156,7 +156,7 @@ struct multiboot_mod_list {
 
     // padding to take it to 16 bytes (must be zero)
     u32 pad;
-} packed_struct;
+} packed4_struct;
 
 
 /*
@@ -172,7 +172,7 @@ struct multiboot_apm_info {
     u16 cseg_len;
     u16 cseg_16_len;
     u16 dseg_len;
-} packed_struct;
+} packed2_struct;
 
 
 #endif

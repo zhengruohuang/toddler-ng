@@ -5,7 +5,6 @@
 .section ".text.boot"
 
 .global _start
-.global _call_hal64
 
 .extern preload_entry
 
@@ -39,6 +38,8 @@ __stop:
 
 
 #ifdef ARCH_AMD64
+
+.global _call_hal64
 
 .align 16
 .code64

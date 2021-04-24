@@ -150,7 +150,7 @@ void init_int_entry()
     // Map the fixed EVT @ 0xffff0000ul
     ppfn_t ppfn = pre_palloc(1);
     paddr_t paddr = ppfn_to_paddr(ppfn);
-    hal_map_range(FIXED_EVT_VADDR, paddr, PAGE_SIZE, 1);
+    hal_map_range(FIXED_EVT_VADDR, paddr, PAGE_SIZE, 1, 1);
 
     // Copy the vectors to the target address
     void *vec_target = (void *)FIXED_EVT_VADDR;

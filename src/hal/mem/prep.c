@@ -43,7 +43,7 @@ ppfn_t pre_palloc(int count)
     //return pfn;
 }
 
-ulong pre_valloc(int count, paddr_t paddr, int cache)
+ulong pre_valloc(int count, paddr_t paddr, int cache, int kernel)
 {
     panic_if(!pre_palloc_enabled, "pre_valloc disabled!\n");
 
@@ -57,6 +57,7 @@ ulong pre_valloc(int count, paddr_t paddr, int cache)
     }
 
     if (use_direct_access) {
+        panic_if(!kernel, "Direct accessed is only avail to kernel!\n");
         return arch_hal_direct_access(paddr, count, cache);
     } else {
         ulong vaddr = 0;
@@ -72,7 +73,7 @@ ulong pre_valloc(int count, paddr_t paddr, int cache)
 
         kprintf("pre_valloc @ %lx -> %lx\n", vaddr, paddr);
 
-        int mapped = hal_map_range(vaddr, paddr, size, cache);
+        int mapped = hal_map_range(vaddr, paddr, size, cache, kernel);
         panic_if(mapped != count, "Failed to map pages to HAL");
 
         return vaddr;

@@ -1,4 +1,4 @@
-#include "common/include/mach.h"
+#include "common/include/abi.h"
 
 ENTRY(_start)
 
@@ -47,30 +47,6 @@ SECTIONS
     {
         *(.scommon)
         *(.scommon.*)
-    }
-
-    .got :
-    {
-        _gp = (. + 0x8000);
-
-        __got_start = .;
-        *(.got.plt)
-        *(.got)
-        __got_end = .;
-    }
-
-    .fdt :
-    {
-        __fdt_start = .;
-        LONG(0x0);
-        __fdt_end = .;
-    }
-
-    .coreimg :
-    {
-        __coreimg_start = .;
-        LONG(0x0);
-        __coreimg_end = .;
     }
 
     /DISCARD/ :

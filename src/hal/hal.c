@@ -136,6 +136,13 @@ static void init_arch_mp()
     }
 }
 
+static void arch_init_per_cpu_pre()
+{
+    if (arch_funcs.init_per_cpu_pre) {
+        arch_funcs.init_per_cpu_pre();
+    }
+}
+
 static void arch_init_int()
 {
     if (arch_funcs.init_int) {
@@ -296,13 +303,13 @@ void arch_set_syscall_return(struct reg_context *regs, int success, ulong return
     panic("Arch HAL must implement arch_set_syscall_return!");
 }
 
-int arch_handle_syscall(ulong num, ulong param0, ulong param1, ulong param2, ulong *return0, ulong *return1)
+int arch_handle_syscall(ulong num, ulong p0, ulong p1, ulong p2, ulong p3, ulong *r0, ulong *r1)
 {
     if (arch_funcs.handle_arch_syscall) {
-        return arch_funcs.handle_arch_syscall(num, param0, param1, param2, return0, return1);
+        return arch_funcs.handle_arch_syscall(num, p0, p1, p2, p3, r0, r1);
     }
 
-    return 1;
+    return 0;
 }
 
 void arch_disable_local_int()
@@ -391,6 +398,7 @@ void hal(struct loader_args *largs, struct hal_arch_funcs *funcs)
 
     // Init CPU
     init_topo();
+    arch_init_per_cpu_pre();
     init_per_cpu_area();
 
     // CPU-local interrupt

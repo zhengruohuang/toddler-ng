@@ -19,10 +19,11 @@ struct hal_arch_funcs {
     void (*init_libk)();
     void (*init_arch)();
     void (*init_arch_mp)();
-    void (*init_int)();
-    void (*init_int_mp)();
     void (*init_mm)();
     void (*init_mm_mp)();
+    void (*init_per_cpu_pre)();
+    void (*init_int)();
+    void (*init_int_mp)();
     void (*init_kernel_pre)();
     void (*init_kernel_post)();
 
@@ -61,7 +62,7 @@ struct hal_arch_funcs {
     // Syscall
     ulong (*get_syscall_params)(struct reg_context *regs, ulong *param0, ulong *param1, ulong *param2);
     set_syscall_return_t set_syscall_return;
-    int (*handle_arch_syscall)(ulong num, ulong param0, ulong param1, ulong param2, ulong *return0, ulong *return1);
+    int (*handle_arch_syscall)(ulong num, ulong p0, ulong p1, ulong p2, ulong p3, ulong *r0, ulong *r1);
 
     // Int
     void (*arch_disable_local_int)();
@@ -110,7 +111,7 @@ extern void arch_register_drivers();
 
 extern ulong arch_get_syscall_params(struct reg_context *regs, ulong *param0, ulong *param1, ulong *param2);
 extern void arch_set_syscall_return(struct reg_context *regs, int succeed, ulong return0, ulong return1);
-extern int arch_handle_syscall(ulong num, ulong param0, ulong param1, ulong param2, ulong *return0, ulong *return1);
+extern int arch_handle_syscall(ulong num, ulong p0, ulong p1, ulong p2, ulong p3, ulong *r0, ulong *r1);
 
 extern void arch_disable_local_int();
 extern void arch_enable_local_int();

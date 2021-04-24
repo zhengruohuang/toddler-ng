@@ -74,6 +74,10 @@
 #define __unused_var        __attribute__((unused))
 #endif
 
+#ifndef __section
+#define __section(s)        __attribute__((section(s)))
+#endif
+
 
 #ifndef COMPILE_ASSERT
 #ifdef __COMPILE_ASSERT

@@ -249,6 +249,7 @@ def run_qemu(opts):
     embed_fdt = build_opts['embed_fdt'] if 'embed_fdt' in build_opts else False
     bootargs = opts['bootargs'] if 'bootargs' in opts else False
     bios = opts['bios'] if 'bios' in opts else None
+    extra = opts['extra'] if 'extra' in opts else None
 
     cmd = qemu + \
         ' -cpu {0}'.format(cpu) + \
@@ -261,7 +262,8 @@ def run_qemu(opts):
         ('' if embed_coreimg else ' -initrd {0}'.format(coreimg)) + \
         ('' if embed_fdt else ' -dtb {0}'.format(fdt)) + \
         (' -append {0}'.format(bootargs) if bootargs else '') + \
-        (' -smp {0}'.format(mp) if mp else '')
+        (' -smp {0}'.format(mp) if mp else '') + \
+        (' {0}'.format(extra) if extra else '')
 
     code = exec_cmd(cmd)
 

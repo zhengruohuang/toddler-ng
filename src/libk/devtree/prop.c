@@ -448,8 +448,16 @@ int devtree_get_int(struct devtree_node *node, int pos,
  */
 int devtree_get_use_ioport(struct devtree_node *node)
 {
-    struct devtree_prop *prop = devtree_find_prop(node, "use-ioport");
-    return prop ? 1 : 0;
+    for (struct devtree_node *cur_node = node; cur_node;
+         cur_node = devtree_get_parent_node(cur_node)
+    ) {
+        struct devtree_prop *prop = devtree_find_prop(cur_node, "use-ioport");
+        if (prop) {
+            return 1;
+        }
+    }
+
+    return 0;
 }
 
 int devtree_get_use_poll(struct devtree_node *node)
@@ -471,7 +479,7 @@ int devtree_get_enabled(struct devtree_node *node)
     }
 
     char *data = devtree_get_prop_data(prop);
-    if (prop->len == 8 && data && !memcmp(data, "disabled", 8)) {
+    if (prop->len >= 8 && data && !memcmp(data, "disabled", 8)) {
         return 0;
     }
 

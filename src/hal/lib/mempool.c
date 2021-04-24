@@ -23,7 +23,7 @@ void *mempool_alloc(size_t size)
     if (!mempool || mempool_start + size > mempool_limit) {
         ppfn_t ppfn = pre_palloc(MEMPOOL_CHUNK_PAGE_COUNT);
         paddr_t paddr = ppfn_to_paddr(ppfn);
-        ulong vaddr = pre_valloc(MEMPOOL_CHUNK_PAGE_COUNT, paddr, 1);
+        ulong vaddr = pre_valloc(MEMPOOL_CHUNK_PAGE_COUNT, paddr, 1, 1);
 
         mempool = (void *)vaddr;
         mempool_start = 0;

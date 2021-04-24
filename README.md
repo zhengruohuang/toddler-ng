@@ -35,8 +35,8 @@ The next generation Toddler
 
 | Target                | Loader    | HAL       | SMP   | Note               |
 | --------------------- | --------- | --------- | ----- | ------------------ |
-| ia32-pc-multiboot     | Current   | Active    |       | Minor fixes needed |
-| amd64-pc-multiboot    | Current   | Active    |       | Minor fixes needed |
+| ia32-pc-multiboot     | Current   | Active    | Yes   |                    |
+| amd64-pc-multiboot    | Current   | Active    | Yes   |                    |
 | alpha-clipper-qemu    | Active    | Planned   |       |                    |
 | armv7-raspi2-qemu     | Current   | Current   | Yes   |                    |
 | aarch64v8-raspi3-qemu | Current   | Active    |       | Minor fixes needed |
@@ -61,7 +61,7 @@ The next generation Toddler
 | vax-sim-simh          | Initial   | Planned   |       |                    |
 
 * MIPS SMP lacks GIC support
-* MIPS64 QEMU supports only single thread
+* MIPS64 QEMU emulates using only single thread
 * OpenRISC QEMU supports up to 2 CPUs
 
 ### Additional Targets

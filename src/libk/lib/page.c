@@ -221,13 +221,13 @@ static void map_page(void *page_table, ulong vaddr, paddr_t paddr, int block,
                                                  exec, 1, write, cache, kernel);
                 if (err) {
                     int ori_e, ori_w, ori_c, ori_k;
-                    generic_translate_attri(page_table, vaddr,
-                                            &ori_e, NULL, &ori_w, &ori_c, &ori_k);
+                    paddr_t ori_paddr = generic_translate_attri(page_table, vaddr,
+                                                                &ori_e, NULL, &ori_w, &ori_c, &ori_k);
                     panic("Incompatible mapping @ %lx -> "
                         "ori @ %llx (e: %d, w: %d, c: %d, k: %d), "
                         "new @ %llx (e: %d, w: %d, c: %d, k: %d)\n",
                         vaddr,
-                        (u64)ppfn_to_paddr(ppfn), ori_e, ori_w, ori_c, ori_k,
+                        (u64)ori_paddr, ori_e, ori_w, ori_c, ori_k,
                         (u64)paddr, exec, write, cache, kernel);
                 }
             }

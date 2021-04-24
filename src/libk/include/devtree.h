@@ -79,6 +79,8 @@ extern struct devtree_prop *devtree_alloc_prop_u32(struct devtree_node *node,
     const char *name, u32 data);
 extern struct devtree_prop *devtree_alloc_prop_u64(struct devtree_node *node,
     const char *name, u64 data);
+extern struct devtree_prop *devtree_alloc_prop_str(struct devtree_node *node,
+    const char *name, char *str);
 
 extern struct devtree_head *devtree_get_head();
 extern struct devtree_node *devtree_get_root();

@@ -1,47 +1,61 @@
-#include "loader/include/header.h"
+#include "common/include/asm.h"
 
-#define MULTIBOOT_HEADER_FLAGS (MULTIBOOT_PAGE_ALIGN | MULTIBOOT_MEMORY_INFO | MULTIBOOT_VIDEO_MODE)
+
+.global _start
+.global _start_mp
+
+.global _stack_limit
+.global _stack_limit_mp
+
+.extern loader_entry
+.extern loader_entry_mp
+
+.extern loader_boot
+.extern loader_boot_mp
+
+
+.section ".data.stack"
+
+.balign 16
+_stack_limit_mp:
+    .fill 1024, 1, 0
+_stack_top_mp:
+
+_stack_limit:
+    .fill 7168, 1, 0
+_stack_top:
+    .fill 16, 1, 0
+
 
 .section ".text.boot"
 
-.global _start
-.global _start_ap
-
-.global _call_hal64
-
-.extern loader_entry
-.extern loader_entry_ap
-
 _start:
-#if (defined(ARCH_AMD64))
-    // Set up stack
-    movq    $(_start - 0x10), %rsp
-#elif (defined(ARCH_IA32))
-    // Set up stack
-    movl    $(_start - 0x10), %esp
+    /* Set up stack */
+    mov_ul  $(_stack_top), %sp_ul
+    sub_ul  $16, %sp_ul
 
-    // Set up arguments from multiboot
-    // so that they can be accessed through both reg and stack
-    pushl   %ebx    // Pointer to multiboot info
-    pushl   %eax    // Magic
+#ifdef ARCH_IA32
+    /* Set up arguments from multiboot */
+    /* so that they can be accessed through both reg and stac*/
+    pushl   %edx    /* Pointer to multiboot info */
+    pushl   %eax    /* Magic */
 #endif
 
-    // Go to loader
+    /* Go to loader */
     call    loader_entry
 
-    // Should never reach here
-__stop:
-    jmp     __stop
+    /* Should never reach here */
+    jmp     .
     nop
 
+_start_mp:
+    /* Set up stack */
+    mov_ul  $(_stack_top_mp), %sp_ul
+    sub_ul  $16, %sp_ul
 
-_start_ap:
-    // Set up stack
-    movl    $(_start - 0x10), %esp
+    /* Go to loader */
+    call    loader_entry_mp
 
-    // Go to loader
-    call    loader_entry_ap
-
-    // Should never reach here
+    /* Should never reach here */
     jmp     .
     nop

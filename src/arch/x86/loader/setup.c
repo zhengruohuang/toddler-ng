@@ -1,23 +1,50 @@
 #include "common/include/inttypes.h"
-#include "common/include/io.h"
-#include "common/include/mem.h"
-// #include "common/include/abi.h"
+#include "common/include/atomic.h"
+#include "common/include/page.h"
+#include "common/include/abi.h"
 #include "common/include/msr.h"
-#include "loader/include/header.h"
 #include "loader/include/lib.h"
-#include "loader/include/firmware.h"
+#include "loader/include/mem.h"
 #include "loader/include/boot.h"
 #include "loader/include/loader.h"
+#include "loader/include/firmware.h"
+#include "loader/include/kprintf.h"
+#include "loader/include/header.h"
+#include "loader/include/devtree.h"
 
 
 /*
- * Raspi2 UART
+ * x86 PC UART
  */
 #define SERIAL_PORT (0x3f8)
 #define SERIAL_DR   (SERIAL_PORT)
 #define SERIAL_FR   (SERIAL_PORT + 0x5)
 
-int arch_debug_putchar(int ch)
+static inline u8 ioport_read8(u16 port)
+{
+    u8 data;
+
+    __asm__ __volatile__ (
+        "inb %[port], %[data];"
+        : [data] "=a" (data)
+        : [port] "Nd" (port)
+        : "memory"
+    );
+
+    return data;
+}
+
+static inline void ioport_write8(u16 port, u8 data)
+{
+    __asm__ __volatile__ (
+        "outb %[data], %[port];"
+        :
+        : [data] "a" (data), [port] "Nd" (port)
+        : "memory"
+    );
+}
+
+static int x86_pc_putchar(int ch)
 {
     // Wait until the UART has an empty space in the FIFO
     u32 empty = 0;
@@ -33,156 +60,26 @@ int arch_debug_putchar(int ch)
 
 
 /*
- * Access window <--> physical addr
- */
-static void *access_win_to_phys(void *vaddr)
-{
-    return vaddr;
-}
-
-static void *phys_to_access_win(void *paddr)
-{
-    return paddr;
-}
-
-
-/*
  * Paging
  */
-static struct page_frame *root_page = NULL;
-
 static void *alloc_page()
 {
-    void *paddr = memmap_alloc_phys(PAGE_SIZE, PAGE_SIZE);
-    return (void *)((ulong)paddr);
+    paddr_t paddr = memmap_alloc_phys(PAGE_SIZE, PAGE_SIZE);
+    return cast_paddr_to_ptr(paddr);
 }
 
 static void *setup_page()
 {
-    root_page = alloc_page();
-    memzero(root_page, PAGE_SIZE);
+    struct page_frame *root_page = alloc_page();
+    memzero(root_page, sizeof(struct page_frame));
 
     return root_page;
 }
 
-#if (defined(ARCH_AMD64))
-
-static void map_page(void *page_table, void *vaddr, void *paddr,
-    int cache, int exec, int write)
+static int map_range(void *page_table, ulong vaddr, paddr_t paddr, ulong size,
+                     int cache, int exec, int write)
 {
-    struct page_frame *page = page_table;
-    struct page_table_entry *entry = NULL;
-
-    for (int level = 0; level < PAGE_LEVELS; level++) {
-        int idx = (int)GET_PAGE_TABLE_ENTRY_INDEX((ulong)vaddr, level);
-        entry = &page->entries[idx];
-
-        if (level != PAGE_LEVELS - 1) {
-            if (!entry->present) {
-                page = alloc_page();
-                memzero(page, sizeof(struct page_frame));
-
-                entry->present = 1;
-                entry->pfn = ADDR_TO_PFN((ulong)page);
-                entry->write_allow = 1;
-            } else {
-                page = (void *)PFN_TO_ADDR((ulong)entry->pfn);
-            }
-        }
-    }
-
-    if (entry->present) {
-        panic_if((ulong)entry->pfn != ADDR_TO_PFN((ulong)paddr) ||
-            entry->write_allow != write ||
-            entry->cache_disabled != !cache ||
-            //entry->no_exec != !exec ||
-            entry->user_allow != 0,
-            "Trying to change an existing mapping from PFN %lx to %lx!",
-            (ulong)entry->pfn, ADDR_TO_PFN((ulong)paddr));
-    } else {
-        entry->present = 1;
-        entry->pfn = ADDR_TO_PFN((ulong)paddr);
-        entry->write_allow = write;
-        entry->cache_disabled = !cache;
-        //entry->no_exec = !exec;
-    }
-}
-
-#elif (defined(ARCH_IA32))
-
-static void map_page(void *page_table, void *vaddr, void *paddr,
-    int cache, int exec, int write)
-{
-    // First level
-    struct page_frame *l1table = page_table;
-    int l1idx = GET_PDE_INDEX((ulong)vaddr);
-    struct page_table_entry *l1entry = &l1table->entries[l1idx];
-
-    // Second level
-    struct page_frame *l2table = NULL;
-    if (!l1entry->present) {
-        l2table = alloc_page();
-        memzero(l2table, PAGE_SIZE);
-
-        l1entry->present = 1;
-        l1entry->pfn = ADDR_TO_PFN((ulong)l2table);
-        l1entry->write_allow = 1;
-        l1entry->user_allow = 1;
-    } else {
-        l2table = (void *)PFN_TO_ADDR((ulong)l1entry->pfn);
-    }
-
-    // The mapping
-    int l2idx = GET_PTE_INDEX((ulong)vaddr);
-    struct page_table_entry *l2entry = &l2table->entries[l2idx];
-
-    if (l2entry->present) {
-        panic_if(
-            (ulong)l2entry->pfn != ADDR_TO_PFN((ulong)paddr) ||
-            l2entry->write_allow != write ||
-            l2entry->cache_disabled != !cache ||
-            //l2entry->no_exec != !exec ||
-            l2entry->user_allow != 0,
-            "Trying to change an existing mapping from PFN %lx to %lx!",
-            (ulong)l2entry->pfn, ADDR_TO_PFN((ulong)paddr));
-    }
-
-    else {
-        l2entry->present = 1;
-        l2entry->pfn = ADDR_TO_PFN((ulong)paddr);
-        l2entry->write_allow = write;
-        l2entry->user_allow = 1;
-        l2entry->cache_disabled = !cache;
-        //l2entry->no_exec = !exec;
-    }
-}
-
-#endif
-
-static int map_range(void *page_table, void *vaddr, void *paddr, ulong size,
-    int cache, int exec, int write)
-{
-    kprintf("To map range @ %p -> %p, size: %lx\n", vaddr, paddr, size);
-
-    ulong vaddr_start = ALIGN_DOWN((ulong)vaddr, PAGE_SIZE);
-    ulong paddr_start = ALIGN_DOWN((ulong)paddr, PAGE_SIZE);
-    ulong vaddr_end = ALIGN_UP((ulong)vaddr + size, PAGE_SIZE);
-
-    int mapped_pages = 0;
-
-    for (ulong cur_vaddr = vaddr_start, cur_paddr = paddr_start;
-        cur_vaddr < vaddr_end;
-    ) {
-        // 4KB page
-        map_page(page_table, (void *)cur_vaddr, (void *)cur_paddr,
-            cache, exec, write);
-
-        mapped_pages++;
-        cur_vaddr += PAGE_SIZE;
-        cur_paddr += PAGE_SIZE;
-    }
-
-    return mapped_pages;
+    return generic_map_range(page_table, vaddr, paddr, size, cache, exec, write, 1, 0);
 }
 
 
@@ -193,16 +90,16 @@ static void enable_mmu(void *root_page)
 {
     struct ctrl_reg3 cr3;
     cr3.value = 0;
-    cr3.pfn = ADDR_TO_PFN((ulong)root_page);
+    cr3.pfn = vaddr_to_vpfn((ulong)root_page);
     write_cr3(cr3.value);
 }
 
-typedef void (*hal_start_t)(struct loader_args *largs);
+typedef void (*hal_start_t)(struct loader_args *largs, int mp);
 
-static void call_hal(struct loader_args *largs)
+static void call_hal(struct loader_args *largs, int mp)
 {
     hal_start_t hal = largs->hal_entry;
-    hal(largs);
+    hal(largs, mp);
 }
 
 static void jump_to_hal()
@@ -213,7 +110,35 @@ static void jump_to_hal()
     enable_mmu(largs->page_table);
     kprintf("Page root @ %p\n", largs->page_table);
 
-    call_hal(largs);
+    call_hal(largs, 0);
+}
+
+static void jump_to_hal_mp()
+{
+    struct loader_args *largs = get_loader_args();
+    kprintf("MP Jump to HAL @ %p\n", largs->hal_entry);
+
+    enable_mmu(largs->page_table);
+    kprintf("Page root @ %p\n", largs->page_table);
+
+    call_hal(largs, 1);
+}
+
+
+/*
+ * Finalize
+ */
+static void final_memmap()
+{
+    // FIXME: simply assume all the memory is direct mapped
+    // may not be true on some machines, e.g. PAE and more t han 4GB memory
+    u64 start = 0;
+    u64 size = get_memmap_range(&start);
+    tag_memmap_region(start, size, MEMMAP_TAG_DIRECT_MAPPED);
+}
+
+static void final_arch()
+{
 }
 
 
@@ -222,7 +147,20 @@ static void jump_to_hal()
  */
 static void init_arch()
 {
+}
 
+static void init_arch_mp()
+{
+}
+
+
+/*
+ * Init libk
+ */
+static void init_libk()
+{
+    init_libk_putchar(x86_pc_putchar);
+    init_libk_page_table(memmap_palloc, NULL, NULL);
 }
 
 
@@ -231,10 +169,6 @@ static void init_arch()
  */
 void loader_entry(ulong magic, void *mbi)
 {
-    kprintf("Hello!\n");
-    kprintf("Hello, magic: %lx, mbi @ %p!\n", magic, mbi);
-//     while (1);
-
     /*
      * BSS will be initialized at the beginning of loader() func
      * Thus no global vars are safe to access before init_arch() gets called
@@ -250,32 +184,44 @@ void loader_entry(ulong magic, void *mbi)
 
     // Prepare arg
     if (magic == MULTIBOOT_BOOTLOADER_MAGIC) {
-        //fw_args.type = FW_MULTIBOOT;
-        //fw_args.multiboot.multiboot = mbi;
         fw_args.fw_name = "multiboot";
         fw_args.fw_params = mbi;
     } else {
-        //fw_args.type = FW_NONE;
         fw_args.fw_name = "none";
     }
 
-    // Prepare arch info
-    funcs.reserved_stack_size = 0x8000;
-    funcs.page_size = PAGE_SIZE;
-    //funcs.num_reserved_got_entries = ELF_GOT_NUM_RESERVED_ENTRIES;
+    // Stack limit
+    extern ulong _stack_limit, _stack_limit_mp;
+    funcs.stack_limit = (ulong)&_stack_limit;
+    funcs.stack_limit_mp = (ulong)&_stack_limit_mp;
+
+    // MP entry
+    extern ulong _start_mp;
+    funcs.mp_entry = (ulong)&_start_mp;
 
     // Prepare funcs
+    funcs.init_libk = init_libk;
     funcs.init_arch = init_arch;
     funcs.setup_page = setup_page;
     funcs.map_range = map_range;
-    funcs.access_win_to_phys = access_win_to_phys;
-    funcs.phys_to_access_win = phys_to_access_win;
+    funcs.final_memmap = final_memmap;
+    funcs.final_arch = final_arch;
     funcs.jump_to_hal = jump_to_hal;
+
+    // MP funcs
+    funcs.init_arch_mp = init_arch_mp;
+    funcs.jump_to_hal_mp = jump_to_hal_mp;
 
     // Go to loader!
     loader(&fw_args, &funcs);
+    unreachable();
 }
 
-void loader_entry_ap()
+void loader_entry_mp()
 {
+    kprintf("Loader MP!\n");
+
+    // Go to loader!
+    loader_mp();
+    unreachable();
 }

@@ -89,6 +89,11 @@ static int region_count = 0;
 static struct palloc_region regions[MAX_PALLOC_REGION_COUNT];
 static struct palloc_node *nodes;
 
+static inline int is_pfn_valid(ppfn_t pfn)
+{
+    return pfn < pfn_start || pfn >= pfn_limit ? 0 : 1;
+}
+
 static struct palloc_node *get_node_by_pfn(ppfn_t pfn)
 {
     panic_if(pfn < pfn_start || pfn >= pfn_limit,
@@ -214,7 +219,7 @@ static int buddy_split(int order, int region)
     if (!regions[region].buddies[order].has_next) {
         // If this is the highest order, then fail
         if (order == PALLOC_MAX_ORDER) {
-            kprintf("Unable to split buddy\n");
+            //kprintf("Unable to split buddy\n");
             return -1;
         }
 
@@ -284,11 +289,16 @@ static void buddy_combine(ppfn_t pfn)
         higher_pfn = pfn - order_page_count;
         other_pfn = pfn - order_page_count;
     }
-    struct palloc_node *other_node = get_node_by_pfn(other_pfn);
+
+    // If the other node is beyond valid PFN range, then we are done here
+    if (!is_pfn_valid(other_pfn)) {
+        return;
+    }
 
     // If the other node doesn't belong to the same region as current node,
     // or the other node is in use, then we are done,
     // as there's no need to combine further
+    struct palloc_node *other_node = get_node_by_pfn(other_pfn);
     if (
         !other_node || !other_node->avail || other_node->region != region ||
         other_node->alloc || order != other_node->order
@@ -346,8 +356,7 @@ ppfn_t palloc_region(int count, int region)
     // Split higher order buddies if necessary
     if (!regions[region].buddies[order].has_next) {
         if (-1 == buddy_split(order + 1, region)) {
-            kprintf("Palloc failed\n");
-
+            //kprintf("Palloc failed\n");
             spinlock_unlock_int(&regions[region].lock);
             return 0;
         }

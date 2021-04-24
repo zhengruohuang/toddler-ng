@@ -30,6 +30,22 @@ thread_info_block_t *syscall_get_tib()
 
 
 /*
+ * IO port
+ */
+ulong syscall_ioport_read(ulong port, ulong size)
+{
+    ulong value = 0;
+    sysenter(SYSCALL_HAL_IOPORT, port, size, 0, &value, NULL);
+    return value;
+}
+
+void syscall_ioport_write(ulong port, ulong size, ulong value)
+{
+    sysenter(SYSCALL_HAL_IOPORT, port, size | (0x1ul << 8), value, NULL, NULL);
+}
+
+
+/*
  * Interrupt
  */
 ulong syscall_int_handler(ulong dev_fw_id, int dev_fw_pos, thread_entry_t entry)

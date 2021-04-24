@@ -136,6 +136,12 @@ struct devtree_prop *devtree_alloc_prop_u64(struct devtree_node *node,
     return devtree_alloc_prop(node, name, &data, sizeof(u64));
 }
 
+struct devtree_prop *devtree_alloc_prop_str(struct devtree_node *node,
+    const char *name, char *str)
+{
+    return devtree_alloc_prop(node, name, str, strlen(str) + 1);
+}
+
 
 /*
  * Tree traversal

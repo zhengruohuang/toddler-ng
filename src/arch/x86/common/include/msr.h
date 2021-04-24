@@ -10,36 +10,38 @@
  * Generic CR read and write
  */
 #if (defined(ARCH_AMD64))
+    #define __read_cr(value, which)         \
+        __asm__ __volatile__ (              \
+            "movq %%" #which ", %%rax;"     \
+            : "=a" (value)                  \
+            :                               \
+            : "memory", "cc"                \
+        )
 
-#define __read_cr(value, which)         \
-    __asm__ __volatile__ (              \
-        "movq %%" #which ", %%rax;"     \
-        : "=a" (value)                  \
-        :                               \
-    )
-
-#define __write_cr(value, which)        \
-    __asm__ __volatile__ (              \
-        "movq %%rax, %%" #which ";"     \
-        :                               \
-        : "a" (value)                   \
-    )
+    #define __write_cr(value, which)        \
+        __asm__ __volatile__ (              \
+            "movq %%rax, %%" #which ";"     \
+            :                               \
+            : "a" (value)                   \
+            : "memory", "cc"                \
+        )
 
 #elif (defined(ARCH_IA32))
+    #define __read_cr(value, which)         \
+        __asm__ __volatile__ (              \
+            "movl %%" #which ", %%eax;"     \
+            : "=a" (value)                  \
+            :                               \
+            : "memory", "cc"                \
+        )
 
-#define __read_cr(value, which)         \
-    __asm__ __volatile__ (              \
-        "movl %%" #which ", %%eax;"     \
-        : "=a" (value)                  \
-        :                               \
-    )
-
-#define __write_cr(value, which)        \
-    __asm__ __volatile__ (              \
-        "movl %%eax, %%" #which ";"     \
-        :                               \
-        : "a" (value)                   \
-    )
+    #define __write_cr(value, which)        \
+        __asm__ __volatile__ (              \
+            "movl %%eax, %%" #which ";"     \
+            :                               \
+            : "a" (value)                   \
+            : "memory", "cc"                \
+        )
 
 #endif
 
@@ -48,6 +50,7 @@
         "movl %%" #which ", %%eax;"     \
         : "=a" (value)                  \
         :                               \
+        : "memory", "cc"                \
     )
 
 #define __write_cr32(value, which)      \
@@ -55,24 +58,80 @@
         "movl %%eax, %%" #which ";"     \
         :                               \
         : "a" (value)                   \
+        : "memory", "cc"                \
     )
 
 
 /*
  * Generic MSR read and write
  */
-#define __read_msr(value, addr)         \
-    __asm__ __volatile__ (              \
-        "rdmsr;"                        \
-        : "=a" (value)                  \
-        : "c" (addr)                    \
+#if (defined(ARCH_AMD64))
+    #define __read_msr(value, addr)             \
+        __asm__ __volatile__ (                  \
+            "rdmsr;"                            \
+            "shl $32, %%rdx;"                   \
+            "or  %%rdx, %%rax;"                 \
+            : "=a" (value)                      \
+            : "c" (addr)                        \
+            : "%rdx", "memory", "cc"            \
+        )
+
+    #define __write_msr(value, addr)                \
+        __asm__ __volatile__ (                      \
+            "wrmsr;"                                \
+            :                                       \
+            : "c" (addr),                           \
+              "a" ((ulong)(value) & 0xfffffffful),  \
+              "d" ((ulong)(value) >> 32)            \
+            : "memory", "cc"                        \
+        )
+
+#elif (defined(ARCH_IA32))
+    #define __read_msr(value, addr)             \
+        __asm__ __volatile__ (                  \
+            "rdmsr;"                            \
+            : "=a" (value)                      \
+            : "c" (addr)                        \
+            : "memory", "cc"                    \
+        )
+
+    #define __write_msr(value, addr)            \
+        __asm__ __volatile__ (                  \
+            "wrmsr;"                            \
+            :                                   \
+            : "c" (addr), "a" (value), "d" (0)  \
+            : "memory", "cc"                    \
+        )
+
+#endif
+
+#define __read_msr32(value, addr)           \
+    __asm__ __volatile__ (                  \
+        "rdmsr;"                            \
+        : "=a" (value)                      \
+        : "c" (addr)                        \
+        : "memory", "cc"                    \
     )
 
-#define __write_msr(value, addr)        \
+#define __write_msr32(value, addr)          \
+    __asm__ __volatile__ (                  \
+        "wrmsr;"                            \
+        :                                   \
+        : "c" (addr), "a" (value), "d" (0)  \
+        : "memory", "cc"                    \
+    )
+
+
+/*
+ * Read segment registers
+ */
+#define __read_seg_reg(value, which)    \
     __asm__ __volatile__ (              \
-        "wrmsr;"                        \
+        "xorl %%eax, %%eax;"            \
+        "movw %%" #which ", %%ax;"      \
         :                               \
-        : "a" (value), "c" (addr)       \
+        : "a" (value)                   \
+        : "memory", "cc"                \
     )
 
 
@@ -110,7 +169,14 @@ struct ctrl_reg0 {
 
 
 /*
- * CR3
+ * CR2 - page fault vaddr
+ */
+#define read_cr2(value)     __read_cr(value, cr2)
+#define read_cr2_32(value)  __read_cr32(value, cr2)
+
+
+/*
+ * CR3 - page table base
  */
 struct ctrl_reg3 {
     union {
@@ -173,6 +239,30 @@ struct ctrl_reg4 {
 
 
 /*
+ * Segment registers
+ */
+#define read_cs(value)      __read_seg_reg(value, cs)
+#define read_ds(value)      __read_seg_reg(value, ds)
+#define read_es(value)      __read_seg_reg(value, es)
+#define read_fs(value)      __read_seg_reg(value, fs)
+#define read_gs(value)      __read_seg_reg(value, gs)
+#define read_ss(value)      __read_seg_reg(value, ss)
+
+#ifdef ARCH_AMD64
+
+#define read_fsbase(value)  __read_msr(value, 0xc0000100)
+#define write_fsbase(value) __write_msr(value, 0xc0000100)
+
+#define read_gsbase(value)  __read_msr(value, 0xc0000101)
+#define write_gsbase(value) __write_msr(value, 0xc0000101)
+
+#define read_gsbase_kernel(value)   __read_msr(value, 0xc0000102)
+#define write_gsbase_kernel(value)  __write_msr(value, 0xc0000102)
+
+#endif
+
+
+/*
  * EFER
  */
 struct ext_feature_enable_reg {
@@ -195,8 +285,30 @@ struct ext_feature_enable_reg {
     };
 } packed_struct;
 
-#define read_efer(value)    __read_msr(value, 0xc0000080)
-#define write_efer(value)   __write_msr(value, 0xc0000080)
+#define read_efer(value)    __read_msr32(value, 0xc0000080)
+#define write_efer(value)   __write_msr32(value, 0xc0000080)
+
+
+/*
+ * APIC_BASE
+ */
+struct apic_base_reg {
+    union {
+        ulong value;
+
+        struct {
+            ulong reserved0         : 8;
+            ulong is_bootstrap      : 1;
+            ulong reserved1         : 1;
+            ulong x2apic_enabled    : 1;
+            ulong xapic_enabled     : 1;
+            ulong apic_base_pfn     : sizeof(ulong) * 8 - 12;
+        };
+    };
+} natural_struct;
+
+#define read_apic_base(value)   __read_msr(value, 0x1b)
+#define write_apic_base(value)  __write_msr(value, 0x1b)
 
 
 #endif

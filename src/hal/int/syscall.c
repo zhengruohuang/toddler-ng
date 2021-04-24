@@ -9,35 +9,46 @@ static int int_handler_syscall(struct int_context *ictxt, struct kernel_dispatch
     ulong param0 = 0, param1 = 0, param2 = 0, return0 = 0, return1 = 0;
     ulong num = arch_get_syscall_params(ictxt->regs, &param0, &param1, &param2);
 
-    int success = 0;
-    int call_kernel = 0;
+    int handled = 0;
 
     // See if we can quickly handle this syscall in HAL
     switch (num) {
     case SYSCALL_HAL_NONE:
-        success = 1;
+        handled = 1;
         break;
     case SYSCALL_HAL_PING:
         return0 = param0 + 1;
         return1 = param1 + 1;
-        success = 1;
+        handled = 1;
         break;
-    case SYSCALL_HAL_GET_TIB: {
-        ulong tcb = get_cur_running_tcb();
-        return0 = tcb;
-        success = 1;
+    case SYSCALL_HAL_GET_TIB:
+        return0 = get_cur_running_tcb();
+        handled = 1;
         break;
-    }
+    case SYSCALL_HAL_IOPORT:
+        if (arch_hal_has_io_port()) {
+            ulong port = param0;
+            ulong size = param1 & 0xff;
+            ulong write = param1 >> 8;
+            ulong value = param2;
+            if (write) {
+                arch_hal_ioport_write(port, size, value);
+            } else {
+                return0 = arch_hal_ioport_read(port, size);
+            }
+            handled = 1;
+        }
+        break;
     default:
         break;
     }
 
-    if (!success) {
+    if (!handled) {
         // Handle arch-specific syscalls
-        call_kernel = arch_handle_syscall(num, param0, param1, param2, &return0, &return1);
+        handled = arch_handle_syscall(num, param0, param1, param2, 0, &return0, &return1);
     }
 
-    if (call_kernel) {
+    if (!handled) {
         // Prepare to call kernel
         kdi->num = num;
         kdi->param0 = param0;
@@ -45,10 +56,10 @@ static int int_handler_syscall(struct int_context *ictxt, struct kernel_dispatch
         kdi->param2 = param2;
     } else {
         // Prepare return value
-        arch_set_syscall_return(ictxt->regs, success, return0, return1);
+        arch_set_syscall_return(ictxt->regs, 0, return0, return1);
     }
 
-    return call_kernel ? INT_HANDLE_CALL_KERNEL : INT_HANDLE_SIMPLE;
+    return !handled ? INT_HANDLE_CALL_KERNEL : INT_HANDLE_SIMPLE;
 }
 
 

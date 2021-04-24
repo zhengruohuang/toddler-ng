@@ -215,6 +215,13 @@ def perform_emu():
     if 'start_emu' in build_actions:
         build_actions['start_emu']()
 
+def perform_debug():
+    print_title('Start emulator in debug mode')
+
+    # Start emulator
+    if 'start_debug' in build_actions:
+        build_actions['start_debug']()
+
 def perform_clean():
     print_title('Cleaning target: ' + target_name)
 
@@ -320,7 +327,7 @@ include(mach_dir + mach_tmake_name)
 include(project_dir + 'tmake.main')
 
 # Parse action cmd line
-supported_actions = [ 'all', 'build', 'emu', 'stats', 'clean', 'clean_all' ]
+supported_actions = [ 'all', 'build', 'emu', 'debug', 'stats', 'clean', 'clean_all' ]
 actions = []
 
 # Find all actions
@@ -356,6 +363,11 @@ for act in actions:
     elif 'all' == act:
         perform_build()
         perform_emu()
+
+    # Build + Emulate (debug)
+    elif 'debug' == act:
+        perform_build()
+        perform_debug()
 
     # Lines of code
     elif 'stats' == act:

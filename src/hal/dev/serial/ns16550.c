@@ -26,7 +26,7 @@
 struct ns16550_record {
     int ioport;
     int reg_shift;
-    ulong mmio_base;
+    ulong iobase;
 };
 
 
@@ -36,7 +36,7 @@ struct ns16550_record {
 static inline u8 ns16550_io_read(struct ns16550_record *record, int reg_sel)
 {
     int ioport = record->ioport;
-    ulong addr = record->mmio_base + ((ulong)reg_sel << record->reg_shift);
+    ulong addr = record->iobase + ((ulong)reg_sel << record->reg_shift);
 
     if (ioport) {
         return port_read8(addr);
@@ -48,7 +48,7 @@ static inline u8 ns16550_io_read(struct ns16550_record *record, int reg_sel)
 static inline void ns16550_io_write(struct ns16550_record *record, int reg_sel, u8 val)
 {
     int ioport = record->ioport;
-    ulong addr = record->mmio_base + ((ulong)reg_sel << record->reg_shift);
+    ulong addr = record->iobase + ((ulong)reg_sel << record->reg_shift);
 
     if (ioport) {
         port_write8(addr, val);
@@ -89,21 +89,27 @@ static void *create(struct fw_dev_info *fw_info, struct driver_param *param)
     struct ns16550_record *record = mempool_alloc(sizeof(struct ns16550_record));
     memzero(record, sizeof(struct ns16550_record));
 
-    u64 reg = 0, size = 0;
-    int next = devtree_get_translated_reg(fw_info->devtree_node, 0, &reg, &size);
-    panic_if(next, "ns16550 only supports one reg field!");
-
-    paddr_t mmio_paddr = cast_u64_to_paddr(reg);
-    ulong mmio_size = cast_paddr_to_vaddr(size);
-    ulong mmio_vaddr = get_dev_access_window(mmio_paddr, mmio_size, DEV_PFN_UNCACHED);
-    record->mmio_base = mmio_vaddr;
-
     int reg_shift = devtree_get_reg_shift(fw_info->devtree_node);
     int ioport = devtree_get_use_ioport(fw_info->devtree_node);
     record->reg_shift = reg_shift;
     record->ioport = ioport;
 
-    kprintf("Found NS16550 @ %llx, window @ %lx\n", (u64)mmio_paddr, mmio_vaddr);
+    u64 reg = 0, size = 0;
+    int next = devtree_get_translated_reg(fw_info->devtree_node, 0, &reg, &size);
+    panic_if(next, "ns16550 only supports one reg field!");
+
+    if (ioport) {
+        ulong port_base = cast_paddr_to_vaddr(cast_u64_to_paddr(reg));
+        record->iobase = port_base;
+        kprintf("Found NS16550 @ IO port %lx\n", port_base);
+    } else {
+        paddr_t mmio_paddr = cast_u64_to_paddr(reg);
+        ulong mmio_size = cast_paddr_to_vaddr(size);
+        ulong mmio_vaddr = get_dev_access_window(mmio_paddr, mmio_size, DEV_PFN_UNCACHED);
+        record->iobase = mmio_vaddr;
+        kprintf("Found NS16550 @ %llx, window @ %lx\n", (u64)mmio_paddr, mmio_vaddr);
+    }
+
     return record;
 }
 

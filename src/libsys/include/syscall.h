@@ -33,6 +33,13 @@ static inline tid_t syscall_get_tid()
 
 
 /*
+ * IO port
+ */
+extern ulong syscall_ioport_read(ulong port, ulong size);
+extern void syscall_ioport_write(ulong port, ulong size, ulong value);
+
+
+/*
  * Interrupt
  */
 extern ulong syscall_int_handler(ulong dev_fw_id, int dev_fw_pos, thread_entry_t entry);

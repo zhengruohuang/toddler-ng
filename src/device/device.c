@@ -50,7 +50,7 @@ static void start_drivers()
 {
 #if defined(ARCH_ARMV7)
     init_pl011_driver();
-#elif (defined(ARCH_MIPS) || defined(ARCH_OPENRISC) || defined(ARCH_RISCV))
+#elif (defined(ARCH_MIPS) || defined(ARCH_OPENRISC) || defined(ARCH_RISCV) || defined(ARCH_X86))
     init_ns16550_driver();
 #endif
 

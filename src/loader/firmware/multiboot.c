@@ -1,13 +1,17 @@
 #include "common/include/inttypes.h"
 #include "loader/include/lib.h"
+#include "loader/include/kprintf.h"
 #include "loader/include/devtree.h"
 #include "loader/include/firmware.h"
 #include "loader/include/multiboot.h"
-#include "loader/include/kprintf.h"
+#include "loader/include/acpi.h"
 
 
+/*
+ * Multiboot
+ */
 static struct multiboot_info *mbi;
-
+static int multiboot_x86 = 0;
 
 static struct devtree_node *get_chosen_node()
 {
@@ -91,7 +95,7 @@ static void parse_cmd()
         bootargs_str = strchr(cmd, ' ');
         if (bootargs_str && bootargs_str[0] && bootargs_str[1]) {
             bootargs_str++;
-            struct devtree_prop *bootargs =
+            __unused_var struct devtree_prop *bootargs =
                 devtree_alloc_prop(chosen, "bootargs", bootargs_str, strlen(bootargs_str) + 1);
         }
     }
@@ -106,15 +110,19 @@ static void parse_mmap()
     kprintf("Mem start @ %x, end @ %x\n", mem_start, mem_end);
 
     // First find out total memory size and total number of available slots
-    u64 memsize = 0;
+    u64 memstart = 0;
+    u64 memend = 0;
     int slots = 0;
 
     for (struct multiboot_mmap_entry *e = (void *)(ulong)mbi->mmap_addr;
         e && (ulong)e < (ulong)mbi->mmap_addr + (ulong)mbi->mmap_length;
         e = (void *)e + e->size + sizeof(e->size)
     ) {
-        if (e->type == MULTIBOOT_MEMORY_AVAILABLE) {
-            memsize += e->len;
+        if ((e->type == MULTIBOOT_MEMORY_AVAILABLE) ||
+            (e->type == MULTIBOOT_MEMORY_RESERVED && e->addr == memend)
+        ) {
+            if (e->addr < memstart) memstart = e->addr;
+            if (e->addr + e->len > memend) memend = e->addr + e->len;
             slots++;
         }
 
@@ -124,6 +132,7 @@ static void parse_mmap()
 
     // Construct memsize node
     struct devtree_node *chosen = get_chosen_node();
+    u64 memsize = memend > memstart ? memend - memstart : 0;
     if (memsize) {
         devtree_alloc_prop_u64(chosen, "memsize", memsize);
     }
@@ -156,6 +165,8 @@ static void parse_mmap()
             if (num_addr_cells == 1) {
                 u32 start = e->addr;
                 u32 len = e->len;
+                panic_if((u64)start != e->addr, "Mem addr out of 32-bit range!\n");
+                panic_if((u64)len != e->len, "Mem addr out of 32-bit range!\n");
                 ((u32 *)mem_reg_slots)[mem_reg_idx++] = swap_big_endian32(start);
                 ((u32 *)mem_reg_slots)[mem_reg_idx++] = swap_big_endian32(len);
 
@@ -174,8 +185,14 @@ static void parse_mmap()
 
 static void build_reserve_node()
 {
+    // Reserve low 1MB on x86, otherwise reserve low 64KB,
+    // for potential special needs
+    u64 cell[2] = {
+        0x0ull,
+        swap_big_endian64(multiboot_x86 ? 0x100000ull : 0x10000ull)
+    };
+
     struct devtree_node *memrsv = get_memrsv_node();
-    u64 cell[2] = { 0x0ull, swap_big_endian64(0x1000ull) };
     devtree_alloc_prop(memrsv, "rsv0", cell, sizeof(cell));
 }
 
@@ -188,16 +205,33 @@ static void parse_framebuffer()
     );
 }
 
+static void find_and_setup_x86_acpi()
+{
+    void *rsdp = find_acpi_rsdp(0x80000, 0xa0000);
+    if (!rsdp) {
+        rsdp = find_acpi_rsdp(0xe0000, 0x100000);
+    }
+
+    if (rsdp) {
+        init_acpi(rsdp);
+    }
+}
+
 static void init_multiboot(void *multiboot)
 {
-   mbi = multiboot;
+    mbi = multiboot;
+    multiboot_x86 = 1;
 
-   find_and_parse_fdt();
-   find_and_parse_initrd();
-   parse_cmd();
-   parse_mmap();
-   build_reserve_node();
-   parse_framebuffer();
+    find_and_parse_fdt();
+    find_and_parse_initrd();
+    parse_cmd();
+    parse_mmap();
+    build_reserve_node();
+    parse_framebuffer();
+
+    if (multiboot_x86) {
+        find_and_setup_x86_acpi();
+    }
 }
 
 DECLARE_FIRMWARE_DRIVER(multiboot) = {

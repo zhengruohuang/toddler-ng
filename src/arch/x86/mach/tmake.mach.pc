@@ -16,9 +16,10 @@ build_opts['embed_coreimg'] = False
 
 build_opts['qemu'] = {
     'machine'   : 'pc',
-    'memory'    : 512,
+    'memory'    : 1024,
     'graphic'   : True,
     'bootargs'  : 'test',
-    'bootimg'   : bin_dir + 'boot.elf', #'img_dir + boot.elf',
+    'bootimg'   : img_dir + 'multiboot.elf',
     'mp'        : '4',
+    'default_mp': True,
 }

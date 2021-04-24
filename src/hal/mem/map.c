@@ -9,13 +9,13 @@ static map_range_t arch_hal_map_range, arch_kernel_map_range;
 static page_translate_t arch_translate;
 
 
-int hal_map_range(ulong vaddr, paddr_t paddr, ulong size, int cache)
+int hal_map_range(ulong vaddr, paddr_t paddr, ulong size, int cache, int kernel)
 {
     return arch_hal_map_range(hal_page_table, vaddr, paddr, size,
-                              cache, 1, 1, 1, 0);
+                              cache, 1, 1, kernel, 0);
 }
 
-ulong hal_translate(ulong vaddr)
+paddr_t hal_translate(ulong vaddr)
 {
     return arch_translate(hal_page_table, vaddr);
 }

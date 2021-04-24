@@ -260,6 +260,11 @@ ulong create_thread(struct process *p, ulong entry_point, ulong param,
     // Create thread execution context
     struct thread *t = create_exec_context(p, attri);
 
+    // FIXME: Push param to stack, not needed by most arch
+    // need to make this arch-specific
+    ulong *stack_param_paddr_ptr = (ulong *)t->memory.stack.top_paddr_ptr;
+    *(stack_param_paddr_ptr - 1) = param;
+
     // Context
     get_hal_exports()->init_context(
         &t->context, entry_point, param,

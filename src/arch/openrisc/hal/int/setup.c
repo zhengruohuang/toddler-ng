@@ -99,7 +99,7 @@ static void init_tlb_miss_stack()
     ppfn_t stack_base_ppfn = pre_palloc(num_pages);
     paddr_t stack_base_paddr = ppfn_to_paddr(stack_base_ppfn);
 
-    tlb_miss_stack_area_base = pre_valloc(num_pages, stack_base_paddr, 1);
+    tlb_miss_stack_area_base = pre_valloc(num_pages, stack_base_paddr, 1, 1);
 }
 
 

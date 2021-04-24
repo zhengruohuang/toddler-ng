@@ -68,7 +68,7 @@ ulong get_dev_access_window(paddr_t paddr, ulong size, int cached)
         map_cached = 0;
 
         paddr_t page_paddr = ppfn_to_paddr(ppfn);
-        ulong page_vaddr = pre_valloc(1, page_paddr, map_cached);
+        ulong page_vaddr = pre_valloc(1, page_paddr, map_cached, 1);
         vpfn = vaddr_to_vpfn(page_vaddr);
         record_dev_ppfn_to_vpfn(ppfn, vpfn, map_cached);
     }

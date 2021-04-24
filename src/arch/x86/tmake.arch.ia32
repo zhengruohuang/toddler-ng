@@ -1,81 +1,16 @@
 #!/usr/bin/python
 
+x86_qemu = 'i386'
+x86_qemu_default_cpu = 'qemu32'
 
-def run_arm_qemu(mp):
-    if not in_dict('qemu', build_opts):
-        return
+x86_toolchain_prefix = 'x86_64-linux-gnu-'
+x86_as_flags = '-fno-PIC -m32'
+x86_cc_flags = '-fno-PIC -m32'
+x86_ld_flags = '-m elf_i386'
 
-    opts = copy.deepcopy(build_opts['qemu'])
-    opts['exec'] = 'qemu-system-i386'
-    if not 'cpu' in opts:
-        opts['cpu'] = 'qemu32'
-    if not mp:
-        opts['mp'] = False
+x86_preload_toolchain_prefix = x86_toolchain_prefix
+x86_preload_as_flags = x86_as_flags
+x86_preload_cc_flags = x86_cc_flags
+x86_preload_ld_flags = x86_ld_flags
 
-    run_qemu(opts)
-
-
-def build_preload():
-    print_info('preload', 'Building preload')
-
-    # Prepare preload file
-    preload_ld = find_deepest_arch_file('preload/preload.ld')
-    preload_files = get_all_arch_files('preload/', [ '.c', '.S' ])
-
-    # Embed boot image
-    bootimg_c = b2c_dir + 'boot.img.c'
-    bootimg = img_dir + 'boot.bin'
-    gen_embed_c(bootimg_c, bootimg, 'embedded_bootimg', 8)
-    preload_files.append(bootimg_c)
-
-    # Build
-    build_files(
-        bin_dir + 'preload.elf',
-        preload_files,
-        ext_ld_deps = [ preload_ld ],
-        ld_script = preload_ld,
-        toolchain = get_toolchain('preload'),
-    )
-
-    # Disasm
-    disasm_exec(
-        disasm_dir + 'preload.S',
-        bin_dir + 'preload.elf',
-        toolchain = get_toolchain('preload'),
-    )
-
-def build_arch():
-    build_preload()
-
-def qemu8():
-    run_arm_qemu(True)
-
-def qemu_gui():
-    run_arm_qemu(False)
-
-def qemu():
-    run_arm_qemu(False)
-
-def start_emu():
-    emu_type = 'qemu'
-    if emu_type in build_actions:
-        build_actions[emu_type]()
-
-
-# Setup arch toolchain
-arch_default_toolchain = copy.deepcopy(default_toolchain)
-arch_default_toolchain.set_opt('prefix', '')
-arch_default_toolchain.set_opt('ld', 'ld')
-arch_default_toolchain.set_opt('asflags', '-O2 -nostdlib -fno-builtin -fno-stack-protector -fno-PIC -m32 -std=c99 -Wall')
-arch_default_toolchain.set_opt('ccflags', '-O2 -nostdlib -fno-builtin -fno-stack-protector -fno-PIC -m32 -std=c99 -Wall')
-arch_default_toolchain.set_opt('ldflags', '-m elf_i386 -static')
-build_toolchains['default'] = arch_default_toolchain
-
-
-# Setup callback functions
-build_actions['build_arch'] = build_arch
-
-build_actions['qemu'] = qemu
-build_actions['qemu8'] = qemu8
-build_actions['qemu_gui'] = qemu_gui
-build_actions['start_emu'] = start_emu
+include(arch_dir_map['x86'] + 'tmake.inc.x86')

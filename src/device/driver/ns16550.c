@@ -102,6 +102,9 @@ static struct ns16550_driver ns16550;
  */
 static inline u8 __mmio_read8(ulong addr)
 {
+#if defined(ARCH_X86)
+    return (u8)syscall_ioport_read(addr, 1);
+#else
     volatile u8 *ptr = (u8 *)addr;
     u8 val = 0;
 
@@ -110,15 +113,20 @@ static inline u8 __mmio_read8(ulong addr)
     atomic_mb();
 
     return val;
+#endif
 }
 
 static inline void __mmio_write8(ulong addr, u8 val)
 {
+#if defined(ARCH_X86)
+    syscall_ioport_write(addr, 1, val);
+#else
     volatile u8 *ptr = (u8 *)addr;
 
     atomic_mb();
     *ptr = val;
     atomic_mb();
+#endif
 }
 
 
@@ -257,6 +265,9 @@ static int dev_ns16550_write(devid_t id, void *buf, size_t count, size_t offset,
 #elif defined(ARCH_RISCV)
     #define UART_BASE_ADDR          0x10000000
     #define DEVTREE_NODE_PHANDLE    0x0
+#elif defined(ARCH_X86)
+    #define UART_BASE_ADDR          0x3f8
+    #define DEVTREE_NODE_PHANDLE    0x0
 #else
     #define UART_BASE_ADDR          0x0
     #define DEVTREE_NODE_PHANDLE    0x0
@@ -270,9 +281,13 @@ static const struct drv_ops dev_ns16550_ops = {
 static inline void start_ns16550()
 {
     // Map NS16550 registers
+#if defined(ARCH_X86)
+    ns16550.mmio_base = UART_BASE_ADDR;
+#else
     unsigned long vbase = syscall_vm_map(VM_MAP_DEV, paddr_to_ppfn(UART_BASE_ADDR), PAGE_SIZE);
     unsigned long offset = UART_BASE_ADDR - ppfn_to_paddr(paddr_to_ppfn(UART_BASE_ADDR));
     ns16550.mmio_base = vbase + offset;
+#endif
 
     __mmio_write8(ns16550.mmio_base + UART_INT_ENABLE_REG, 0x0);    // Disable interrupts
     __mmio_write8(ns16550.mmio_base + UART_INT_ID_FIFO_REG, 0x6);   // Disable FIFO

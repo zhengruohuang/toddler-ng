@@ -1,10 +1,9 @@
-#include "common/include/arch.h"
+#include "common/include/abi.h"
 
-ENTRY(kernel)
+ENTRY(_start)
 
 SECTIONS
 {
-    /*. = 0xfff08000;*/
     . = KERNEL_BASE;
     __start = .;
 

@@ -109,7 +109,7 @@ void init_per_cpu_area()
 
     ppfn_t per_cpu_are_start_ppfn = pre_palloc(per_cpu_page_count);
     per_cpu_area_start_paddr = ppfn_to_paddr(per_cpu_are_start_ppfn);
-    per_cpu_area_start_vaddr = pre_valloc(per_cpu_page_count, per_cpu_area_start_paddr, 1);
+    per_cpu_area_start_vaddr = pre_valloc(per_cpu_page_count, per_cpu_area_start_paddr, 1, 1);
 
     // Map per CPU private area
     paddr_t cur_area_pstart = per_cpu_area_start_paddr;
@@ -119,9 +119,6 @@ void init_per_cpu_area()
             (u64)cur_area_pstart, cur_area_vstart);
 
     for (int i = 0; i < num_cpus; i++) {
-        // Map the page to its new virt location
-        //hal_map_range(cur_area_vstart, cur_area_pstart, PER_CPU_AREA_SIZE, 1);
-
         // Zero the area
         memzero((void *)cur_area_vstart, PER_CPU_AREA_SIZE);
 
