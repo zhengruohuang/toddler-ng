@@ -1,5 +1,3 @@
-#include "common/include/mach.h"
-
 ENTRY(_start)
 
 SECTIONS

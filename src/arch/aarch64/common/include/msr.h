@@ -92,9 +92,9 @@ struct sys_ctrl_reg {
 #define MAIR_INNER_NON_CACHEABLE    0x4
 #define MAIR_INNER_NORMAL           0xf
 
-#define MAIR_IDX_NORMAL         0
-#define MAIR_IDX_DEVICE         1
-#define MAIR_IDX_NON_CACHEABLE  2
+#define MAIR_IDX_NORMAL             0
+#define MAIR_IDX_DEVICE             1
+#define MAIR_IDX_NON_CACHEABLE      2
 
 struct mair_attri {
     union {

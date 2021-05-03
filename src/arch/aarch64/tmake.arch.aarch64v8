@@ -37,9 +37,9 @@ def start_emu():
 arch_default_toolchain = copy.deepcopy(default_toolchain)
 arch_default_toolchain.set_opt('prefix', 'aarch64-linux-gnu-')
 arch_default_toolchain.set_opt('ld', 'ld')
-arch_default_toolchain.set_opt('asflags', '-O2 -nostdlib -fno-builtin -fno-stack-protector -fPIC -march=armv8-a -mgeneral-regs-only -std=c99 -Wall')
-arch_default_toolchain.set_opt('ccflags', '-O2 -nostdlib -fno-builtin -fno-stack-protector -fPIC -march=armv8-a -mgeneral-regs-only -std=c99 -Wall')
-arch_default_toolchain.set_opt('ldflags', '-s -static')
+arch_default_toolchain.set_opt('asflags', '-O2 -nostdlib -fno-builtin -fno-stack-protector -fno-PIC -march=armv8-a -mgeneral-regs-only -std=c99 -Wall')
+arch_default_toolchain.set_opt('ccflags', '-O2 -nostdlib -fno-builtin -fno-stack-protector -fno-PIC -march=armv8-a -mgeneral-regs-only -std=c99 -Wall')
+arch_default_toolchain.set_opt('ldflags', '-static')
 build_toolchains['default'] = arch_default_toolchain
 
 

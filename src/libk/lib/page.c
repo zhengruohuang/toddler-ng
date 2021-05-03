@@ -77,8 +77,11 @@ static inline void *page_ppfn_to_ptr(ppfn_t ppfn)
  */
 static inline ulong page_get_block_vmask(int level)
 {
+    ulong block_page_count = page_get_block_page_count(level);
+    panic_if(!block_page_count, "Block page count must not be 0!\n");
+
     ulong vmask = PAGE_SIZE - 0x1;
-    vmask |= (page_get_block_page_count(level) - 0x1ul) << PAGE_BITS;
+    vmask |= (block_page_count - 0x1ul) << PAGE_BITS;
     return vmask;
 }
 

@@ -1,49 +1,64 @@
-#include "common/include/mach.h"
+.global _start
+.global _start_mp
+
+.global _stack_limit
+.global _stack_limit_mp
+
+.extern loader_entry
+.extern loader_entry_mp
+
+
+.section ".data.stack"
+
+.balign 16
+_stack_limit_mp:
+    .fill 1024, 1, 0
+_stack_top_mp:
+
+_stack_limit:
+    .fill 7168, 1, 0
+_stack_top:
+    .fill 16, 1, 0
+
 
 .section ".text.boot"
 
-.global _start
-.global _start_ap
-
-.extern loader_entry
-.extern loader_entry_ap
-
-// r15 -> Execution start addr
-// r0 -> Zero
-// r1 -> Machine ID
-// r2 -> ATAGS/FDT start addr
+/*
+ * r?  -> FDT start addr
+ */
 _start:
-    // Caches shouldn't be enabled at this point
+    /*
+     * Caches shouldn't be enabled at this point
+     */
 
-    // Take care of multicore
+    /* Take care of multicore */
     mrs     x1, mpidr_el1
     and     x1, x1, #0x3
-    cbnz    x1, __core_wait
+    cbnz    x1, __mp_wait
 
-    // Set up stack
-    ldr     x1, =_start
+    /* Set up stack */
+    ldr     x1, =_stack_top
     sub     sp, x1, 0x10
 
-    // Go to loader
+    /* Go to loader */
     bl      loader_entry
 
-    // Should never reach here
-__stop:
-    b       __stop
-    nop
-
-__core_wait:
+    /* Should never reach here */
     b       .
     nop
 
-_start_ap:
-    // Set up stack
-    ldr     x1, =_start
+__mp_wait:
+    b       .
+    nop
+
+_start_mp:
+    /* Set up stack */
+    ldr     x1, =_stack_top_mp
     sub     sp, x1, 0x10
 
-    // Go to loader
-    bl      loader_entry_ap
+    /* Go to loader */
+    bl      loader_entry_mp
 
-    // Should never reach here
+    /* Should never reach here */
     b       .
     nop

@@ -22,7 +22,7 @@ static inline int sysenter(ulong num, ulong p1, ulong p2, ulong p3,
         "swi 0;"
         : "=r" (o0), "=r" (o1), "=r" (o2)
         : "r" (i0), "r" (i1), "r" (i2), "r" (i3)
-        : "memory"
+        : "cc", "memory"
     );
 
     if (r1) *r1 = o1;
